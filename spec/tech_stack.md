@@ -12,4 +12,4 @@ Guides:
   - you can use biome instead of prettier/eslint for linting and formatting
   - you can use tailwindcss and shadcn if necessary
   - ...
-- Add comments to the code whenever you think necessary
+- Add explanatory comments to frontend code, and necessary comments to backend code.

@@ -24,7 +24,12 @@ cd frontend && npm run dev      # Vite dev server alone
 cd frontend && npm run build    # TypeScript check + Vite build
 ```
 
-No test suite exists yet.
+Add test suites for main components, add explanatory comments to the code.
+
+## Designs
+
+Always references the design prototypes under @spec folder. DataGrip is a very good example in terms of UI layout/themes and
+interactions, you can always references DataGrip.
 
 ## Architecture
 
@@ -43,6 +48,12 @@ No test suite exists yet.
 
 ### Wails binding contract
 Any Go method on `App` that should be callable from the frontend must be exported and registered in `main.go`'s `Bind` slice. Wails generates the TypeScript/JS wrappers automatically. The frontend imports them from `../../wailsjs/go/main/App`.
+
+## Verification
+A Demo database is running locally, you can get the configuration and credentials from
+@docker/docker-compose-postgresql.yml.
+
+Always verify the changes when you finish a sprint. 
 
 ## Key constraints
 - Each DB call creates and closes its own `pgx.Conn` — no connection pool. Keep this in mind when adding features that need multiple sequential queries.
