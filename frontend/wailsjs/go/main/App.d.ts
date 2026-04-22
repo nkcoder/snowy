@@ -6,8 +6,6 @@ export function ExecuteQuery(arg1:string,arg2:string):Promise<main.QueryResult>;
 
 export function GetConfig():Promise<main.Config>;
 
-export function Greet(arg1:string):Promise<string>;
-
 export function ListColumns(arg1:string,arg2:string,arg3:string):Promise<Array<main.ColumnItem>>;
 
 export function ListSchemas(arg1:string):Promise<Array<main.SchemaItem>>;
@@ -16,6 +14,6 @@ export function ListTables(arg1:string,arg2:string):Promise<Array<main.TableItem
 
 export function SaveConfig(arg1:main.Config):Promise<void>;
 
-export function TestDatasource(arg1:string,arg2:number,arg3:string,arg4:string,arg5:string):Promise<main.TestConnectionResult>;
+export function TestDatasource(arg1:string,arg2:number,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.TestConnectionResult>;
 
 export function UpdateDatasource(arg1:main.Datasource):Promise<void>;
