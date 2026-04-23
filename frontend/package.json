@@ -20,6 +20,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx-development": "^7.27.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
