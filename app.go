@@ -19,7 +19,9 @@ type App struct {
 func NewApp() *App {
 	cm, err := NewConfigManager()
 	if err != nil {
-		fmt.Printf("Error creating config manager: %v\n", err)
+		// Config manager is required; surface the error clearly rather than
+		// continuing with a nil manager that would panic on first use.
+		panic(fmt.Sprintf("failed to initialise config manager: %v", err))
 	}
 	app := &App{
 		configManager: cm,
@@ -69,18 +71,17 @@ func (a *App) ExecuteQuery(dsId string, sql string) (*QueryResult, error) {
 	return a.dbService.ExecuteQuery(dsId, sql)
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
 type TestConnectionResult struct {
 	Success bool
 	Message string
 }
 
-// TestDatasource attempts to open a PostgreSQL connection with supplied credentials.
-func (a *App) TestDatasource(host string, port int, database, username, password string) TestConnectionResult {
+// TestDatasource attempts a PostgreSQL connection with the supplied credentials.
+// sslMode must be one of: disable, require, verify-ca, verify-full.
+func (a *App) TestDatasource(host string, port int, database, username, password, sslMode string) TestConnectionResult {
+	if sslMode == "" {
+		sslMode = "disable"
+	}
 	ctx := context.Background()
 	if a.ctx != nil {
 		ctx = a.ctx
@@ -88,7 +89,7 @@ func (a *App) TestDatasource(host string, port int, database, username, password
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", username, password, host, port, database)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", username, password, host, port, database, sslMode)
 	conn, err := pgx.Connect(ctx, connString)
 	if err != nil {
 		return TestConnectionResult{Success: false, Message: err.Error()}

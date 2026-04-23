@@ -100,7 +100,10 @@ function App() {
       <div style={{ display: 'flex', height: '100vh', background: bg, color: '#ecebe8', fontFamily: ui, overflow: 'hidden' }}>
         <Sidebar
           datasourceId={activeDatasourceId}
+          datasourceName={activeDatasource?.name}
+          datasourceDb={activeDatasource?.database}
           onTableSelect={(s, t) => handleRunQuery(`SELECT * FROM ${s}.${t} LIMIT 100;`)}
+          onAddConnection={() => setView('connections')}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Workspace header bar */}
