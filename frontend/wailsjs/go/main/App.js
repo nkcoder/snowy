@@ -33,3 +33,23 @@ export function TestDatasource(arg1, arg2, arg3, arg4, arg5, arg6) {
 export function UpdateDatasource(arg1) {
   return window['go']['main']['App']['UpdateDatasource'](arg1);
 }
+
+export function SaveQuery(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveQuery'](arg1, arg2, arg3);
+}
+
+export function ListSavedQueries(arg1) {
+  return window['go']['main']['App']['ListSavedQueries'](arg1);
+}
+
+export function LoadSavedQuery(arg1, arg2) {
+  return window['go']['main']['App']['LoadSavedQuery'](arg1, arg2);
+}
+
+export function DeleteSavedQuery(arg1, arg2) {
+  return window['go']['main']['App']['DeleteSavedQuery'](arg1, arg2);
+}
+
+export function RenameQuery(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RenameQuery'](arg1, arg2, arg3);
+}

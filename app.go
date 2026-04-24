@@ -71,6 +71,31 @@ func (a *App) ExecuteQuery(dsId string, sql string) (*QueryResult, error) {
 	return a.dbService.ExecuteQuery(dsId, sql)
 }
 
+// SaveQuery saves a SQL query to disk under ~/.snowy/queries/<dsId>/.
+func (a *App) SaveQuery(dsId, filename, sql string) error {
+	return SaveQuery(dsId, filename, sql)
+}
+
+// ListSavedQueries lists .sql files saved for a datasource.
+func (a *App) ListSavedQueries(dsId string) ([]SavedQuery, error) {
+	return ListSavedQueries(dsId)
+}
+
+// LoadSavedQuery reads a saved query file.
+func (a *App) LoadSavedQuery(dsId, filename string) (string, error) {
+	return LoadSavedQuery(dsId, filename)
+}
+
+// DeleteSavedQuery removes a saved query file.
+func (a *App) DeleteSavedQuery(dsId, filename string) error {
+	return DeleteSavedQuery(dsId, filename)
+}
+
+// RenameQuery renames a saved query file.
+func (a *App) RenameQuery(dsId, oldName, newName string) error {
+	return RenameQuery(dsId, oldName, newName)
+}
+
 type TestConnectionResult struct {
 	Success bool
 	Message string

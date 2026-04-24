@@ -45,6 +45,8 @@ function App() {
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [queryResult, setQueryResult] = useState<{ columns: string[]; rows: any[][] } | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
+  const [editorSql, setEditorSql] = useState('');
+  const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
 
   useEffect(() => { loadConfig(); }, []);
 
@@ -76,7 +78,45 @@ function App() {
   const handleConnect = (dsId: string) => {
     setActiveDatasourceId(dsId);
     setQueryResult(null);
+    setEditorSql('');
+    setSavedQueries([]);
     setView('workspace');
+    // Load saved queries for this datasource
+    GoApp.ListSavedQueries(dsId).then(setSavedQueries).catch(() => {});
+  };
+
+  const handleLoadQuery = async (filename: string) => {
+    if (!activeDatasourceId) return;
+    try {
+      const sql = await GoApp.LoadSavedQuery(activeDatasourceId, filename);
+      setEditorSql(sql);
+    } catch (err) {
+      console.error('Failed to load query', err);
+    }
+  };
+
+  const handleDeleteQuery = async (filename: string) => {
+    if (!activeDatasourceId) return;
+    try {
+      await GoApp.DeleteSavedQuery(activeDatasourceId, filename);
+      setSavedQueries(prev => prev.filter(q => q.filename !== filename));
+    } catch (err) {
+      console.error('Failed to delete query', err);
+    }
+  };
+
+  const handleSaveQuery = async () => {
+    if (!activeDatasourceId) return;
+    const name = window.prompt('Save query as (without .sql):');
+    if (!name || !name.trim()) return;
+    const filename = name.trim();
+    try {
+      await GoApp.SaveQuery(activeDatasourceId, filename, editorSql);
+      const updated = await GoApp.ListSavedQueries(activeDatasourceId);
+      setSavedQueries(updated);
+    } catch (err) {
+      alert('Failed to save: ' + err);
+    }
   };
 
   const handleRunQuery = async (sql: string) => {
@@ -102,7 +142,14 @@ function App() {
           datasourceId={activeDatasourceId}
           datasourceName={activeDatasource?.name}
           datasourceDb={activeDatasource?.database}
-          onTableSelect={(s, t) => handleRunQuery(`SELECT * FROM ${s}.${t} LIMIT 100;`)}
+          onTableSelect={(s, t) => {
+            const q = `SELECT * FROM ${s}.${t} LIMIT 100;`;
+            setEditorSql(q);
+            handleRunQuery(q);
+          }}
+          savedQueries={savedQueries}
+          onLoadQuery={handleLoadQuery}
+          onDeleteQuery={handleDeleteQuery}
           onAddConnection={() => setView('connections')}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -141,7 +188,13 @@ function App() {
           {/* Editor + Results */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{ height: '50%', minHeight: 200 }}>
-              <QueryEditor onRun={handleRunQuery} loading={queryLoading} />
+              <QueryEditor
+                sql={editorSql}
+                onChange={setEditorSql}
+                onRun={handleRunQuery}
+                onSave={handleSaveQuery}
+                loading={queryLoading}
+              />
             </div>
             <div style={{ flex: 1, borderTop: `0.5px solid ${border}`, minHeight: 120, overflow: 'hidden' }}>
               <ResultsTable data={queryResult} loading={queryLoading} />

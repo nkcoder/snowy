@@ -1,64 +1,172 @@
-import React, { useState } from 'react';
-import { Play, Save, Trash2, Clock, CheckCircle2 } from 'lucide-react';
+import { useEffect, useRef, useCallback } from 'react';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
+import { EditorState } from '@codemirror/state';
+import { sql } from '@codemirror/lang-sql';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { Play, Save, Trash2, Clock } from 'lucide-react';
 
 interface QueryEditorProps {
+    sql: string;
+    onChange: (sql: string) => void;
     onRun: (sql: string) => void;
+    onSave: () => void;
     loading: boolean;
 }
 
-export function QueryEditor({ onRun, loading }: QueryEditorProps) {
-    const [sql, setSql] = useState('SELECT * FROM users;');
+// Override CodeMirror's default background to match app chrome
+const editorTheme = EditorView.theme({
+    '&': {
+        height: '100%',
+        fontSize: '13px',
+        background: '#1e1f22',
+    },
+    '.cm-content': {
+        fontFamily: '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
+        caretColor: '#ecebe8',
+        padding: '8px 0',
+    },
+    '.cm-scroller': { overflow: 'auto' },
+    '.cm-gutters': {
+        background: '#1e1f22',
+        borderRight: '1px solid #393b40',
+        color: '#4a4a50',
+    },
+    '.cm-activeLineGutter': { background: '#25262b' },
+    '.cm-activeLine': { background: '#25262b' },
+    '.cm-selectionBackground, ::selection': { background: '#2e436e !important' },
+    '.cm-cursor': { borderLeftColor: '#ecebe8' },
+    '.cm-focused .cm-selectionBackground': { background: '#2e436e' },
+}, { dark: true });
+
+export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading }: QueryEditorProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const viewRef = useRef<EditorView | null>(null);
+    // Track latest callbacks without re-creating the editor
+    const onRunRef = useRef(onRun);
+    const onSaveRef = useRef(onSave);
+    const onChangeRef = useRef(onChange);
+    onRunRef.current = onRun;
+    onSaveRef.current = onSave;
+    onChangeRef.current = onChange;
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const runCmd = (view: EditorView) => {
+            const content = view.state.doc.toString();
+            onRunRef.current(content);
+            return true;
+        };
+
+        const saveCmd = (view: EditorView) => {
+            onSaveRef.current();
+            return true;
+        };
+
+        const state = EditorState.create({
+            doc: sqlValue,
+            extensions: [
+                history(),
+                lineNumbers(),
+                highlightActiveLine(),
+                highlightActiveLineGutter(),
+                sql(),
+                oneDark,
+                editorTheme,
+                keymap.of([
+                    { key: 'Mod-Enter', run: runCmd },
+                    { key: 'Mod-s', run: saveCmd, preventDefault: true },
+                    ...defaultKeymap,
+                    ...historyKeymap,
+                ]),
+                EditorView.updateListener.of(update => {
+                    if (update.docChanged) {
+                        onChangeRef.current(update.state.doc.toString());
+                    }
+                }),
+            ],
+        });
+
+        const view = new EditorView({ state, parent: containerRef.current });
+        viewRef.current = view;
+
+        return () => {
+            view.destroy();
+            viewRef.current = null;
+        };
+        // Only create editor once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Sync external sql changes into editor (e.g. table double-click, load from sidebar)
+    useEffect(() => {
+        const view = viewRef.current;
+        if (!view) return;
+        const current = view.state.doc.toString();
+        if (current === sqlValue) return;
+        view.dispatch({
+            changes: { from: 0, to: current.length, insert: sqlValue },
+        });
+    }, [sqlValue]);
+
+    const handleRun = useCallback(() => {
+        const view = viewRef.current;
+        onRun(view ? view.state.doc.toString() : sqlValue);
+    }, [onRun, sqlValue]);
+
+    const handleClear = useCallback(() => {
+        const view = viewRef.current;
+        if (!view) return;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
+        onChange('');
+    }, [onChange]);
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1f22] border-b border-[#393b40]">
+        <div className="flex flex-col h-full bg-[#1e1f22] border-b border-[#393b40]" data-testid="query-editor">
             {/* Toolbar */}
-            <div className="flex items-center h-9 px-2 gap-1 border-b border-[#393b40] bg-[#2b2d30]">
+            <div className="flex items-center h-9 px-2 gap-1 border-b border-[#393b40] bg-[#2b2d30] flex-shrink-0">
                 <button
-                    onClick={() => onRun(sql)}
-                    disabled={loading || !sql.trim()}
+                    data-testid="run-button"
+                    onClick={handleRun}
+                    disabled={loading}
+                    title="Run (⌘↵)"
                     className="flex items-center gap-1.5 bg-[#3574f0] hover:bg-[#4b85ff] disabled:opacity-40 text-white text-[12px] font-semibold px-2.5 py-1 rounded transition-colors shadow-sm"
                 >
                     <Play size={14} fill="currentColor" />
                     Execute
                 </button>
                 <div className="h-4 w-[1px] bg-[#393b40] mx-1" />
-                <button className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors" title="Save Query">
+                <button
+                    data-testid="save-button"
+                    onClick={onSave}
+                    title="Save (⌘S)"
+                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
+                >
                     <Save size={16} />
                 </button>
-                <button className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors" title="Clear">
+                <button
+                    data-testid="clear-button"
+                    onClick={handleClear}
+                    title="Clear"
+                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
+                >
                     <Trash2 size={16} />
                 </button>
                 <div className="h-4 w-[1px] bg-[#393b40] mx-1" />
-                <button className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors" title="History">
+                <button
+                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
+                    title="History"
+                >
                     <Clock size={16} />
                 </button>
-                
-                <div className="ml-auto flex items-center gap-4 px-2">
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#62b543] font-medium">
-                        <CheckCircle2 size={12} />
-                        Connected
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-mono">Tx: Auto</div>
+                <div className="ml-auto px-2 text-[11px] text-slate-500 font-mono select-none">
+                    ⌘↵ run · ⌘S save
                 </div>
             </div>
 
-            {/* Editor Area */}
-            <div className="flex-1 flex overflow-hidden relative">
-                {/* Simulated Gutter */}
-                <div className="w-10 bg-[#1e1f22] border-r border-[#393b40] flex flex-col items-center pt-4 text-[12px] text-slate-600 font-mono select-none">
-                    <span>1</span>
-                    <span>2</span>
-                    <span>3</span>
-                </div>
-                
-                <textarea
-                    value={sql}
-                    onChange={(e) => setSql(e.target.value)}
-                    spellCheck={false}
-                    className="flex-1 p-4 bg-transparent font-mono text-[13px] resize-none focus:outline-none text-[#dfe1e5] leading-relaxed selection:bg-[#2e436e]"
-                    placeholder="Enter SQL query here..."
-                />
-            </div>
+            {/* CodeMirror container */}
+            <div ref={containerRef} className="flex-1 overflow-hidden" data-testid="cm-editor" />
         </div>
     );
 }

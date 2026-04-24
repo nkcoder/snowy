@@ -136,6 +136,18 @@ export namespace main {
 	        this.type = source["type"];
 	    }
 	}
+	export class SavedQuery {
+	    filename: string;
+
+	    static createFrom(source: any = {}) {
+	        return new SavedQuery(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filename = source["filename"];
+	    }
+	}
 	export class TestConnectionResult {
 	    Success: boolean;
 	    Message: string;

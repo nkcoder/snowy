@@ -17,3 +17,13 @@ export function SaveConfig(arg1:main.Config):Promise<void>;
 export function TestDatasource(arg1:string,arg2:number,arg3:string,arg4:string,arg5:string,arg6:string):Promise<main.TestConnectionResult>;
 
 export function UpdateDatasource(arg1:main.Datasource):Promise<void>;
+
+export function SaveQuery(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function ListSavedQueries(arg1:string):Promise<Array<main.SavedQuery>>;
+
+export function LoadSavedQuery(arg1:string,arg2:string):Promise<string>;
+
+export function DeleteSavedQuery(arg1:string,arg2:string):Promise<void>;
+
+export function RenameQuery(arg1:string,arg2:string,arg3:string):Promise<void>;
