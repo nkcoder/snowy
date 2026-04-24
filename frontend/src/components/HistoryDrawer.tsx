@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Database, ChevronRight } from 'lucide-react';
+import { X, Clock, ChevronRight } from 'lucide-react';
 
 export type HistoryEntry = {
   id: string;
