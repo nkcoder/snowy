@@ -90,6 +90,7 @@ function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
+  const [completions, setCompletions] = useState<any[]>([]);
 
   useEffect(() => { loadConfig(); }, []);
 
@@ -157,12 +158,17 @@ function App() {
     setActiveDatasourceId(dsId);
     setQueryResult(null);
     setSavedQueries([]);
+    setCompletions([]);
     // Start with one empty tab
     const initial = makeTab();
     setTabs([initial]);
     setActiveTabId(initial.id);
     setView('workspace');
     GoApp.ListSavedQueries(dsId).then(data => setSavedQueries(data ?? [])).catch(() => {});
+    // Fetch DB-aware completions in the background — failures are non-fatal
+    GoApp.GetCompletions(dsId)
+      .then(data => setCompletions(data?.entries ?? []))
+      .catch(err => console.warn('GetCompletions failed', err));
   };
 
   // ── Sidebar query actions ────────────────────────────────────────────────────
@@ -316,6 +322,7 @@ function App() {
                   onRun={handleRunQuery}
                   onSave={handleSaveQuery}
                   loading={queryLoading}
+                  completions={completions}
                 />
               ) : (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6e6a62', fontSize: 12, background: '#1e1f22', height: '100%' }}>

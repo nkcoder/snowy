@@ -16,6 +16,56 @@ export namespace main {
 	        this.isNullable = source["isNullable"];
 	    }
 	}
+	export class CompletionEntry {
+	    kind: string;
+	    schema: string;
+	    table: string;
+	    name: string;
+	    dataType: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CompletionEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.schema = source["schema"];
+	        this.table = source["table"];
+	        this.name = source["name"];
+	        this.dataType = source["dataType"];
+	    }
+	}
+	export class CompletionSet {
+	    entries: CompletionEntry[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CompletionSet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entries = this.convertValues(source["entries"], CompletionEntry);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Datasource {
 	    id: string;
 	    name: string;

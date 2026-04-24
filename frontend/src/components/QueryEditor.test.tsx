@@ -27,9 +27,13 @@ vi.mock('@codemirror/state', () => ({
   EditorState: {
     create: () => ({}),
   },
+  Compartment: class {
+    of = () => ({});
+    reconfigure = () => ({});
+  },
 }));
 
-vi.mock('@codemirror/lang-sql', () => ({ sql: () => ({}) }));
+vi.mock('@codemirror/lang-sql', () => ({ sql: () => ({}), PostgreSQL: {} }));
 vi.mock('@codemirror/theme-one-dark', () => ({ oneDark: {} }));
 vi.mock('@codemirror/commands', () => ({
   defaultKeymap: [],

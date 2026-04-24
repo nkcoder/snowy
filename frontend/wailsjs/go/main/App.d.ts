@@ -6,6 +6,8 @@ export function DeleteSavedQuery(arg1:string,arg2:string):Promise<void>;
 
 export function ExecuteQuery(arg1:string,arg2:string):Promise<main.QueryResult>;
 
+export function GetCompletions(arg1:string):Promise<main.CompletionSet>;
+
 export function GetConfig():Promise<main.Config>;
 
 export function ListColumns(arg1:string,arg2:string,arg3:string):Promise<Array<main.ColumnItem>>;

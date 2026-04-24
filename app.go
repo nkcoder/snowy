@@ -96,6 +96,12 @@ func (a *App) RenameQuery(dsId, oldName, newName string) error {
 	return RenameQuery(dsId, oldName, newName)
 }
 
+// GetCompletions returns DB-aware autocomplete entries (schemas, tables, views, columns)
+// for the given datasource. Results are cached in-memory.
+func (a *App) GetCompletions(dsId string) (*CompletionSet, error) {
+	return a.dbService.GetCompletions(dsId)
+}
+
 type TestConnectionResult struct {
 	Success bool
 	Message string

@@ -8,3 +8,6 @@ coverage.out
 frontend/coverage
 
 .playwright-cli
+test-results/
+frontend/test-results/
+playwright-report/
