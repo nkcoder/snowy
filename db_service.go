@@ -26,8 +26,10 @@ type ColumnItem struct {
 }
 
 type QueryResult struct {
-	Columns []string        `json:"columns"`
-	Rows    [][]interface{} `json:"rows"`
+	Columns    []string        `json:"columns"`
+	Rows       [][]interface{} `json:"rows"`
+	DurationMs int64           `json:"durationMs"`
+	RowCount   int             `json:"rowCount"`
 }
 
 // CompletionEntry represents a single autocomplete item (schema, table, view, or column).
@@ -252,6 +254,7 @@ func (s *DbService) ExecuteQuery(dsId string, sql string) (*QueryResult, error) 
 	defer conn.Close(ctx)
 	defer cancel()
 
+	start := time.Now()
 	rows, err := conn.Query(ctx, sql)
 	if err != nil {
 		return nil, err
@@ -273,8 +276,12 @@ func (s *DbService) ExecuteQuery(dsId string, sql string) (*QueryResult, error) 
 		results = append(results, values)
 	}
 
+	durationMs := time.Since(start).Milliseconds()
+
 	return &QueryResult{
-		Columns: columns,
-		Rows:    results,
+		Columns:    columns,
+		Rows:       results,
+		DurationMs: durationMs,
+		RowCount:   len(results),
 	}, nil
 }

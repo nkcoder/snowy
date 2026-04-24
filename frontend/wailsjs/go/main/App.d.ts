@@ -10,6 +10,8 @@ export function GetCompletions(arg1:string):Promise<main.CompletionSet>;
 
 export function GetConfig():Promise<main.Config>;
 
+export function GetQueryHistory(arg1:string,arg2:number):Promise<Array<main.HistoryEntry>>;
+
 export function ListColumns(arg1:string,arg2:string,arg3:string):Promise<Array<main.ColumnItem>>;
 
 export function ListSavedQueries(arg1:string):Promise<Array<main.SavedQuery>>;
@@ -19,6 +21,8 @@ export function ListSchemas(arg1:string):Promise<Array<main.SchemaItem>>;
 export function ListTables(arg1:string,arg2:string):Promise<Array<main.TableItem>>;
 
 export function LoadSavedQuery(arg1:string,arg2:string):Promise<string>;
+
+export function RecordHistory(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function RenameQuery(arg1:string,arg2:string,arg3:string):Promise<void>;
 
