@@ -19,6 +19,8 @@ import * as GoApp from '../../wailsjs/go/main/App';
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const onTableSelect = overrides.onTableSelect ?? vi.fn();
   const onAddConnection = overrides.onAddConnection ?? vi.fn();
+  const onLoadQuery = overrides.onLoadQuery ?? vi.fn();
+  const onDeleteQuery = overrides.onDeleteQuery ?? vi.fn();
   render(
     <Sidebar
       datasourceId={overrides.datasourceId ?? 'ds1'}
@@ -26,9 +28,12 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       datasourceDb={overrides.datasourceDb ?? 'mydb'}
       onTableSelect={onTableSelect}
       onAddConnection={onAddConnection}
+      savedQueries={overrides.savedQueries ?? []}
+      onLoadQuery={onLoadQuery}
+      onDeleteQuery={onDeleteQuery}
     />
   );
-  return { onTableSelect, onAddConnection };
+  return { onTableSelect, onAddConnection, onLoadQuery, onDeleteQuery };
 }
 
 describe('Sidebar — basic render', () => {
@@ -252,9 +257,9 @@ describe('Sidebar — folder expand/collapse', () => {
   it('queries folder is collapsed by default, expands on click', async () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('folder-queries'));
-    expect(screen.queryByText(/Saved queries/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No saved queries/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByTestId('folder-queries'));
-    expect(screen.getByText(/Saved queries/)).toBeInTheDocument();
+    expect(screen.getByText(/No saved queries/)).toBeInTheDocument();
   });
 
   it('schemas folder is expanded by default', async () => {
@@ -323,6 +328,47 @@ describe('Sidebar — views folder', () => {
     await waitFor(() => screen.getByTestId('view-row-public-user_view'));
     await userEvent.dblClick(screen.getByTestId('view-row-public-user_view'));
     expect(onTableSelect).toHaveBeenCalledWith('public', 'user_view');
+  });
+});
+
+describe('Sidebar — saved queries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
+  });
+
+  it('shows saved query files when queries folder expanded', async () => {
+    const { onLoadQuery } = renderSidebar({
+      savedQueries: [{ filename: 'my_query.sql' }, { filename: 'report.sql' }],
+    });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    expect(screen.getByTestId('query-row-my_query.sql')).toBeInTheDocument();
+    expect(screen.getByTestId('query-row-report.sql')).toBeInTheDocument();
+    // click a query row → loads it
+    await userEvent.click(screen.getByTestId('query-row-my_query.sql'));
+    expect(onLoadQuery).toHaveBeenCalledWith('my_query.sql');
+  });
+
+  it('delete button calls onDeleteQuery', async () => {
+    const { onDeleteQuery } = renderSidebar({
+      savedQueries: [{ filename: 'my_query.sql' }],
+    });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    await userEvent.click(screen.getByTestId('delete-query-my_query.sql'));
+    expect(onDeleteQuery).toHaveBeenCalledWith('my_query.sql');
+  });
+
+  it('shows "No saved queries" when list is empty and folder open', async () => {
+    renderSidebar({ savedQueries: [] });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    expect(screen.getByText(/No saved queries/)).toBeInTheDocument();
+  });
+
+  it('shows query count badge on folder', async () => {
+    renderSidebar({ savedQueries: [{ filename: 'a.sql' }, { filename: 'b.sql' }] });
+    // Meta shows count — look for "2" near the folder row
+    await waitFor(() => screen.getByTestId('folder-queries'));
+    expect(screen.getByTestId('folder-queries')).toHaveTextContent('2');
   });
 });
 

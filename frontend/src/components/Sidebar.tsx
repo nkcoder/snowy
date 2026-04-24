@@ -16,6 +16,9 @@ interface SidebarProps {
   datasourceDb?: string;
   onTableSelect: (schema: string, table: string) => void;
   onAddConnection?: () => void;
+  savedQueries?: { filename: string }[];
+  onLoadQuery?: (filename: string) => void;
+  onDeleteQuery?: (filename: string) => void;
 }
 
 interface SchemaNode {
@@ -122,7 +125,8 @@ function TreeRow({
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection }: SidebarProps) {
+export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries: savedQueriesProp, onLoadQuery, onDeleteQuery }: SidebarProps) {
+  const savedQueries = savedQueriesProp ?? [];
   const [schemas, setSchemas] = useState<SchemaNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -308,20 +312,36 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
               expanded={queriesOpen}
               icon={<FileCode2 size={12} color={T.warn} />}
               label={<span style={{ color: T.textSec }}>queries</span>}
-              meta={0}
+              meta={savedQueries.length || undefined}
               bold
               onClick={() => setQueriesOpen(o => !o)}
-              actions={
-                <div style={{ width: 16, height: 16, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textSec }}>
-                  <Plus size={10} />
-                </div>
-              }
             />
-            {queriesOpen && (
-              <div style={{ padding: '4px 0 4px 32px', color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
-                Saved queries — Sprint 3
+            {queriesOpen && savedQueries.length === 0 && (
+              <div style={{ padding: '4px 0 4px 40px', color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
+                No saved queries
               </div>
             )}
+            {queriesOpen && savedQueries.map(q => (
+              <TreeRow
+                key={q.filename}
+                data-testid={`query-row-${q.filename}`}
+                depth={2}
+                hasChildren={false}
+                icon={<FileCode2 size={11} color={T.warn} />}
+                label={<span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{q.filename}</span>}
+                onClick={() => onLoadQuery?.(q.filename)}
+                actions={
+                  <button
+                    data-testid={`delete-query-${q.filename}`}
+                    onClick={e => { e.stopPropagation(); onDeleteQuery?.(q.filename); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}
+                    title="Delete query"
+                  >
+                    <X size={10} />
+                  </button>
+                }
+              />
+            ))}
 
             {/* ── schemas folder ─────────────────────────────────── */}
             <TreeRow

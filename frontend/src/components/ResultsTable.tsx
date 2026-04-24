@@ -21,7 +21,7 @@ export function ResultsTable({ data, loading }: ResultsTableProps) {
         );
     }
 
-    if (!data) {
+    if (!data || !data.rows) {
         return (
             <div className="flex items-center justify-center h-full bg-[#1e1f22] text-slate-600 italic text-[13px] font-medium">
                 Execute a query to view results
