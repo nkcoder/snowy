@@ -1,5 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
+
+// ── Error boundary ─────────────────────────────────────────────────────────────
+class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[WorkspaceErrorBoundary]', error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, color: '#ff6b6b', fontFamily: 'monospace', fontSize: 13, background: '#1a1917', height: '100vh', overflow: 'auto' }}>
+          <strong>Workspace render error</strong>
+          <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap', color: '#ecebe8' }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.error.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{ marginTop: 16, padding: '6px 14px', background: '#3574f0', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { Sidebar } from './components/Sidebar';
 import { QueryEditor } from './components/QueryEditor';
 import { ResultsTable } from './components/ResultsTable';
@@ -137,6 +172,7 @@ function App() {
   // ── Workspace view ──────────────────────────────────────────────────────
   if (view === 'workspace') {
     return (
+      <WorkspaceErrorBoundary>
       <div style={{ display: 'flex', height: '100vh', background: bg, color: '#ecebe8', fontFamily: ui, overflow: 'hidden' }}>
         <Sidebar
           datasourceId={activeDatasourceId}
@@ -202,6 +238,7 @@ function App() {
           </div>
         </div>
       </div>
+      </WorkspaceErrorBoundary>
     );
   }
 
