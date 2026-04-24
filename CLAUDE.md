@@ -49,7 +49,7 @@ interactions, you can always references DataGrip.
 ### Wails binding contract
 Any Go method on `App` that should be callable from the frontend must be exported and registered in `main.go`'s `Bind` slice. Wails generates the TypeScript/JS wrappers automatically. The frontend imports them from `../../wailsjs/go/main/App`.
 
-## Delivery
+## Development
 
 We use tiny sprints for agile delivery. Each sprint should deliver a runnable application based on previous sprints.
 
@@ -58,6 +58,8 @@ We should have comprehensive tests (unit tests, integration tests etc.) for both
 You can always review and update the sprint planning @spec/roadmap.md if necessary.
 
 Raise a PR with clear description for review when each sprint is done.
+
+Use playwright cli (already installed) to test (feature testing, regression testing etc.) and verify the features to ensure it's correct. Fix any bugs found.
 
 A Demo database is running locally for verification, you can get the configuration and credentials from
 @docker/docker-compose-postgresql.yml.

@@ -6,3 +6,5 @@ frontend/dist
 
 coverage.out
 frontend/coverage
+
+.playwright-cli

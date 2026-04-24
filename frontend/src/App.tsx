@@ -219,7 +219,9 @@ function App() {
       await GoApp.SaveQuery(activeDatasourceId, filename, activeTab.sql);
       const updated = await GoApp.ListSavedQueries(activeDatasourceId);
       setSavedQueries(updated ?? []);
-      updateActiveTab({ filename, label: filename, dirty: false });
+      // Normalize to .sql so tab filename matches what ListSavedQueries returns
+      const savedFilename = filename.endsWith('.sql') ? filename : `${filename}.sql`;
+      updateActiveTab({ filename: savedFilename, label: savedFilename, dirty: false });
     } catch (err) {
       alert('Failed to save: ' + err);
     }
