@@ -21,6 +21,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const onAddConnection = overrides.onAddConnection ?? vi.fn();
   const onLoadQuery = overrides.onLoadQuery ?? vi.fn();
   const onDeleteQuery = overrides.onDeleteQuery ?? vi.fn();
+  const onRenameQuery = overrides.onRenameQuery ?? vi.fn();
   render(
     <Sidebar
       datasourceId={overrides.datasourceId ?? 'ds1'}
@@ -31,9 +32,10 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       savedQueries={overrides.savedQueries ?? []}
       onLoadQuery={onLoadQuery}
       onDeleteQuery={onDeleteQuery}
+      onRenameQuery={onRenameQuery}
     />
   );
-  return { onTableSelect, onAddConnection, onLoadQuery, onDeleteQuery };
+  return { onTableSelect, onAddConnection, onLoadQuery, onDeleteQuery, onRenameQuery };
 }
 
 describe('Sidebar — basic render', () => {
@@ -366,9 +368,42 @@ describe('Sidebar — saved queries', () => {
 
   it('shows query count badge on folder', async () => {
     renderSidebar({ savedQueries: [{ filename: 'a.sql' }, { filename: 'b.sql' }] });
-    // Meta shows count — look for "2" near the folder row
     await waitFor(() => screen.getByTestId('folder-queries'));
     expect(screen.getByTestId('folder-queries')).toHaveTextContent('2');
+  });
+});
+
+describe('Sidebar — query rename', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
+  });
+
+  it('double-click query row shows rename input', async () => {
+    renderSidebar({ savedQueries: [{ filename: 'my_query.sql' }] });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    await userEvent.dblClick(screen.getByTestId('query-row-my_query.sql'));
+    expect(screen.getByTestId('rename-input-my_query.sql')).toBeInTheDocument();
+  });
+
+  it('Enter in rename input calls onRenameQuery', async () => {
+    const { onRenameQuery } = renderSidebar({ savedQueries: [{ filename: 'old.sql' }] });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    await userEvent.dblClick(screen.getByTestId('query-row-old.sql'));
+    const input = screen.getByTestId('rename-input-old.sql');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'new.sql');
+    await userEvent.keyboard('{Enter}');
+    expect(onRenameQuery).toHaveBeenCalledWith('old.sql', 'new.sql');
+  });
+
+  it('Escape cancels rename without calling onRenameQuery', async () => {
+    const { onRenameQuery } = renderSidebar({ savedQueries: [{ filename: 'q.sql' }] });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    await userEvent.dblClick(screen.getByTestId('query-row-q.sql'));
+    await userEvent.keyboard('{Escape}');
+    expect(onRenameQuery).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('rename-input-q.sql')).not.toBeInTheDocument();
   });
 });
 
