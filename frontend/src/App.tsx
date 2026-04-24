@@ -117,7 +117,7 @@ function App() {
     setSavedQueries([]);
     setView('workspace');
     // Load saved queries for this datasource
-    GoApp.ListSavedQueries(dsId).then(setSavedQueries).catch(() => {});
+    GoApp.ListSavedQueries(dsId).then(data => setSavedQueries(data ?? [])).catch(() => {});
   };
 
   const handleLoadQuery = async (filename: string) => {

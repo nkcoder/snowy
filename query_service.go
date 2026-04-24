@@ -51,7 +51,7 @@ func ListSavedQueries(dsId string) ([]SavedQuery, error) {
 	if err != nil {
 		return nil, err
 	}
-	var result []SavedQuery
+	result := make([]SavedQuery, 0)
 	for _, e := range entries {
 		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
 			result = append(result, SavedQuery{Filename: e.Name()})

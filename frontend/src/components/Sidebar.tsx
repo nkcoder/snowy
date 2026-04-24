@@ -125,7 +125,8 @@ function TreeRow({
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries = [], onLoadQuery, onDeleteQuery }: SidebarProps) {
+export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries: savedQueriesProp, onLoadQuery, onDeleteQuery }: SidebarProps) {
+  const savedQueries = savedQueriesProp ?? [];
   const [schemas, setSchemas] = useState<SchemaNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
