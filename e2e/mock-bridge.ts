@@ -54,19 +54,45 @@ export const mockQueryResult = {
     [1, 'Alice', 'Smith', 'alice@example.com'],
     [2, 'Bob', 'Jones', 'bob@example.com'],
   ],
+  durationMs: 42,
+  rowCount: 2,
 };
+
+export const mockHistoryEntries = [
+  {
+    id: '1',
+    sql: 'SELECT * FROM users LIMIT 10;',
+    rowCount: 10,
+    durationMs: 35,
+    executedAt: new Date(Date.now() - 60000).toISOString(),
+  },
+  {
+    id: '2',
+    sql: 'SELECT count(*) FROM accounts;',
+    rowCount: 1,
+    durationMs: 12,
+    executedAt: new Date(Date.now() - 300000).toISOString(),
+  },
+];
 
 /**
  * Returns the JS to inject into the page that sets up window.go mock.
  * This must be a serializable string (no closures over external vars).
  */
-export function buildMockBridgeScript(config: object, completions: object, queryResult: object): string {
+export function buildMockBridgeScript(
+  config: object,
+  completions: object,
+  queryResult: object,
+  historyEntries: object[] = [],
+): string {
   return `
     const _config = ${JSON.stringify(config)};
     const _completions = ${JSON.stringify(completions)};
     const _queryResult = ${JSON.stringify(queryResult)};
+    const _historyEntries = ${JSON.stringify(historyEntries)};
     const _savedQueries = [];
     const _savedQueryData = {};
+    const _recordedHistory = [];
 
     window.go = {
       main: {
@@ -121,9 +147,18 @@ export function buildMockBridgeScript(config: object, completions: object, query
             delete _savedQueryData[oldName];
             return Promise.resolve();
           },
+          RecordHistory: (dsId, sql, rowCount, durationMs) => {
+            _recordedHistory.push({ dsId, sql, rowCount, durationMs });
+            window.__recordedHistory = _recordedHistory;
+            return Promise.resolve();
+          },
+          GetQueryHistory: (dsId, limit) => {
+            return Promise.resolve(_historyEntries.slice(0, limit));
+          },
         },
       },
     };
+    window.__recordedHistory = _recordedHistory;
     console.log('[mock-bridge] window.go installed');
   `;
 }

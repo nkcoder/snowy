@@ -102,6 +102,16 @@ func (a *App) GetCompletions(dsId string) (*CompletionSet, error) {
 	return a.dbService.GetCompletions(dsId)
 }
 
+// RecordHistory appends a query execution record to ~/.snowy/history/<dsId>.jsonl.
+func (a *App) RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
+	return RecordHistory(dsId, sql, rowCount, durationMs)
+}
+
+// GetQueryHistory returns the last limit history entries for a datasource, newest first.
+func (a *App) GetQueryHistory(dsId string, limit int) ([]HistoryEntry, error) {
+	return GetQueryHistory(dsId, limit)
+}
+
 type TestConnectionResult struct {
 	Success bool
 	Message string

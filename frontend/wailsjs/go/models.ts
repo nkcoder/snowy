@@ -143,10 +143,32 @@ export namespace main {
 		}
 	}
 	
+	export class HistoryEntry {
+	    id: string;
+	    sql: string;
+	    rowCount: number;
+	    durationMs: number;
+	    executedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.sql = source["sql"];
+	        this.rowCount = source["rowCount"];
+	        this.durationMs = source["durationMs"];
+	        this.executedAt = source["executedAt"];
+	    }
+	}
 	
 	export class QueryResult {
 	    columns: string[];
 	    rows: any[][];
+	    durationMs: number;
+	    rowCount: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueryResult(source);
@@ -156,6 +178,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.columns = source["columns"];
 	        this.rows = source["rows"];
+	        this.durationMs = source["durationMs"];
+	        this.rowCount = source["rowCount"];
 	    }
 	}
 	export class SavedQuery {

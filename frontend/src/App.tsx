@@ -37,9 +37,10 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
 }
 import { Sidebar } from './components/Sidebar';
 import { QueryEditor } from './components/QueryEditor';
-import { ResultsTable } from './components/ResultsTable';
 import { ConnectionManager } from './components/ConnectionManager';
 import { TabBar, type Tab } from './components/TabBar';
+import { ResultsPanel, type ResultTab } from './components/ResultsPanel';
+import { HistoryDrawer, type HistoryEntry } from './components/HistoryDrawer';
 import { ChevronRight, Database, LogOut } from 'lucide-react';
 import './App.css';
 
@@ -47,6 +48,21 @@ import './App.css';
 let _tabSeq = 0;
 function makeTab(label = 'untitled', sql = '', filename: string | null = null): Tab {
   return { id: `tab-${++_tabSeq}`, label, filename, sql, dirty: false };
+}
+
+let _resultSeq = 0;
+
+function makeLiveResultTab(): ResultTab {
+  return {
+    id: 'live',
+    label: 'Result 1',
+    data: null,
+    rowCount: 0,
+    durationMs: 0,
+    timestamp: new Date(),
+    pinned: false,
+    sql: '',
+  };
 }
 
 type Project = {
@@ -76,8 +92,6 @@ const accent = 'oklch(0.62 0.17 240)';
 const textSec = '#a9a59d';
 const textDim = '#6e6a62';
 const bg = '#1a1917';
-const panel = '#1f1d1b';
-const mono = '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace';
 const ui = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 
 function App() {
@@ -85,19 +99,26 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
-  const [queryResult, setQueryResult] = useState<{ columns: string[]; rows: any[][] } | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
 
+  // ── Result tabs ──────────────────────────────────────────────────────────────
+  const [resultTabs, setResultTabs] = useState<ResultTab[]>([makeLiveResultTab()]);
+  const [activeResultTabId, setActiveResultTabId] = useState<string>('live');
+
+  // ── History drawer ───────────────────────────────────────────────────────────
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => { loadConfig(); }, []);
 
   const loadConfig = async () => {
     try {
       const config = await GoApp.GetConfig();
-      // Backfill env/sslMode for existing datasources that predate these fields
       const ds = (config.datasources ?? []).map((d: any) => ({
         env: 'local', sslMode: 'disable', ...d,
       }));
@@ -119,7 +140,7 @@ function App() {
     setDatasources(prev => prev.map(d => d.id === ds.id ? ds : d));
   };
 
-  // ── Tab helpers ──────────────────────────────────────────────────────────────
+  // ── Editor tab helpers ───────────────────────────────────────────────────────
   const activeTab = tabs.find(t => t.id === activeTabId) ?? null;
 
   const openTab = (tab: Tab) => {
@@ -156,25 +177,74 @@ function App() {
   // ── Connect / workspace ──────────────────────────────────────────────────────
   const handleConnect = (dsId: string) => {
     setActiveDatasourceId(dsId);
-    setQueryResult(null);
     setSavedQueries([]);
     setCompletions([]);
-    // Start with one empty tab
+    _resultSeq = 0;
+    const liveTab = makeLiveResultTab();
+    setResultTabs([liveTab]);
+    setActiveResultTabId('live');
     const initial = makeTab();
     setTabs([initial]);
     setActiveTabId(initial.id);
     setView('workspace');
     GoApp.ListSavedQueries(dsId).then(data => setSavedQueries(data ?? [])).catch(() => {});
-    // Fetch DB-aware completions in the background — failures are non-fatal
     GoApp.GetCompletions(dsId)
       .then(data => setCompletions(data?.entries ?? []))
       .catch(err => console.warn('GetCompletions failed', err));
   };
 
+  // ── Result tab actions ───────────────────────────────────────────────────────
+  const handlePinResult = () => {
+    const liveTab = resultTabs.find(t => !t.pinned);
+    if (!liveTab?.data) return;
+    const pinned: ResultTab = {
+      ...liveTab,
+      id: `result-pin-${Date.now()}`,
+      pinned: true,
+    };
+    setResultTabs(prev => [...prev, pinned]);
+    setActiveResultTabId(pinned.id);
+  };
+
+  const handleCloseResultTab = (id: string) => {
+    setResultTabs(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (activeResultTabId === id) {
+        setActiveResultTabId(next[next.length - 1]?.id ?? 'live');
+      }
+      return next;
+    });
+  };
+
+  // ── History ──────────────────────────────────────────────────────────────────
+  const handleOpenHistory = async () => {
+    if (!activeDatasourceId) return;
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const entries = await (GoApp as any).GetQueryHistory(activeDatasourceId, 100);
+      setHistoryEntries(entries ?? []);
+    } catch (err) {
+      console.warn('GetQueryHistory failed', err);
+      setHistoryEntries([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleHistorySelect = (sql: string) => {
+    setHistoryOpen(false);
+    if (activeTab) {
+      updateActiveTab({ sql, dirty: true });
+    } else {
+      const tab = makeTab('from history', sql);
+      openTab(tab);
+    }
+  };
+
   // ── Sidebar query actions ────────────────────────────────────────────────────
   const handleLoadQuery = async (filename: string) => {
     if (!activeDatasourceId) return;
-    // Focus existing tab if already open
     const existing = tabs.find(t => t.filename === filename);
     if (existing) { setActiveTabId(existing.id); return; }
     try {
@@ -190,7 +260,6 @@ function App() {
     try {
       await GoApp.DeleteSavedQuery(activeDatasourceId, filename);
       setSavedQueries(prev => prev.filter(q => q.filename !== filename));
-      // Close any open tab for this file
       const tab = tabs.find(t => t.filename === filename);
       if (tab) handleTabClose(tab.id);
     } catch (err) {
@@ -203,7 +272,6 @@ function App() {
     try {
       await GoApp.RenameQuery(activeDatasourceId, oldFilename, newFilename);
       setSavedQueries(prev => prev.map(q => q.filename === oldFilename ? { filename: newFilename } : q));
-      // Update any open tab referencing the old name
       setTabs(prev => prev.map(t =>
         t.filename === oldFilename ? { ...t, filename: newFilename, label: newFilename } : t
       ));
@@ -214,7 +282,6 @@ function App() {
 
   const handleSaveQuery = async () => {
     if (!activeDatasourceId || !activeTab) return;
-    // If tab already has a filename, overwrite silently; else prompt
     let filename = activeTab.filename;
     if (!filename) {
       const name = window.prompt('Save query as (without .sql):');
@@ -225,7 +292,6 @@ function App() {
       await GoApp.SaveQuery(activeDatasourceId, filename, activeTab.sql);
       const updated = await GoApp.ListSavedQueries(activeDatasourceId);
       setSavedQueries(updated ?? []);
-      // Normalize to .sql so tab filename matches what ListSavedQueries returns
       const savedFilename = filename.endsWith('.sql') ? filename : `${filename}.sql`;
       updateActiveTab({ filename: savedFilename, label: savedFilename, dirty: false });
     } catch (err) {
@@ -238,7 +304,23 @@ function App() {
     setQueryLoading(true);
     try {
       const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
-      setQueryResult(result);
+      const rowCount = result.rowCount ?? result.rows?.length ?? 0;
+      const durationMs = result.durationMs ?? 0;
+      _resultSeq++;
+      const label = `Result ${_resultSeq}`;
+
+      // Update live tab
+      setResultTabs(prev => prev.map(t =>
+        !t.pinned
+          ? { ...t, label, data: result, rowCount, durationMs, sql, timestamp: new Date() }
+          : t
+      ));
+      setActiveResultTabId('live');
+
+      // Record history (non-blocking)
+      (GoApp as any).RecordHistory(activeDatasourceId, sql, rowCount, durationMs)
+        .catch((err: any) => console.warn('RecordHistory failed', err));
+
     } catch (err: any) {
       alert('Query failed: ' + err);
     } finally {
@@ -288,9 +370,9 @@ function App() {
               </div>
               <span style={{ color: '#ecebe8', fontWeight: 500 }}>{activeDatasource?.name}</span>
               <ChevronRight size={11} color={textDim} />
-              <span style={{ color: textSec, fontFamily: mono, fontSize: 11.5 }}>{activeDatasource?.database}</span>
+              <span style={{ color: textSec, fontFamily: '"SF Mono", ui-monospace, monospace', fontSize: 11.5 }}>{activeDatasource?.database}</span>
               <span style={{ color: textDim }}>·</span>
-              <span style={{ color: accent, fontFamily: mono, fontSize: 11.5 }}>console</span>
+              <span style={{ color: accent, fontFamily: '"SF Mono", ui-monospace, monospace', fontSize: 11.5 }}>console</span>
             </div>
             <button
               onClick={() => setView('connections')}
@@ -331,10 +413,28 @@ function App() {
               )}
             </div>
             <div style={{ flex: 1, borderTop: `0.5px solid ${border}`, minHeight: 120, overflow: 'hidden' }}>
-              <ResultsTable data={queryResult} loading={queryLoading} />
+              <ResultsPanel
+                resultTabs={resultTabs}
+                activeResultTabId={activeResultTabId}
+                loading={queryLoading}
+                onSelectTab={setActiveResultTabId}
+                onPin={handlePinResult}
+                onCloseTab={handleCloseResultTab}
+                onOpenHistory={handleOpenHistory}
+              />
             </div>
           </div>
         </div>
+
+        {/* History drawer */}
+        {historyOpen && (
+          <HistoryDrawer
+            entries={historyEntries}
+            loading={historyLoading}
+            onClose={() => setHistoryOpen(false)}
+            onSelect={handleHistorySelect}
+          />
+        )}
       </div>
       </WorkspaceErrorBoundary>
     );
