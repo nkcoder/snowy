@@ -57,7 +57,7 @@ We should have comprehensive tests (unit tests, integration tests etc.) for both
 
 You can always review and update the sprint planning @spec/roadmap.md if necessary.
 
-Raise a PR with clear description for review.
+Raise a PR with clear description for review when each sprint is done.
 
 A Demo database is running locally for verification, you can get the configuration and credentials from
 @docker/docker-compose-postgresql.yml.

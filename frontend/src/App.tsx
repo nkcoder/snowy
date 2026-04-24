@@ -39,8 +39,15 @@ import { Sidebar } from './components/Sidebar';
 import { QueryEditor } from './components/QueryEditor';
 import { ResultsTable } from './components/ResultsTable';
 import { ConnectionManager } from './components/ConnectionManager';
+import { TabBar, type Tab } from './components/TabBar';
 import { ChevronRight, Database, LogOut } from 'lucide-react';
 import './App.css';
+
+// ── Tab helpers ────────────────────────────────────────────────────────────────
+let _tabSeq = 0;
+function makeTab(label = 'untitled', sql = '', filename: string | null = null): Tab {
+  return { id: `tab-${++_tabSeq}`, label, filename, sql, dirty: false };
+}
 
 type Project = {
   id: string;
@@ -80,7 +87,8 @@ function App() {
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [queryResult, setQueryResult] = useState<{ columns: string[]; rows: any[][] } | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
-  const [editorSql, setEditorSql] = useState('');
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
 
   useEffect(() => { loadConfig(); }, []);
@@ -110,21 +118,62 @@ function App() {
     setDatasources(prev => prev.map(d => d.id === ds.id ? ds : d));
   };
 
+  // ── Tab helpers ──────────────────────────────────────────────────────────────
+  const activeTab = tabs.find(t => t.id === activeTabId) ?? null;
+
+  const openTab = (tab: Tab) => {
+    setTabs(prev => [...prev, tab]);
+    setActiveTabId(tab.id);
+  };
+
+  const updateActiveTab = (patch: Partial<Tab>) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...patch } : t));
+  };
+
+  const handleTabSelect = (id: string) => setActiveTabId(id);
+
+  const handleTabClose = (id: string) => {
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.dirty && !window.confirm(`"${tab.label}" has unsaved changes. Close anyway?`)) return;
+    setTabs(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (activeTabId === id && next.length > 0) {
+        const idx = Math.max(0, prev.findIndex(t => t.id === id) - 1);
+        setActiveTabId(next[Math.min(idx, next.length - 1)].id);
+      } else if (next.length === 0) {
+        setActiveTabId(null);
+      }
+      return next;
+    });
+  };
+
+  const handleNewTab = () => {
+    const tab = makeTab();
+    openTab(tab);
+  };
+
+  // ── Connect / workspace ──────────────────────────────────────────────────────
   const handleConnect = (dsId: string) => {
     setActiveDatasourceId(dsId);
     setQueryResult(null);
-    setEditorSql('');
     setSavedQueries([]);
+    // Start with one empty tab
+    const initial = makeTab();
+    setTabs([initial]);
+    setActiveTabId(initial.id);
     setView('workspace');
-    // Load saved queries for this datasource
     GoApp.ListSavedQueries(dsId).then(data => setSavedQueries(data ?? [])).catch(() => {});
   };
 
+  // ── Sidebar query actions ────────────────────────────────────────────────────
   const handleLoadQuery = async (filename: string) => {
     if (!activeDatasourceId) return;
+    // Focus existing tab if already open
+    const existing = tabs.find(t => t.filename === filename);
+    if (existing) { setActiveTabId(existing.id); return; }
     try {
       const sql = await GoApp.LoadSavedQuery(activeDatasourceId, filename);
-      setEditorSql(sql);
+      openTab(makeTab(filename, sql, filename));
     } catch (err) {
       console.error('Failed to load query', err);
     }
@@ -135,20 +184,42 @@ function App() {
     try {
       await GoApp.DeleteSavedQuery(activeDatasourceId, filename);
       setSavedQueries(prev => prev.filter(q => q.filename !== filename));
+      // Close any open tab for this file
+      const tab = tabs.find(t => t.filename === filename);
+      if (tab) handleTabClose(tab.id);
     } catch (err) {
       console.error('Failed to delete query', err);
     }
   };
 
-  const handleSaveQuery = async () => {
+  const handleRenameQuery = async (oldFilename: string, newFilename: string) => {
     if (!activeDatasourceId) return;
-    const name = window.prompt('Save query as (without .sql):');
-    if (!name || !name.trim()) return;
-    const filename = name.trim();
     try {
-      await GoApp.SaveQuery(activeDatasourceId, filename, editorSql);
+      await GoApp.RenameQuery(activeDatasourceId, oldFilename, newFilename);
+      setSavedQueries(prev => prev.map(q => q.filename === oldFilename ? { filename: newFilename } : q));
+      // Update any open tab referencing the old name
+      setTabs(prev => prev.map(t =>
+        t.filename === oldFilename ? { ...t, filename: newFilename, label: newFilename } : t
+      ));
+    } catch (err) {
+      console.error('Failed to rename query', err);
+    }
+  };
+
+  const handleSaveQuery = async () => {
+    if (!activeDatasourceId || !activeTab) return;
+    // If tab already has a filename, overwrite silently; else prompt
+    let filename = activeTab.filename;
+    if (!filename) {
+      const name = window.prompt('Save query as (without .sql):');
+      if (!name?.trim()) return;
+      filename = name.trim();
+    }
+    try {
+      await GoApp.SaveQuery(activeDatasourceId, filename, activeTab.sql);
       const updated = await GoApp.ListSavedQueries(activeDatasourceId);
-      setSavedQueries(updated);
+      setSavedQueries(updated ?? []);
+      updateActiveTab({ filename, label: filename, dirty: false });
     } catch (err) {
       alert('Failed to save: ' + err);
     }
@@ -167,6 +238,10 @@ function App() {
     }
   };
 
+  const handleEditorChange = (sql: string) => {
+    updateActiveTab({ sql, dirty: true });
+  };
+
   const activeDatasource = datasources.find(d => d.id === activeDatasourceId);
 
   // ── Workspace view ──────────────────────────────────────────────────────
@@ -180,12 +255,13 @@ function App() {
           datasourceDb={activeDatasource?.database}
           onTableSelect={(s, t) => {
             const q = `SELECT * FROM ${s}.${t} LIMIT 100;`;
-            setEditorSql(q);
+            openTab(makeTab(`${s}.${t}`, q));
             handleRunQuery(q);
           }}
           savedQueries={savedQueries}
           onLoadQuery={handleLoadQuery}
           onDeleteQuery={handleDeleteQuery}
+          onRenameQuery={handleRenameQuery}
           onAddConnection={() => setView('connections')}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -223,14 +299,27 @@ function App() {
 
           {/* Editor + Results */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ height: '50%', minHeight: 200 }}>
-              <QueryEditor
-                sql={editorSql}
-                onChange={setEditorSql}
-                onRun={handleRunQuery}
-                onSave={handleSaveQuery}
-                loading={queryLoading}
-              />
+            <TabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelect={handleTabSelect}
+              onClose={handleTabClose}
+              onNew={handleNewTab}
+            />
+            <div style={{ height: 'calc(50% - 30px)', minHeight: 170 }}>
+              {activeTab ? (
+                <QueryEditor
+                  sql={activeTab.sql}
+                  onChange={handleEditorChange}
+                  onRun={handleRunQuery}
+                  onSave={handleSaveQuery}
+                  loading={queryLoading}
+                />
+              ) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6e6a62', fontSize: 12, background: '#1e1f22', height: '100%' }}>
+                  Open a query or click + to start
+                </div>
+              )}
             </div>
             <div style={{ flex: 1, borderTop: `0.5px solid ${border}`, minHeight: 120, overflow: 'hidden' }}>
               <ResultsTable data={queryResult} loading={queryLoading} />

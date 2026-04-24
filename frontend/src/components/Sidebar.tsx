@@ -19,6 +19,7 @@ interface SidebarProps {
   savedQueries?: { filename: string }[];
   onLoadQuery?: (filename: string) => void;
   onDeleteQuery?: (filename: string) => void;
+  onRenameQuery?: (oldFilename: string, newFilename: string) => void;
 }
 
 interface SchemaNode {
@@ -125,8 +126,10 @@ function TreeRow({
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries: savedQueriesProp, onLoadQuery, onDeleteQuery }: SidebarProps) {
+export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries: savedQueriesProp, onLoadQuery, onDeleteQuery, onRenameQuery }: SidebarProps) {
   const savedQueries = savedQueriesProp ?? [];
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [schemas, setSchemas] = useState<SchemaNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -322,25 +325,59 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
               </div>
             )}
             {queriesOpen && savedQueries.map(q => (
-              <TreeRow
-                key={q.filename}
-                data-testid={`query-row-${q.filename}`}
-                depth={2}
-                hasChildren={false}
-                icon={<FileCode2 size={11} color={T.warn} />}
-                label={<span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{q.filename}</span>}
-                onClick={() => onLoadQuery?.(q.filename)}
-                actions={
-                  <button
-                    data-testid={`delete-query-${q.filename}`}
-                    onClick={e => { e.stopPropagation(); onDeleteQuery?.(q.filename); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}
-                    title="Delete query"
-                  >
-                    <X size={10} />
-                  </button>
-                }
-              />
+              renamingFile === q.filename ? (
+                // Inline rename input
+                <div
+                  key={q.filename}
+                  style={{ height: ROW_H, display: 'flex', alignItems: 'center', paddingLeft: 6 + 2 * 14, paddingRight: 8, gap: 4 }}
+                >
+                  <FileCode2 size={11} color={T.warn} style={{ flexShrink: 0 }} />
+                  <input
+                    data-testid={`rename-input-${q.filename}`}
+                    autoFocus
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && renameValue.trim()) {
+                        onRenameQuery?.(q.filename, renameValue.trim());
+                        setRenamingFile(null);
+                      } else if (e.key === 'Escape') {
+                        setRenamingFile(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (renameValue.trim()) onRenameQuery?.(q.filename, renameValue.trim());
+                      setRenamingFile(null);
+                    }}
+                    style={{
+                      flex: 1, background: T.panel, border: `1px solid ${T.accent}`,
+                      borderRadius: 3, color: T.text, fontSize: 11.5,
+                      fontFamily: T.mono, padding: '1px 4px', outline: 'none',
+                    }}
+                  />
+                </div>
+              ) : (
+                <TreeRow
+                  key={q.filename}
+                  data-testid={`query-row-${q.filename}`}
+                  depth={2}
+                  hasChildren={false}
+                  icon={<FileCode2 size={11} color={T.warn} />}
+                  label={<span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{q.filename}</span>}
+                  onClick={() => onLoadQuery?.(q.filename)}
+                  onDoubleClick={() => { setRenamingFile(q.filename); setRenameValue(q.filename); }}
+                  actions={
+                    <button
+                      data-testid={`delete-query-${q.filename}`}
+                      onClick={e => { e.stopPropagation(); onDeleteQuery?.(q.filename); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}
+                      title="Delete query"
+                    >
+                      <X size={10} />
+                    </button>
+                  }
+                />
+              )
             ))}
 
             {/* ── schemas folder ─────────────────────────────────── */}
