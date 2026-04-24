@@ -84,7 +84,7 @@ func (s *DbService) ListSchemas(dsId string) ([]SchemaItem, error) {
 	}
 	defer rows.Close()
 
-	var schemas []SchemaItem
+	schemas := make([]SchemaItem, 0)
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -110,7 +110,7 @@ func (s *DbService) ListTables(dsId string, schema string) ([]TableItem, error) 
 	}
 	defer rows.Close()
 
-	var tables []TableItem
+	tables := make([]TableItem, 0)
 	for rows.Next() {
 		var name, tableType string
 		if err := rows.Scan(&name, &tableType); err != nil {
@@ -136,7 +136,7 @@ func (s *DbService) ListColumns(dsId string, schema, table string) ([]ColumnItem
 	}
 	defer rows.Close()
 
-	var columns []ColumnItem
+	columns := make([]ColumnItem, 0)
 	for rows.Next() {
 		var name, dataType, isNullable string
 		if err := rows.Scan(&name, &dataType, &isNullable); err != nil {
@@ -168,7 +168,7 @@ func (s *DbService) ExecuteQuery(dsId string, sql string) (*QueryResult, error) 
 		columns[i] = fd.Name
 	}
 
-	var results [][]interface{}
+	results := make([][]interface{}, 0)
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
