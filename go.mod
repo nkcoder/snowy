@@ -3,7 +3,7 @@ module snowy
 go 1.25.0
 
 require (
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/wailsapp/wails/v2 v2.12.0
 )
 
