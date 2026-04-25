@@ -41,7 +41,7 @@ import { ConnectionManager } from './components/ConnectionManager';
 import { TabBar, type Tab } from './components/TabBar';
 import { ResultsPanel, type ResultTab } from './components/ResultsPanel';
 import { HistoryDrawer, type HistoryEntry } from './components/HistoryDrawer';
-import { ChevronRight, Database, LogOut } from 'lucide-react';
+import { Database, Terminal, Folder, ChevronRight } from 'lucide-react';
 import './App.css';
 
 // ── Tab helpers ────────────────────────────────────────────────────────────────
@@ -88,11 +88,25 @@ type AppView = 'connections' | 'workspace';
 // Design tokens applied to workspace chrome
 const chrome = '#252320';
 const border = 'rgba(255,255,255,0.07)';
+const borderStrong = 'rgba(255,255,255,0.12)';
 const accent = 'oklch(0.62 0.17 240)';
 const textSec = '#a9a59d';
 const textDim = '#6e6a62';
 const bg = '#1a1917';
+const sidebar = '#1d1b19';
+const ok = '#4fc46a';
 const ui = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const mono = '"SF Mono", "JetBrains Mono", ui-monospace, monospace';
+
+function ElephantGlyph({ color }: { color: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M3.5 7.5c0-2.5 2-4.2 4.6-4.2 2.7 0 4.6 1.7 4.6 4 0 1.8-1 3-1 3.8l.6 1.6h-1.7l-.5-1.2c-.4.3-1 .4-1.6.4l.3 1.2H7.2l-.5-1.4c-1.1-.2-1.9-.6-2.4-1.1-.3.4-.7.6-1.1.6"
+        stroke={color} strokeWidth="1.2" fill={color + '22'} />
+      <circle cx="10.4" cy="6.2" r=".6" fill={color} />
+    </svg>
+  );
+}
 
 function App() {
   const [view, setView] = useState<AppView>('connections');
@@ -336,6 +350,10 @@ function App() {
 
   // ── Workspace view ──────────────────────────────────────────────────────
   if (view === 'workspace') {
+    const liveTab = resultTabs.find(t => !t.pinned);
+    const rowCount = liveTab?.rowCount ?? 0;
+    const durationMs = liveTab?.durationMs ?? 0;
+
     return (
       <WorkspaceErrorBoundary>
       <div style={{ display: 'flex', height: '100vh', background: bg, color: '#ecebe8', fontFamily: ui, overflow: 'hidden' }}>
@@ -353,41 +371,10 @@ function App() {
           onDeleteQuery={handleDeleteQuery}
           onRenameQuery={handleRenameQuery}
           onAddConnection={() => setView('connections')}
+          onNewConsole={handleNewTab}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Workspace header bar */}
-          <div style={{
-            height: 36,
-            borderBottom: `0.5px solid ${border}`,
-            background: chrome,
-            padding: '0 14px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexShrink: 0,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-              <div style={{ width: 18, height: 18, background: accent + '30', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Database size={11} color={accent} />
-              </div>
-              <span style={{ color: '#ecebe8', fontWeight: 500 }}>{activeDatasource?.name}</span>
-              <ChevronRight size={11} color={textDim} />
-              <span style={{ color: textSec, fontFamily: '"SF Mono", ui-monospace, monospace', fontSize: 11.5 }}>{activeDatasource?.database}</span>
-              <span style={{ color: textDim }}>·</span>
-              <span style={{ color: accent, fontFamily: '"SF Mono", ui-monospace, monospace', fontSize: 11.5 }}>console</span>
-            </div>
-            <button
-              onClick={() => setView('connections')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3,
-                color: textDim, background: 'none', border: 'none', cursor: 'pointer',
-              }}
-            >
-              <LogOut size={13} />
-              Close Workspace
-            </button>
-          </div>
-
-          {/* Editor + Results */}
+          {/* Editor area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <TabBar
               tabs={tabs}
@@ -396,7 +383,7 @@ function App() {
               onClose={handleTabClose}
               onNew={handleNewTab}
             />
-            <div style={{ height: 'calc(50% - 30px)', minHeight: 170 }}>
+            <div style={{ flex: 1, minHeight: 0 }}>
               {activeTab ? (
                 <QueryEditor
                   sql={activeTab.sql}
@@ -407,12 +394,47 @@ function App() {
                   completions={completions}
                 />
               ) : (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6e6a62', fontSize: 12, background: '#1e1f22', height: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: textDim, fontSize: 12, background: '#1e1f22', height: '100%' }}>
                   Open a query or click + to start
                 </div>
               )}
             </div>
-            <div style={{ flex: 1, borderTop: `0.5px solid ${border}`, minHeight: 120, overflow: 'hidden' }}>
+          </div>
+
+          {/* Services panel (bottom, 320px) */}
+          <div style={{ height: 320, display: 'flex', minHeight: 0, borderTop: `1px solid ${borderStrong}`, flexShrink: 0 }}>
+            {/* Mini services tree */}
+            <div style={{ width: 220, background: sidebar, borderRight: `0.5px solid ${border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+              {/* Services header */}
+              <div style={{ height: 24, display: 'flex', alignItems: 'center', padding: '0 10px', background: chrome, borderBottom: `0.5px solid ${border}`, fontSize: 11.5, fontWeight: 600, color: '#ecebe8', flexShrink: 0 }}>
+                Services
+              </div>
+              {/* Services tree */}
+              <div style={{ flex: 1, overflow: 'hidden', padding: '4px 0', fontSize: 12 }}>
+                {/* Database folder */}
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 8, gap: 5, color: '#ecebe8', borderLeft: '2px solid transparent' }}>
+                  <ChevronRight size={9} color={textDim} style={{ transform: 'rotate(90deg)' }} />
+                  <Folder size={12} color={accent} />
+                  <span>Database</span>
+                </div>
+                {/* Active connection */}
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 20, paddingRight: 8, gap: 5, color: '#ecebe8', borderLeft: '2px solid transparent' }}>
+                  <ChevronRight size={9} color={textDim} style={{ transform: 'rotate(90deg)' }} />
+                  <ElephantGlyph color={accent} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeDatasource?.name ?? 'connection'}</span>
+                </div>
+                {/* Console row (selected) */}
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 34, paddingRight: 8, gap: 5, color: '#ecebe8', background: 'rgba(255,255,255,0.06)', borderLeft: `2px solid ${accent}` }}>
+                  <div style={{ width: 9 }} />
+                  <Terminal size={12} color={accent} />
+                  <span style={{ flex: 1 }}>console</span>
+                  {durationMs > 0 && <span style={{ fontSize: 10.5, color: textDim, fontFamily: mono }}>{durationMs} ms</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Results panel */}
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <ResultsPanel
                 resultTabs={resultTabs}
                 activeResultTabId={activeResultTabId}
@@ -423,6 +445,19 @@ function App() {
                 onOpenHistory={handleOpenHistory}
               />
             </div>
+          </div>
+
+          {/* Status bar */}
+          <div style={{ height: 22, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 14, background: chrome, borderTop: `0.5px solid ${border}`, fontSize: 10.5, color: textSec, fontFamily: mono, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: ok, boxShadow: `0 0 6px ${ok}`, flexShrink: 0 }} />
+              <span>{activeDatasource?.host}:{activeDatasource?.port}</span>
+            </div>
+            <span>{activeDatasource?.database}</span>
+            <span>utf-8</span>
+            <div style={{ flex: 1 }} />
+            {durationMs > 0 && <span>{rowCount} rows · {durationMs} ms</span>}
+            <span style={{ color: textDim }}>UTC</span>
           </div>
         </div>
 

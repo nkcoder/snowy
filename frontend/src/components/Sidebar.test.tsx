@@ -64,15 +64,15 @@ describe('Sidebar — basic render', () => {
   it('renders search input', () => {
     renderSidebar();
     expect(screen.getByTestId('sidebar-search')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Find anything…')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Filter objects…')).toBeInTheDocument();
   });
 
-  it('renders New connection button', () => {
+  it('renders Connections button', () => {
     renderSidebar();
     expect(screen.getByTestId('sidebar-new-connection')).toBeInTheDocument();
   });
 
-  it('New connection button calls onAddConnection', async () => {
+  it('Connections button calls onAddConnection', async () => {
     const onAddConnection = vi.fn();
     renderSidebar({ onAddConnection });
     await userEvent.click(screen.getByTestId('sidebar-new-connection'));
@@ -239,11 +239,9 @@ describe('Sidebar — search', () => {
   });
 
   it('filters schemas by name (loaded + expanded schemas visible)', async () => {
-    // First load schemas, expand public to get tables
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
 
-    // Search for 'public' — finance should be hidden
     await userEvent.type(screen.getByTestId('sidebar-search'), 'public');
     await waitFor(() => expect(screen.queryByTestId('schema-row-finance')).not.toBeInTheDocument());
     expect(screen.getByTestId('schema-row-public')).toBeInTheDocument();
@@ -291,7 +289,7 @@ describe('Sidebar — refresh button', () => {
   });
 });
 
-describe('Sidebar — views folder', () => {
+describe('Sidebar — views shown inline under schema', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
@@ -301,34 +299,20 @@ describe('Sidebar — views folder', () => {
     ]);
   });
 
-  it('views folder expands on click', async () => {
-    renderSidebar();
-    await waitFor(() => screen.getByTestId('folder-views'));
-    expect(screen.queryByText(/Expand schemas/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByTestId('folder-views'));
-    // No schemas loaded yet → shows "Expand schemas to load views"
-    expect(screen.getByText(/Expand schemas to load views/)).toBeInTheDocument();
-  });
-
-  it('views folder shows view rows after schemas loaded', async () => {
+  it('view row appears under schema after expand', async () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
     await userEvent.click(screen.getByTestId('schema-row-public'));
-    await waitFor(() => screen.getByTestId('table-row-public-user_view'));
-
-    await userEvent.click(screen.getByTestId('folder-views'));
-    await waitFor(() => expect(screen.getByTestId('view-row-public-user_view')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('table-row-public-user_view')).toBeInTheDocument());
   });
 
-  it('double-click in views folder calls onTableSelect', async () => {
+  it('double-click view calls onTableSelect', async () => {
     const onTableSelect = vi.fn();
     renderSidebar({ onTableSelect });
     await waitFor(() => screen.getByTestId('schema-row-public'));
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-user_view'));
-    await userEvent.click(screen.getByTestId('folder-views'));
-    await waitFor(() => screen.getByTestId('view-row-public-user_view'));
-    await userEvent.dblClick(screen.getByTestId('view-row-public-user_view'));
+    await userEvent.dblClick(screen.getByTestId('table-row-public-user_view'));
     expect(onTableSelect).toHaveBeenCalledWith('public', 'user_view');
   });
 });
@@ -346,7 +330,6 @@ describe('Sidebar — saved queries', () => {
     await userEvent.click(screen.getByTestId('folder-queries'));
     expect(screen.getByTestId('query-row-my_query.sql')).toBeInTheDocument();
     expect(screen.getByTestId('query-row-report.sql')).toBeInTheDocument();
-    // click a query row → loads it
     await userEvent.click(screen.getByTestId('query-row-my_query.sql'));
     expect(onLoadQuery).toHaveBeenCalledWith('my_query.sql');
   });
@@ -422,10 +405,8 @@ describe('Sidebar — column collapse', () => {
     await waitFor(() => screen.getByTestId('schema-row-public'));
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
-    // First click: expand columns
     await userEvent.click(screen.getByTestId('table-row-public-users'));
     await waitFor(() => expect(screen.getByText('id')).toBeInTheDocument());
-    // Second click: collapse
     await userEvent.click(screen.getByTestId('table-row-public-users'));
     await waitFor(() => expect(screen.queryByText('id')).not.toBeInTheDocument());
   });
