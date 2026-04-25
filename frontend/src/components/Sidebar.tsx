@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   ChevronRight, ChevronDown, Database, Table2, Columns,
   RefreshCw, Plus, Settings, X, Search, FileCode2,
-  Eye, BarChart2, ArrowUpRight,
+  Square, Terminal, GitBranch, Eye,
 } from 'lucide-react';
 import * as GoApp from '../../wailsjs/go/main/App';
 import { T } from '../lib/tokens';
@@ -16,6 +16,7 @@ interface SidebarProps {
   datasourceDb?: string;
   onTableSelect: (schema: string, table: string) => void;
   onAddConnection?: () => void;
+  onNewConsole?: () => void;
   savedQueries?: { filename: string }[];
   onLoadQuery?: (filename: string) => void;
   onDeleteQuery?: (filename: string) => void;
@@ -125,8 +126,57 @@ function TreeRow({
   );
 }
 
+// ── Toolbar icon button ───────────────────────────────────────────────────────
+function ToolBtn({
+  icon, title, onClick, disabled, color, badge,
+}: {
+  icon: React.ReactNode;
+  title?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  color?: string;
+  badge?: boolean;
+}) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        position: 'relative',
+        width: 24, height: 24,
+        borderRadius: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: disabled ? T.textDim : (color || T.textSec),
+        background: 'none',
+        border: 'none',
+        cursor: disabled ? 'default' : (onClick ? 'pointer' : 'default'),
+        padding: 0,
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+      {badge && (
+        <div style={{
+          position: 'absolute', right: -1, bottom: -1,
+          width: 9, height: 9, borderRadius: 5,
+          background: T.accent, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 8, fontWeight: 800, lineHeight: 1,
+          border: `1.5px solid ${T.chrome}`,
+        }}>+</div>
+      )}
+    </button>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSelect, onAddConnection, savedQueries: savedQueriesProp, onLoadQuery, onDeleteQuery, onRenameQuery }: SidebarProps) {
+export function Sidebar({
+  datasourceId, datasourceName, datasourceDb,
+  onTableSelect, onAddConnection, onNewConsole,
+  savedQueries: savedQueriesProp,
+  onLoadQuery, onDeleteQuery, onRenameQuery,
+}: SidebarProps) {
   const savedQueries = savedQueriesProp ?? [];
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -134,11 +184,9 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  // Folder expanded state (queries/schemas/views/reports)
+  // Folder expanded state
   const [queriesOpen, setQueriesOpen] = useState(false);
   const [schemasOpen, setSchemasOpen] = useState(true);
-  const [viewsOpen, setViewsOpen] = useState(false);
-  const [reportsOpen, setReportsOpen] = useState(false);
 
   const loadSchemas = useCallback(async () => {
     if (!datasourceId) return;
@@ -168,7 +216,6 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
   const toggleSchema = async (idx: number) => {
     const schema = schemas[idx];
     if (!schema.loaded && !schema.expanded) {
-      // Load tables
       try {
         const tables = await GoApp.ListTables(datasourceId!, schema.name);
         setSchemas(prev => prev.map((s, i) => i !== idx ? s : {
@@ -227,9 +274,6 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
       })).filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.tables.length > 0)
     : schemas;
 
-  // ── Views count (tables of type 'view' across all schemas) ──
-  const viewsCount = schemas.reduce((n, s) => n + s.tables.filter(t => t.type === 'view').length, 0);
-
   return (
     <div style={{
       width: 260, flexShrink: 0,
@@ -240,24 +284,50 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
       fontFamily: T.ui,
     }}>
 
-      {/* ── Search bar ─────────────────────────────────────────────── */}
-      <div style={{ padding: '8px 10px 6px', borderBottom: `0.5px solid ${T.divider}` }}>
+      {/* ── Toolbar ────────────────────────────────────────────── */}
+      <div style={{
+        padding: '6px 8px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: T.chrome,
+        borderBottom: `0.5px solid ${T.divider}`,
+        flexShrink: 0,
+      }}>
+        <ToolBtn icon={<Plus size={13} />} title="New connection" onClick={onAddConnection} />
+        <ToolBtn icon={<Database size={13} />} title="Data source properties" />
+        <ToolBtn icon={<RefreshCw size={12} className={loading ? 'animate-spin' : ''} />} title="Synchronize" onClick={loadSchemas} disabled={!datasourceId || loading} />
+        <ToolBtn icon={<Square size={11} />} title="Stop" color={T.err} />
+        {/* separator */}
+        <div style={{ width: 1, height: 14, background: T.border, margin: '0 4px', flexShrink: 0 }} />
+        <ToolBtn icon={<Terminal size={13} />} title="New query console ⌘⇧N" color={T.accent} badge onClick={onNewConsole} disabled={!datasourceId} />
+        <ToolBtn icon={<Table2 size={13} />} title="Jump to table" />
+        <ToolBtn
+          icon={<span style={{ fontFamily: T.mono, fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>DDL</span>}
+          title="Show DDL"
+        />
+        <ToolBtn icon={<GitBranch size={12} />} title="Diagram" />
+        <ToolBtn icon={<Eye size={13} />} title="Preview" />
+      </div>
+
+      {/* ── Search bar ─────────────────────────────────────────── */}
+      <div style={{ padding: '6px 8px', borderBottom: `0.5px solid ${T.divider}`, flexShrink: 0 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          padding: '4px 8px',
+          padding: '3px 8px',
           background: T.panel,
           border: `0.5px solid ${T.border}`,
-          borderRadius: 5,
+          borderRadius: 4,
         }}>
-          <Search size={12} color={T.textDim} />
+          <Search size={11} color={T.textDim} />
           <input
             data-testid="sidebar-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Find anything…"
+            placeholder="Filter objects…"
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
-              fontSize: 12, color: search ? T.text : T.textDim,
+              fontSize: 11.5, color: search ? T.text : T.textDim,
               fontFamily: T.ui,
             }}
           />
@@ -266,12 +336,12 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
               <X size={11} />
             </button>
           ) : (
-            <span style={{ fontFamily: T.mono, fontSize: 10, color: T.textDim, padding: '1px 4px', background: T.hover, borderRadius: 3 }}>⌘K</span>
+            <span style={{ fontFamily: T.mono, fontSize: 10, color: T.textDim }}>⌘F</span>
           )}
         </div>
       </div>
 
-      {/* ── Tree ───────────────────────────────────────────────────── */}
+      {/* ── Tree ───────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
         {!datasourceId ? (
           <div style={{ padding: '16px 12px', color: T.textDim, fontSize: 12, fontStyle: 'italic' }}>
@@ -326,7 +396,6 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
             )}
             {queriesOpen && savedQueries.map(q => (
               renamingFile === q.filename ? (
-                // Inline rename input
                 <div
                   key={q.filename}
                   style={{ height: ROW_H, display: 'flex', alignItems: 'center', paddingLeft: 6 + 2 * 14, paddingRight: 8, gap: 4 }}
@@ -409,24 +478,20 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
                       onClick={() => toggleSchema(schemas.findIndex(s => s.name === schema.name))}
                     />
                     {/* Tables under schema */}
-                    {schema.expanded && schema.tables.map((table, ti) => {
+                    {schema.expanded && schema.tables.filter(t => t.type === 'table').map((table, ti) => {
                       const realSchemaIdx = schemas.findIndex(s => s.name === schema.name);
-                      const isView = table.type === 'view';
+                      const realTableIdx = schemas[realSchemaIdx]?.tables.findIndex(t => t.name === table.name) ?? ti;
                       return (
                         <div key={table.name}>
                           <TreeRow
                             data-testid={`table-row-${schema.name}-${table.name}`}
                             depth={3}
                             expanded={table.expanded}
-                            icon={
-                              isView
-                                ? <Eye size={11} color={T.textDim} />
-                                : <Table2 size={11} color={T.textDim} />
-                            }
+                            icon={<Table2 size={11} color={T.textDim} />}
                             label={
                               <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{table.name}</span>
                             }
-                            onClick={() => toggleTable(realSchemaIdx, ti)}
+                            onClick={() => toggleTable(realSchemaIdx, realTableIdx)}
                             onDoubleClick={() => onTableSelect(schema.name, table.name)}
                           />
                           {/* Columns */}
@@ -447,6 +512,38 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
                         </div>
                       );
                     })}
+                    {/* Views under schema (shown inline, after tables) */}
+                    {schema.expanded && schema.tables.filter(t => t.type === 'view').map((view, vi) => {
+                      const realSchemaIdx = schemas.findIndex(s => s.name === schema.name);
+                      const realViewIdx = schemas[realSchemaIdx]?.tables.findIndex(t => t.name === view.name) ?? vi;
+                      return (
+                        <div key={view.name}>
+                          <TreeRow
+                            data-testid={`table-row-${schema.name}-${view.name}`}
+                            depth={3}
+                            expanded={view.expanded}
+                            icon={<Eye size={11} color={T.textDim} />}
+                            label={
+                              <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{view.name}</span>
+                            }
+                            onClick={() => toggleTable(realSchemaIdx, realViewIdx)}
+                            onDoubleClick={() => onTableSelect(schema.name, view.name)}
+                          />
+                          {view.expanded && view.columns.map(col => (
+                            <TreeRow
+                              key={col.name}
+                              depth={4}
+                              hasChildren={false}
+                              icon={<Columns size={10} color={T.textDim} />}
+                              label={<span style={{ fontFamily: T.mono, fontSize: 11 }}>{col.name}</span>}
+                              meta={col.dataType}
+                              dim
+                              small
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
                 {!loading && schemas.length === 0 && (
@@ -454,73 +551,16 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
                 )}
               </>
             )}
-
-            {/* ── views folder ───────────────────────────────────── */}
-            <TreeRow
-              data-testid="folder-views"
-              depth={1}
-              expanded={viewsOpen}
-              icon={<Eye size={12} color={T.textSec} />}
-              label={<span style={{ color: T.textDim }}>views</span>}
-              meta={viewsCount || undefined}
-              dim
-              onClick={() => setViewsOpen(o => !o)}
-            />
-            {viewsOpen && viewsCount === 0 && (
-              <div style={{ padding: '4px 0 4px 40px', color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
-                {schemas.some(s => s.loaded) ? 'No views found' : 'Expand schemas to load views'}
-              </div>
-            )}
-            {viewsOpen && viewsCount > 0 && schemas.map(schema =>
-              schema.tables.filter(t => t.type === 'view').map(view => (
-                <TreeRow
-                  key={`${schema.name}.${view.name}`}
-                  data-testid={`view-row-${schema.name}-${view.name}`}
-                  depth={2}
-                  hasChildren={false}
-                  icon={<Eye size={11} color={T.textDim} />}
-                  label={
-                    <span>
-                      <span style={{ fontFamily: T.mono, fontSize: 11, color: T.textDim }}>{schema.name}.</span>
-                      <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{view.name}</span>
-                    </span>
-                  }
-                  onDoubleClick={() => onTableSelect(schema.name, view.name)}
-                  dim
-                />
-              ))
-            )}
-
-            {/* ── reports / exports (low priority, collapsed) ─────── */}
-            <TreeRow
-              depth={1}
-              expanded={reportsOpen}
-              icon={<BarChart2 size={12} color={T.textDim} />}
-              label={<span style={{ color: T.textDim }}>reports</span>}
-              dim
-              onClick={() => setReportsOpen(o => !o)}
-            />
-            {reportsOpen && (
-              <div style={{ padding: '4px 0 4px 40px', color: T.textDim, fontSize: 11, fontStyle: 'italic' }}>
-                Coming soon
-              </div>
-            )}
-            <TreeRow
-              depth={1}
-              expanded={false}
-              icon={<ArrowUpRight size={12} color={T.textDim} />}
-              label={<span style={{ color: T.textDim }}>exports</span>}
-              dim
-            />
           </>
         )}
       </div>
 
-      {/* ── Footer ─────────────────────────────────────────────────── */}
+      {/* ── Footer ─────────────────────────────────────────────── */}
       <div style={{
         padding: '8px 10px',
         borderTop: `0.5px solid ${T.divider}`,
         display: 'flex', alignItems: 'center', gap: 6,
+        flexShrink: 0,
       }}>
         <button
           data-testid="sidebar-new-connection"
@@ -533,7 +573,7 @@ export function Sidebar({ datasourceId, datasourceName, datasourceDb, onTableSel
             border: 'none', cursor: 'pointer',
           }}
         >
-          <Plus size={11} color="#fff" /> New connection
+          <Plus size={11} color="#fff" /> Connections
         </button>
         <div style={{ flex: 1 }} />
         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}>
