@@ -29,6 +29,7 @@ type Project struct {
 type Config struct {
 	Projects    []Project    `json:"projects"`
 	Datasources []Datasource `json:"datasources"`
+	Theme       string       `json:"theme,omitempty"` // "dark" | "light"; empty means dark (default)
 }
 
 type ConfigManager struct {
