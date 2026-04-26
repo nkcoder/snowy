@@ -1,5 +1,6 @@
 import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
+import { T } from './lib/tokens';
 
 // ── Error boundary ─────────────────────────────────────────────────────────────
 class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -16,16 +17,16 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 32, color: '#ff6b6b', fontFamily: 'monospace', fontSize: 13, background: '#1a1917', height: '100vh', overflow: 'auto' }}>
+        <div style={{ padding: 32, color: 'var(--t-err)', fontFamily: 'monospace', fontSize: 13, background: 'var(--t-bg)', height: '100vh', overflow: 'auto' }}>
           <strong>Workspace render error</strong>
-          <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap', color: '#ecebe8' }}>
+          <pre style={{ marginTop: 12, whiteSpace: 'pre-wrap', color: 'var(--t-text)' }}>
             {this.state.error.message}
             {'\n\n'}
             {this.state.error.stack}
           </pre>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ marginTop: 16, padding: '6px 14px', background: '#3574f0', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+            style={{ marginTop: 16, padding: '6px 14px', background: 'var(--t-accent)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
           >
             Retry
           </button>
@@ -85,18 +86,20 @@ type Datasource = {
 
 type AppView = 'connections' | 'workspace';
 
-// Design tokens applied to workspace chrome
-const chrome = '#252320';
-const border = 'rgba(255,255,255,0.07)';
-const borderStrong = 'rgba(255,255,255,0.12)';
-const accent = 'oklch(0.62 0.17 240)';
-const textSec = '#a9a59d';
-const textDim = '#6e6a62';
-const bg = '#1a1917';
-const sidebar = '#1d1b19';
-const ok = '#4fc46a';
-const ui = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
-const mono = '"SF Mono", "JetBrains Mono", ui-monospace, monospace';
+// Aliases for brevity in JSX below
+const { chrome, border, borderStrong, accent, textSec, textDim, bg, sidebar, ok, ui, mono } = {
+  chrome:       T.chrome,
+  border:       T.border,
+  borderStrong: T.borderStrong,
+  accent:       T.accent,
+  textSec:      T.textSec,
+  textDim:      T.textDim,
+  bg:           T.bg,
+  sidebar:      T.sidebar,
+  ok:           T.ok,
+  ui:           T.ui,
+  mono:         T.mono,
+};
 
 function ElephantGlyph({ color }: { color: string }) {
   return (
@@ -356,7 +359,7 @@ function App() {
 
     return (
       <WorkspaceErrorBoundary>
-      <div style={{ display: 'flex', height: '100vh', background: bg, color: '#ecebe8', fontFamily: ui, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', height: '100vh', background: bg, color: T.text, fontFamily: ui, overflow: 'hidden' }}>
         <Sidebar
           datasourceId={activeDatasourceId}
           datasourceName={activeDatasource?.name}
@@ -394,7 +397,7 @@ function App() {
                   completions={completions}
                 />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: textDim, fontSize: 12, background: '#1e1f22', height: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: textDim, fontSize: 12, background: T.panel, height: '100%' }}>
                   Open a query or click + to start
                 </div>
               )}
@@ -406,25 +409,25 @@ function App() {
             {/* Mini services tree */}
             <div style={{ width: 220, background: sidebar, borderRight: `0.5px solid ${border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               {/* Services header */}
-              <div style={{ height: 24, display: 'flex', alignItems: 'center', padding: '0 10px', background: chrome, borderBottom: `0.5px solid ${border}`, fontSize: 11.5, fontWeight: 600, color: '#ecebe8', flexShrink: 0 }}>
+              <div style={{ height: 24, display: 'flex', alignItems: 'center', padding: '0 10px', background: chrome, borderBottom: `0.5px solid ${border}`, fontSize: 11.5, fontWeight: 600, color: T.text, flexShrink: 0 }}>
                 Services
               </div>
               {/* Services tree */}
               <div style={{ flex: 1, overflow: 'hidden', padding: '4px 0', fontSize: 12 }}>
                 {/* Database folder */}
-                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 8, gap: 5, color: '#ecebe8', borderLeft: '2px solid transparent' }}>
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 8, gap: 5, color: T.text, borderLeft: '2px solid transparent' }}>
                   <ChevronRight size={9} color={textDim} style={{ transform: 'rotate(90deg)' }} />
                   <Folder size={12} color={accent} />
                   <span>Database</span>
                 </div>
                 {/* Active connection */}
-                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 20, paddingRight: 8, gap: 5, color: '#ecebe8', borderLeft: '2px solid transparent' }}>
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 20, paddingRight: 8, gap: 5, color: T.text, borderLeft: '2px solid transparent' }}>
                   <ChevronRight size={9} color={textDim} style={{ transform: 'rotate(90deg)' }} />
                   <ElephantGlyph color={accent} />
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeDatasource?.name ?? 'connection'}</span>
                 </div>
                 {/* Console row (selected) */}
-                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 34, paddingRight: 8, gap: 5, color: '#ecebe8', background: 'rgba(255,255,255,0.06)', borderLeft: `2px solid ${accent}` }}>
+                <div style={{ height: 22, display: 'flex', alignItems: 'center', paddingLeft: 34, paddingRight: 8, gap: 5, color: T.text, background: T.hover, borderLeft: `2px solid ${accent}` }}>
                   <div style={{ width: 9 }} />
                   <Terminal size={12} color={accent} />
                   <span style={{ flex: 1 }}>console</span>

@@ -1,37 +1,45 @@
-// Design tokens — single source of truth.
-// Derived from spec/designs/project/components/tokens.jsx
+// Design tokens — CSS custom property references.
+// Values live in style.css (:root = SnowyDark, [data-theme=light] = SnowyLight).
+// Components should use T.* which resolves to var(--t-*) at runtime.
 export const T = {
-  bg:             '#1a1917',
-  chrome:         '#252320',
-  panel:          '#1f1d1b',
-  panelAlt:       '#232120',
-  sidebar:        '#1d1b19',
-  border:         'rgba(255,255,255,0.07)',
-  borderStrong:   'rgba(255,255,255,0.13)',
-  divider:        'rgba(255,255,255,0.05)',
-  text:           '#ecebe8',
-  textSec:        '#a9a59d',
-  textDim:        '#6e6a62',
-  hover:          'rgba(255,255,255,0.04)',
-  selected:       'oklch(0.28 0.07 240)',
-  selectedBorder: 'oklch(0.62 0.17 240)',
-  accent:         'oklch(0.62 0.17 240)',
-  accentHover:    'oklch(0.68 0.17 240)',
-  ok:             'oklch(0.60 0.14 155)',
-  err:            'oklch(0.58 0.19 25)',
-  warn:           'oklch(0.70 0.15 75)',
-  purple:         'oklch(0.58 0.17 290)',
-  mono:           '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
-  ui:             '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
+  bg:             'var(--t-bg)',
+  chrome:         'var(--t-chrome)',
+  chromeHi:       'var(--t-chrome-hi)',
+  panel:          'var(--t-panel)',
+  panelAlt:       'var(--t-panel-alt)',
+  sidebar:        'var(--t-sidebar)',
+  border:         'var(--t-border)',
+  borderStrong:   'var(--t-border-strong)',
+  divider:        'var(--t-divider)',
+  text:           'var(--t-text)',
+  textSec:        'var(--t-text-sec)',
+  textDim:        'var(--t-text-dim)',
+  hover:          'var(--t-hover)',
+  selected:       'var(--t-selected)',
+  selectedBorder: 'var(--t-selected-border)',
+  accent:         'var(--t-accent)',
+  accentHover:    'var(--t-accent-hover)',
+  ok:             'var(--t-ok)',
+  err:            'var(--t-err)',
+  warn:           'var(--t-warn)',
+  info:           'var(--t-info)',
+  mag:            'var(--t-mag)',
+  purple:         'var(--t-purple)',
+  gridStripe:     'var(--t-grid-stripe)',
+  gridHeader:     'var(--t-grid-header)',
+  shadow:         'var(--t-shadow)',
+  vibrancy:       'var(--t-vibrancy)',
+  mono:           'var(--t-font-mono)',
+  ui:             'var(--t-font-ui)',
 } as const;
 
 export const PROJECT_COLORS = [
-  'oklch(0.62 0.17 240)',  // blue
-  'oklch(0.60 0.18 320)',  // magenta
-  'oklch(0.60 0.14 155)',  // green
-  'oklch(0.70 0.15 75)',   // amber
-  'oklch(0.58 0.17 290)',  // purple
-  'oklch(0.58 0.19 25)',   // red
+  'var(--t-accent)',   // blue
+  'var(--t-mag)',      // magenta
+  'var(--t-ok)',       // green
+  'var(--t-warn)',     // amber
+  'var(--t-purple)',   // purple
+  'var(--t-err)',      // red
 ] as const;
 
 export const ENV_COLORS: Record<string, string> = {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pin, X, History, Download } from 'lucide-react';
 import { ResultsTable } from './ResultsTable';
+import { T } from '../lib/tokens';
 
 export type ResultTab = {
   id: string;
@@ -70,14 +71,14 @@ export function ResultsPanel({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1f22' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.panel }}>
       {/* Result tab strip */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         height: 32,
-        background: '#2b2d30',
-        borderBottom: '1px solid #393b40',
+        background: T.chrome,
+        borderBottom: `1px solid ${T.border}`,
         flexShrink: 0,
         minWidth: 0,
         overflow: 'hidden',
@@ -98,52 +99,47 @@ export function ResultsPanel({
                   height: 32,
                   fontSize: 11,
                   fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#ecebe8' : '#a9a59d',
-                  background: isActive ? '#1e1f22' : 'transparent',
+                  color: isActive ? T.text : T.textSec,
+                  background: isActive ? T.panel : 'transparent',
                   border: 'none',
-                  borderRight: '1px solid #393b40',
-                  borderBottom: isActive ? '2px solid oklch(0.62 0.17 240)' : '2px solid transparent',
+                  borderRight: `1px solid ${T.border}`,
+                  borderBottom: isActive ? `2px solid ${T.accent}` : '2px solid transparent',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
                   fontFamily: 'inherit',
                 }}
               >
-                {/* Pin icon for pinned tabs */}
                 {tab.pinned && (
                   <Pin
                     size={10}
-                    style={{ transform: 'rotate(45deg)', color: 'oklch(0.62 0.17 240)', flexShrink: 0 }}
+                    style={{ transform: 'rotate(45deg)', color: T.accent, flexShrink: 0 }}
                   />
                 )}
                 <span>{tab.label}</span>
-                {/* Stats */}
                 {tab.data !== null && (
                   <span style={{
                     fontSize: 10,
-                    color: '#6e6a62',
-                    fontFamily: '"SF Mono", ui-monospace, monospace',
+                    color: T.textDim,
+                    fontFamily: T.mono,
                     marginLeft: 2,
                   }}>
                     {tab.rowCount} rows · {fmtDuration(tab.durationMs)}
                   </span>
                 )}
-                {/* Close for pinned tabs */}
                 {tab.pinned && (
                   <span
                     role="button"
                     onClick={e => { e.stopPropagation(); onCloseTab(tab.id); }}
                     style={{
                       marginLeft: 2,
-                      color: '#6e6a62',
+                      color: T.textDim,
                       display: 'flex',
                       alignItems: 'center',
                       cursor: 'pointer',
                       borderRadius: 2,
                       padding: '1px 2px',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#ecebe8')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#6e6a62')}
                   >
                     <X size={10} />
                   </span>
@@ -160,10 +156,9 @@ export function ResultsPanel({
           gap: 2,
           paddingRight: 8,
           paddingLeft: 8,
-          borderLeft: '1px solid #393b40',
+          borderLeft: `1px solid ${T.border}`,
           flexShrink: 0,
         }}>
-          {/* Pin button — only for live tab when it has data */}
           <button
             onClick={onPin}
             disabled={!canPin}
@@ -175,9 +170,9 @@ export function ResultsPanel({
               padding: '3px 7px',
               fontSize: 10,
               fontWeight: 500,
-              color: canPin ? '#a9a59d' : '#3f3d3a',
+              color: canPin ? T.textSec : T.textDim,
               background: 'none',
-              border: canPin ? '1px solid #393b40' : '1px solid transparent',
+              border: canPin ? `1px solid ${T.border}` : '1px solid transparent',
               borderRadius: 3,
               cursor: canPin ? 'pointer' : 'default',
               fontFamily: 'inherit',
@@ -194,14 +189,12 @@ export function ResultsPanel({
               display: 'flex',
               alignItems: 'center',
               padding: 4,
-              color: '#a9a59d',
+              color: T.textSec,
               background: 'none',
               border: 'none',
               borderRadius: 3,
               cursor: 'pointer',
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#ecebe8')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#a9a59d')}
           >
             <History size={13} />
           </button>
@@ -213,14 +206,12 @@ export function ResultsPanel({
               display: 'flex',
               alignItems: 'center',
               padding: 4,
-              color: activeTab?.data ? '#a9a59d' : '#3f3d3a',
+              color: activeTab?.data ? T.textSec : T.textDim,
               background: 'none',
               border: 'none',
               borderRadius: 3,
               cursor: activeTab?.data ? 'pointer' : 'default',
             }}
-            onMouseEnter={e => { if (activeTab?.data) e.currentTarget.style.color = '#ecebe8'; }}
-            onMouseLeave={e => { if (activeTab?.data) e.currentTarget.style.color = '#a9a59d'; }}
           >
             <Download size={13} />
           </button>

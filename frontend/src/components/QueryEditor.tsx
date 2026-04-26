@@ -6,6 +6,7 @@ import type { Completion } from '@codemirror/autocomplete';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { Play, Save, Trash2, Clock } from 'lucide-react';
+import { T } from '../lib/tokens';
 
 export interface CompletionEntry {
     kind: 'schema' | 'table' | 'view' | 'column';
@@ -24,12 +25,14 @@ interface QueryEditorProps {
     completions?: CompletionEntry[];
 }
 
-// Override CodeMirror's default background to match app chrome
+// CodeMirror theme matched to SnowyDark token values.
+// These are static strings; theme-switching via CSS vars inside CodeMirror
+// is not supported, so the editor stays dark-mode only for now.
 const editorTheme = EditorView.theme({
     '&': {
         height: '100%',
         fontSize: '13px',
-        background: '#1e1f22',
+        background: '#1f1d1b',
     },
     '.cm-content': {
         fontFamily: '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
@@ -38,20 +41,20 @@ const editorTheme = EditorView.theme({
     },
     '.cm-scroller': { overflow: 'auto' },
     '.cm-gutters': {
-        background: '#1e1f22',
-        borderRight: '1px solid #393b40',
-        color: '#4a4a50',
+        background: '#1f1d1b',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+        color: '#6e6a62',
     },
-    '.cm-activeLineGutter': { background: '#25262b' },
-    '.cm-activeLine': { background: '#25262b' },
-    '.cm-selectionBackground, ::selection': { background: '#2e436e !important' },
+    '.cm-activeLineGutter': { background: '#252320' },
+    '.cm-activeLine': { background: '#252320' },
+    '.cm-selectionBackground, ::selection': { background: 'oklch(0.28 0.07 240) !important' },
     '.cm-cursor': { borderLeftColor: '#ecebe8' },
-    '.cm-focused .cm-selectionBackground': { background: '#2e436e' },
+    '.cm-focused .cm-selectionBackground': { background: 'oklch(0.28 0.07 240)' },
     // ── Autocomplete popover ────────────────────────────────────────────────────
     '.cm-tooltip.cm-tooltip-autocomplete': {
         width: '440px',
-        background: '#2b2d30',
-        border: '1px solid #393b40',
+        background: '#232120',
+        border: '1px solid rgba(255,255,255,0.07)',
         borderRadius: '6px',
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
         overflow: 'hidden',
@@ -91,21 +94,14 @@ const editorTheme = EditorView.theme({
         color: '#6e6a62',
         opacity: '1',
     },
-    // Type-specific icon colours
-    '.cm-completionIcon-type': { color: 'oklch(0.62 0.17 240)' },  // table → blue
-    '.cm-completionIcon-property': { color: '#e5c07b' },             // column → gold
-    '.cm-completionIcon-namespace': { color: '#98c379' },            // schema → green
-    '.cm-completionIcon-keyword': { color: '#c678dd' },              // keyword → purple
+    '.cm-completionIcon-type': { color: 'oklch(0.62 0.17 240)' },
+    '.cm-completionIcon-property': { color: '#e5c07b' },
+    '.cm-completionIcon-namespace': { color: '#98c379' },
+    '.cm-completionIcon-keyword': { color: '#c678dd' },
 }, { dark: true });
 
-// Compartment allows reconfiguring the sql extension after editor creation
 const sqlCompartment = new Compartment();
 
-/**
- * Build @codemirror/lang-sql schema config from CompletionEntry array.
- * schema: maps table/qualified-table names to their column Completions
- * tables: Completion[] for table-level completions
- */
 function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Completion[]>; tables: Completion[] } {
     const schema: Record<string, Completion[]> = {};
     const tables: Completion[] = [];
@@ -113,7 +109,7 @@ function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Co
 
     for (const e of entries) {
         if (e.kind === 'schema') {
-            // Schemas surface as namespace completions — handled via tables list context
+            // Schemas surface as namespace completions
         } else if (e.kind === 'table' || e.kind === 'view') {
             const qualKey = `${e.schema}.${e.name}`;
             if (!seenTables.has(qualKey)) {
@@ -148,9 +144,7 @@ function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Co
 export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, completions }: QueryEditorProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
-    // Suppress updateListener during programmatic (non-user) dispatches
     const isProgrammatic = useRef(false);
-    // Track latest callbacks without re-creating the editor
     const onRunRef = useRef(onRun);
     const onSaveRef = useRef(onSave);
     const onChangeRef = useRef(onChange);
@@ -179,13 +173,12 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
                 lineNumbers(),
                 highlightActiveLine(),
                 highlightActiveLineGutter(),
-                // sql compartment starts with no schema; updated when completions arrive
                 sqlCompartment.of(sql({ dialect: PostgreSQL })),
                 oneDark,
                 editorTheme,
                 keymap.of([
                     { key: 'Mod-Enter', run: runCmd },
-                    { key: 'Ctrl-Enter', run: runCmd }, // fallback for non-Mac / test environments
+                    { key: 'Ctrl-Enter', run: runCmd },
                     { key: 'Mod-s', run: saveCmd, preventDefault: true },
                     ...defaultKeymap,
                     ...historyKeymap,
@@ -205,11 +198,9 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
             view.destroy();
             viewRef.current = null;
         };
-        // Only create editor once on mount
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Sync external sql changes into editor (e.g. tab switch, table double-click, load from sidebar)
     useEffect(() => {
         const view = viewRef.current;
         if (!view) return;
@@ -220,7 +211,6 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
         isProgrammatic.current = false;
     }, [sqlValue]);
 
-    // Reconfigure sql extension when DB completions arrive or change
     useEffect(() => {
         const view = viewRef.current;
         if (!view) return;
@@ -238,30 +228,46 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
     const handleClear = useCallback(() => {
         const view = viewRef.current;
         if (!view) return;
-        // Let updateListener fire naturally (user-initiated clear = dirty)
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1f22] border-b border-[#393b40]" data-testid="query-editor">
+        <div
+            data-testid="query-editor"
+            style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.panel, borderBottom: `1px solid ${T.border}` }}
+        >
             {/* Toolbar */}
-            <div className="flex items-center h-9 px-2 gap-1 border-b border-[#393b40] bg-[#2b2d30] flex-shrink-0">
+            <div style={{
+                display: 'flex', alignItems: 'center', height: 36,
+                padding: '0 8px', gap: 4,
+                borderBottom: `1px solid ${T.border}`,
+                background: T.chrome,
+                flexShrink: 0,
+            }}>
                 <button
                     data-testid="run-button"
                     onClick={handleRun}
                     disabled={loading}
                     title="Run (⌘↵)"
-                    className="flex items-center gap-1.5 bg-[#3574f0] hover:bg-[#4b85ff] disabled:opacity-40 text-white text-[12px] font-semibold px-2.5 py-1 rounded transition-colors shadow-sm"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: T.accent, color: '#fff',
+                        fontSize: 12, fontWeight: 600,
+                        padding: '4px 10px', borderRadius: 4,
+                        border: 'none', cursor: loading ? 'default' : 'pointer',
+                        opacity: loading ? 0.4 : 1,
+                        fontFamily: T.ui,
+                    }}
                 >
                     <Play size={14} fill="currentColor" />
                     Execute
                 </button>
-                <div className="h-4 w-[1px] bg-[#393b40] mx-1" />
+                <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px' }} />
                 <button
                     data-testid="save-button"
                     onClick={onSave}
                     title="Save (⌘S)"
-                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
+                    style={{ padding: 6, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', borderRadius: 4 }}
                 >
                     <Save size={16} />
                 </button>
@@ -269,24 +275,24 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
                     data-testid="clear-button"
                     onClick={handleClear}
                     title="Clear"
-                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
+                    style={{ padding: 6, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', borderRadius: 4 }}
                 >
                     <Trash2 size={16} />
                 </button>
-                <div className="h-4 w-[1px] bg-[#393b40] mx-1" />
+                <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px' }} />
                 <button
-                    className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#393b40] rounded transition-colors"
                     title="History"
+                    style={{ padding: 6, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', borderRadius: 4 }}
                 >
                     <Clock size={16} />
                 </button>
-                <div className="ml-auto px-2 text-[11px] text-slate-500 font-mono select-none">
+                <div style={{ marginLeft: 'auto', paddingRight: 8, fontSize: 11, color: T.textDim, fontFamily: T.mono, userSelect: 'none' }}>
                     ⌘↵ run · ⌘S save
                 </div>
             </div>
 
             {/* CodeMirror container */}
-            <div ref={containerRef} className="flex-1 overflow-hidden" data-testid="cm-editor" />
+            <div ref={containerRef} style={{ flex: 1, overflow: 'hidden' }} data-testid="cm-editor" />
         </div>
     );
 }

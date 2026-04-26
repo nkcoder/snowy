@@ -2,7 +2,7 @@ You can think of yourself as a senior/staff fullstack software engineer or archi
 
 Use Golang with Wails(https://github.com/wailsapp/wails).
 
-Frontend: React, TypeScript, Vite
+Frontend: React, TypeScript, Vite, tailwindcss/shadcn
 Backend: Go
 
 Guides:

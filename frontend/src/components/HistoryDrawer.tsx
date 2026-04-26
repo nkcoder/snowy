@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Clock, ChevronRight } from 'lucide-react';
+import { T } from '../lib/tokens';
 
 export type HistoryEntry = {
   id: string;
@@ -60,12 +61,12 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
         right: 0,
         bottom: 0,
         width: 420,
-        background: '#1f1d1b',
-        borderLeft: '1px solid rgba(255,255,255,0.07)',
+        background: T.panel,
+        borderLeft: `1px solid ${T.border}`,
         display: 'flex',
         flexDirection: 'column',
         zIndex: 100,
-        boxShadow: '-8px 0 24px rgba(0,0,0,0.4)',
+        boxShadow: T.shadow,
       }}>
         {/* Header */}
         <div style={{
@@ -74,11 +75,11 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
           justifyContent: 'space-between',
           height: 44,
           padding: '0 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: `1px solid ${T.border}`,
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#ecebe8' }}>
-            <Clock size={15} color="oklch(0.62 0.17 240)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: T.text }}>
+            <Clock size={15} color={T.accent} />
             Query History
           </div>
           <button
@@ -87,28 +88,26 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
               display: 'flex',
               alignItems: 'center',
               padding: 5,
-              color: '#6e6a62',
+              color: T.textDim,
               background: 'none',
               border: 'none',
               cursor: 'pointer',
               borderRadius: 4,
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#ecebe8')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#6e6a62')}
           >
             <X size={15} />
           </button>
         </div>
 
         {/* Entry list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }} className="custom-scrollbar">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
           {loading && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#6e6a62', fontSize: 12 }}>
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: T.textDim, fontSize: 12 }}>
               Loading…
             </div>
           )}
           {!loading && entries.length === 0 && (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#6e6a62', fontSize: 12, fontStyle: 'italic' }}>
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: T.textDim, fontSize: 12, fontStyle: 'italic' }}>
               No history yet. Run a query to start recording.
             </div>
           )}
@@ -123,34 +122,34 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
                 padding: '10px 16px',
                 background: 'none',
                 border: 'none',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                borderBottom: `1px solid ${T.divider}`,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+              onMouseEnter={e => (e.currentTarget.style.background = T.hover)}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
             >
               {/* Meta row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                <Clock size={10} color="#6e6a62" />
-                <span style={{ fontSize: 10, color: '#6e6a62', fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                <Clock size={10} color={T.textDim} />
+                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
                   {relativeTime(entry.executedAt)}
                 </span>
-                <span style={{ color: '#3f3d3a', fontSize: 10 }}>·</span>
-                <span style={{ fontSize: 10, color: '#6e6a62', fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                <span style={{ color: T.textDim, fontSize: 10 }}>·</span>
+                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
                   {entry.rowCount} rows
                 </span>
-                <span style={{ color: '#3f3d3a', fontSize: 10 }}>·</span>
-                <span style={{ fontSize: 10, color: '#6e6a62', fontFamily: '"SF Mono", ui-monospace, monospace' }}>
+                <span style={{ color: T.textDim, fontSize: 10 }}>·</span>
+                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
                   {fmtDuration(entry.durationMs)}
                 </span>
-                <ChevronRight size={10} color="#3f3d3a" style={{ marginLeft: 'auto' }} />
+                <ChevronRight size={10} color={T.textDim} style={{ marginLeft: 'auto' }} />
               </div>
               {/* SQL snippet */}
               <div style={{
                 fontSize: 11.5,
-                color: '#c5c2bb',
-                fontFamily: '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
+                color: T.textSec,
+                fontFamily: T.mono,
                 lineHeight: 1.5,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-all',
@@ -165,9 +164,9 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
         {entries.length > 0 && (
           <div style={{
             padding: '8px 16px',
-            borderTop: '1px solid rgba(255,255,255,0.07)',
+            borderTop: `1px solid ${T.border}`,
             fontSize: 10,
-            color: '#6e6a62',
+            color: T.textDim,
             textAlign: 'center',
             flexShrink: 0,
           }}>

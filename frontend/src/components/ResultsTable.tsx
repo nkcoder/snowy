@@ -1,5 +1,6 @@
 import React from 'react';
-import { Filter, Download, Settings, ChevronDown, ListFilter, Hash, Type } from 'lucide-react';
+import { Filter, Download, ListFilter, Hash, Type, ChevronDown } from 'lucide-react';
+import { T } from '../lib/tokens';
 
 interface ResultsTableProps {
     data: {
@@ -12,10 +13,10 @@ interface ResultsTableProps {
 export function ResultsTable({ data, loading }: ResultsTableProps) {
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-full bg-[#1e1f22] text-slate-500">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-2 border-[#3574f0] border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-xs font-medium">Fetching data...</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: T.panel, color: T.textDim }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', border: `2px solid ${T.accent}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                    <span style={{ fontSize: 12, fontWeight: 500, fontFamily: T.ui }}>Fetching data...</span>
                 </div>
             </div>
         );
@@ -23,61 +24,72 @@ export function ResultsTable({ data, loading }: ResultsTableProps) {
 
     if (!data || !data.rows) {
         return (
-            <div className="flex items-center justify-center h-full bg-[#1e1f22] text-slate-600 italic text-[13px] font-medium">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: T.panel, color: T.textDim, fontStyle: 'italic', fontSize: 13, fontWeight: 500, fontFamily: T.ui }}>
                 Execute a query to view results
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1f22]">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.panel }}>
             {/* Table Toolbar */}
-            <div className="flex items-center h-8 px-2 gap-2 border-b border-[#393b40] bg-[#2b2d30]">
-                <div className="flex items-center gap-1 text-[11px] text-slate-400 border-r border-[#393b40] pr-2">
-                    <span className="font-bold text-slate-300">{data.rows.length}</span> rows
+            <div style={{ display: 'flex', alignItems: 'center', height: 32, padding: '0 8px', gap: 8, borderBottom: `1px solid ${T.border}`, background: T.chrome, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: T.textSec, borderRight: `1px solid ${T.border}`, paddingRight: 8 }}>
+                    <span style={{ fontWeight: 700, color: T.text }}>{data.rows.length}</span> rows
                 </div>
-                <button className="p-1 text-slate-400 hover:text-slate-200"><Filter size={14} /></button>
-                <button className="p-1 text-slate-400 hover:text-slate-200"><ListFilter size={14} /></button>
-                <div className="h-4 w-[1px] bg-[#393b40]" />
-                <button className="p-1 text-slate-400 hover:text-slate-200"><Download size={14} /></button>
-                <div className="ml-auto text-[10px] text-slate-500 font-mono uppercase tracking-tighter">Read-only</div>
+                <button style={{ padding: 4, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <Filter size={14} />
+                </button>
+                <button style={{ padding: 4, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <ListFilter size={14} />
+                </button>
+                <div style={{ width: 1, height: 16, background: T.border }} />
+                <button style={{ padding: 4, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <Download size={14} />
+                </button>
+                <div style={{ marginLeft: 'auto', fontSize: 10, color: T.textDim, fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    Read-only
+                </div>
             </div>
 
             {/* Table Grid */}
-            <div className="flex-1 overflow-auto custom-scrollbar">
-                <table className="min-w-full border-collapse border-hidden">
-                    <thead className="sticky top-0 z-10">
+            <div style={{ flex: 1, overflow: 'auto' }}>
+                <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                         <tr>
-                            <th className="px-1 py-1 bg-[#2b2d30] border border-[#393b40] text-center text-[10px] text-slate-500 font-mono w-10">
+                            <th style={{ padding: '4px 4px', background: T.gridHeader, border: `1px solid ${T.border}`, textAlign: 'center', fontSize: 10, color: T.textDim, fontFamily: T.mono, width: 40 }}>
                                 #
                             </th>
                             {data.columns.map((col, i) => (
-                                <th key={i} className="px-3 py-1 bg-[#2b2d30] border border-[#393b40] text-left text-[12px] font-semibold text-slate-300 whitespace-nowrap group">
-                                    <div className="flex items-center gap-2">
-                                        {col.includes('id') || col.includes('price') || col.includes('at') ? <Hash size={12} className="text-blue-500/50" /> : <Type size={12} className="text-slate-500" />}
+                                <th key={i} style={{ padding: '4px 12px', background: T.gridHeader, border: `1px solid ${T.border}`, textAlign: 'left', fontSize: 12, fontWeight: 600, color: T.textSec, whiteSpace: 'nowrap', fontFamily: T.ui }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {col.includes('id') || col.includes('price') || col.includes('at')
+                                            ? <Hash size={12} style={{ color: T.accent, opacity: 0.5 }} />
+                                            : <Type size={12} style={{ color: T.textDim }} />
+                                        }
                                         {col}
-                                        <ChevronDown size={10} className="ml-auto opacity-0 group-hover:opacity-100 text-slate-500" />
+                                        <ChevronDown size={10} style={{ marginLeft: 'auto', opacity: 0, color: T.textDim }} />
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="font-mono text-[12px]">
+                    <tbody style={{ fontFamily: T.mono, fontSize: 12 }}>
                         {data.rows.length === 0 ? (
                             <tr>
-                                <td colSpan={data.columns.length + 1} className="px-4 py-8 text-center text-slate-500 italic">
+                                <td colSpan={data.columns.length + 1} style={{ padding: '32px 16px', textAlign: 'center', color: T.textDim, fontStyle: 'italic' }}>
                                     Success. 0 rows affected.
                                 </td>
                             </tr>
                         ) : (
                             data.rows.map((row, rowIndex) => (
-                                <tr key={rowIndex} className="hover:bg-[#2e436e]/40 group border-b border-[#2b2d30]">
-                                    <td className="px-1 py-0.5 bg-[#2b2d30] border-r border-[#393b40] text-[10px] text-slate-500 text-center select-none group-hover:text-slate-300">
+                                <tr key={rowIndex} style={{ borderBottom: `1px solid ${T.divider}` }} className="snowy-grid-row">
+                                    <td style={{ padding: '2px 4px', background: T.gridHeader, borderRight: `1px solid ${T.border}`, fontSize: 10, color: T.textDim, textAlign: 'center', userSelect: 'none' }}>
                                         {rowIndex + 1}
                                     </td>
                                     {row.map((cell, cellIndex) => (
-                                        <td key={cellIndex} className="px-3 py-0.5 border-r border-[#2b2d30] whitespace-nowrap overflow-hidden text-ellipsis max-w-xs text-[#dfe1e5]">
-                                            {cell === null ? <span className="text-[#626469] italic">null</span> : String(cell)}
+                                        <td key={cellIndex} style={{ padding: '2px 12px', borderRight: `1px solid ${T.divider}`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320, color: T.text }}>
+                                            {cell === null ? <span style={{ color: T.textDim, fontStyle: 'italic' }}>null</span> : String(cell)}
                                         </td>
                                     ))}
                                 </tr>
