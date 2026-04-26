@@ -11,3 +11,5 @@ frontend/coverage
 test-results/
 frontend/test-results/
 playwright-report/
+
+snowy
