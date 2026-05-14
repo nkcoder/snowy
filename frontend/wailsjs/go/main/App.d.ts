@@ -18,6 +18,14 @@ export function ListSavedQueries(arg1:string):Promise<Array<main.SavedQuery>>;
 
 export function ListSchemas(arg1:string):Promise<Array<main.SchemaItem>>;
 
+export function ListTableChecks(arg1:string,arg2:string,arg3:string):Promise<Array<main.CheckItem>>;
+
+export function ListTableForeignKeys(arg1:string,arg2:string,arg3:string):Promise<Array<main.ForeignKeyItem>>;
+
+export function ListTableIndexes(arg1:string,arg2:string,arg3:string):Promise<Array<main.IndexItem>>;
+
+export function ListTableKeys(arg1:string,arg2:string,arg3:string):Promise<Array<main.TableKeyItem>>;
+
 export function ListTables(arg1:string,arg2:string):Promise<Array<main.TableItem>>;
 
 export function LoadSavedQuery(arg1:string,arg2:string):Promise<string>;
