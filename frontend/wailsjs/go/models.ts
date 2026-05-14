@@ -38,6 +38,7 @@ export namespace main {
 	    table: string;
 	    name: string;
 	    dataType: string;
+	    keyType: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CompletionEntry(source);
@@ -50,6 +51,7 @@ export namespace main {
 	        this.table = source["table"];
 	        this.name = source["name"];
 	        this.dataType = source["dataType"];
+	        this.keyType = source["keyType"];
 	    }
 	}
 	export class CompletionSet {

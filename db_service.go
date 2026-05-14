@@ -40,6 +40,7 @@ type CompletionEntry struct {
 	Table    string `json:"table"`    // empty for schema-kind entries
 	Name     string `json:"name"`
 	DataType string `json:"dataType"` // non-empty for column-kind entries
+	KeyType  string `json:"keyType"`  // "pk" | "fk" | "" — only for column-kind entries
 }
 
 // CompletionSet is the full set of DB-aware completions for a datasource.
@@ -431,22 +432,39 @@ func (s *DbService) GetCompletions(dsId string) (*CompletionSet, error) {
 	}
 	tableRows.Close()
 
-	// Columns
+	// Columns with PK/FK classification
 	colRows, err := conn.Query(ctx,
-		`SELECT table_schema, table_name, column_name, data_type
-		 FROM information_schema.columns
-		 WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-		 ORDER BY table_schema, table_name, ordinal_position`)
+		`SELECT c.table_schema, c.table_name, c.column_name, c.data_type,
+			CASE
+				WHEN EXISTS (
+					SELECT 1 FROM information_schema.table_constraints tc
+					JOIN information_schema.key_column_usage ku
+						ON tc.constraint_name = ku.constraint_name AND tc.table_schema = ku.table_schema
+					WHERE tc.table_schema = c.table_schema AND tc.table_name = c.table_name
+						AND tc.constraint_type = 'PRIMARY KEY' AND ku.column_name = c.column_name
+				) THEN 'pk'
+				WHEN EXISTS (
+					SELECT 1 FROM information_schema.table_constraints tc
+					JOIN information_schema.key_column_usage ku
+						ON tc.constraint_name = ku.constraint_name AND tc.table_schema = ku.table_schema
+					WHERE tc.table_schema = c.table_schema AND tc.table_name = c.table_name
+						AND tc.constraint_type = 'FOREIGN KEY' AND ku.column_name = c.column_name
+				) THEN 'fk'
+				ELSE ''
+			END AS key_type
+		 FROM information_schema.columns c
+		 WHERE c.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+		 ORDER BY c.table_schema, c.table_name, c.ordinal_position`)
 	if err != nil {
 		return nil, fmt.Errorf("list columns: %w", err)
 	}
 	for colRows.Next() {
-		var schema, table, name, dataType string
-		if err := colRows.Scan(&schema, &table, &name, &dataType); err != nil {
+		var schema, table, name, dataType, keyType string
+		if err := colRows.Scan(&schema, &table, &name, &dataType, &keyType); err != nil {
 			colRows.Close()
 			return nil, err
 		}
-		entries = append(entries, CompletionEntry{Kind: "column", Schema: schema, Table: table, Name: name, DataType: dataType})
+		entries = append(entries, CompletionEntry{Kind: "column", Schema: schema, Table: table, Name: name, DataType: dataType, KeyType: keyType})
 	}
 	colRows.Close()
 
