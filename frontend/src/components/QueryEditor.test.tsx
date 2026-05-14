@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { QueryEditor, makeKeyTypeBadge, detectSqlContext, extractFromTables } from './QueryEditor';
+import { QueryEditor, makeKeyTypeBadge, detectSqlContext, extractFromTables, buildCompletionOptions, applyPrefixBoost } from './QueryEditor';
+import type { CompletionEntry } from './QueryEditor';
 
 // CodeMirror uses complex DOM APIs (contenteditable, ResizeObserver, etc.)
 // that jsdom doesn't implement. Mock the entire @codemirror/* stack so we can
@@ -215,5 +216,114 @@ describe('detectSqlContext', () => {
   it('returns keyword context after fr (partial keyword)', () => {
     // "fr" is the partial word — beforeWord is empty
     expect(detectSqlContext('', 'fr')).toEqual({ kind: 'keyword' });
+  });
+});
+
+// Shared fixture data used by ranking tests
+const sampleEntries: CompletionEntry[] = [
+  { kind: 'table', schema: 'public', table: '', name: 'accounts', dataType: '', keyType: '' },
+  { kind: 'table', schema: 'public', table: '', name: 'users',    dataType: '', keyType: '' },
+  { kind: 'view',  schema: 'public', table: '', name: 'active_users', dataType: '', keyType: '' },
+  { kind: 'column', schema: 'public', table: 'users', name: 'id',    dataType: 'int4',    keyType: 'pk' },
+  { kind: 'column', schema: 'public', table: 'users', name: 'email', dataType: 'text',    keyType: 'fk' },
+  { kind: 'column', schema: 'public', table: 'users', name: 'name',  dataType: 'text',    keyType: '' },
+];
+
+describe('buildCompletionOptions — ranking', () => {
+  it('table context returns only tables/views, no keywords', () => {
+    const opts = buildCompletionOptions(sampleEntries, { kind: 'table' });
+    const labels = opts.map(o => o.label);
+    expect(labels).toContain('accounts');
+    expect(labels).toContain('active_users');
+    expect(labels).not.toContain('SELECT');
+  });
+
+  it('table context gives tables boost 20 and views boost 15', () => {
+    const opts = buildCompletionOptions(sampleEntries, { kind: 'table' });
+    const table = opts.find(o => o.label === 'accounts');
+    const view  = opts.find(o => o.label === 'active_users');
+    expect(table?.boost).toBe(20);
+    expect(view?.boost).toBe(15);
+  });
+
+  it('keyword context returns keywords, no tables', () => {
+    const opts = buildCompletionOptions(sampleEntries, { kind: 'keyword' });
+    const labels = opts.map(o => o.label);
+    expect(labels).toContain('SELECT');
+    expect(labels).not.toContain('accounts');
+  });
+
+  it('PK column ranks above FK and plain column', () => {
+    const opts = buildCompletionOptions(sampleEntries, {
+      kind: 'column', fromTables: ['users'], isSelectList: false,
+    });
+    const pk    = opts.find(o => o.label === 'id');
+    const fk    = opts.find(o => o.label === 'email');
+    const plain = opts.find(o => o.label === 'name');
+    expect(pk?.boost).toBeGreaterThan(fk?.boost ?? 0);
+    expect(fk?.boost).toBeGreaterThan(plain?.boost ?? 0);
+  });
+
+  it('star option is present in SELECT column list context', () => {
+    const opts = buildCompletionOptions(sampleEntries, {
+      kind: 'column', fromTables: ['users'], isSelectList: true,
+    });
+    expect(opts[0].label).toBe('*');
+  });
+
+  it('star option is absent in non-SELECT column context', () => {
+    const opts = buildCompletionOptions(sampleEntries, {
+      kind: 'column', fromTables: ['users'], isSelectList: false,
+    });
+    expect(opts.map(o => o.label)).not.toContain('*');
+  });
+
+  it('column context with no fromTables returns all columns', () => {
+    const opts = buildCompletionOptions(sampleEntries, {
+      kind: 'column', fromTables: [], isSelectList: false,
+    });
+    expect(opts.map(o => o.label)).toContain('id');
+    expect(opts.map(o => o.label)).toContain('email');
+  });
+});
+
+describe('applyPrefixBoost', () => {
+  const base = [
+    { label: 'accounts', boost: 20 },
+    { label: 'active_users', boost: 15 },
+    { label: 'users', boost: 20 },
+  ];
+
+  it('adds +50 to labels that start with the prefix', () => {
+    const result = applyPrefixBoost(base, 'acc');
+    expect(result.find(o => o.label === 'accounts')?.boost).toBe(70);
+    expect(result.find(o => o.label === 'users')?.boost).toBe(20);
+  });
+
+  it('is case-insensitive', () => {
+    const result = applyPrefixBoost(base, 'ACC');
+    expect(result.find(o => o.label === 'accounts')?.boost).toBe(70);
+  });
+
+  it('does not boost a substring-only match', () => {
+    const result = applyPrefixBoost(base, 'ctive');
+    expect(result.find(o => o.label === 'active_users')?.boost).toBe(15);
+  });
+
+  it('returns options unchanged when prefix is empty', () => {
+    const result = applyPrefixBoost(base, '');
+    expect(result).toEqual(base);
+  });
+
+  it('prefix match outranks substring match of same base boost', () => {
+    const opts = [
+      { label: 'email_address', boost: 10 },
+      { label: 'em_id', boost: 10 },
+    ];
+    const result = applyPrefixBoost(opts, 'em');
+    const emId      = result.find(o => o.label === 'em_id')!;
+    const emailAddr = result.find(o => o.label === 'email_address')!;
+    expect(emId.boost).toBe(60);
+    expect(emailAddr.boost).toBe(60);
   });
 });
