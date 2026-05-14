@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState } from '@codemirror/state';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
-import { autocompletion, type Completion } from '@codemirror/autocomplete';
+import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { Play, Save, Trash2, Clock } from 'lucide-react';
@@ -14,6 +14,7 @@ export interface CompletionEntry {
     table: string;
     name: string;
     dataType: string;
+    keyType: 'pk' | 'fk' | '';
 }
 
 interface QueryEditorProps {
@@ -98,49 +99,134 @@ const editorTheme = EditorView.theme({
     '.cm-completionIcon-property': { color: '#e5c07b' },
     '.cm-completionIcon-namespace': { color: '#98c379' },
     '.cm-completionIcon-keyword': { color: '#c678dd' },
+    // Key-type badges
+    '.cm-key-badge': {
+        display: 'inline-block',
+        fontSize: '9px',
+        fontWeight: '700',
+        letterSpacing: '0.02em',
+        padding: '1px 4px',
+        borderRadius: '3px',
+        marginRight: '6px',
+        lineHeight: '1.4',
+        verticalAlign: 'middle',
+    },
+    '.cm-key-badge-pk': { background: 'rgba(229,192,123,0.15)', color: '#e5c07b', border: '1px solid rgba(229,192,123,0.3)' },
+    '.cm-key-badge-fk': { background: 'rgba(53,116,240,0.15)', color: 'oklch(0.72 0.17 240)', border: '1px solid rgba(53,116,240,0.3)' },
+    '.cm-key-badge-col': { background: 'rgba(255,255,255,0.05)', color: '#6e6a62', border: '1px solid rgba(255,255,255,0.08)' },
 }, { dark: true });
 
-const sqlCompartment = new Compartment();
+// Curated SQL keyword list — focuses on query-writing keywords only.
+// Functions, types, and obscure dialect words are intentionally excluded.
+const SQL_KEYWORDS = [
+    'SELECT', 'DISTINCT', 'FROM', 'WHERE', 'AND', 'OR', 'NOT',
+    'INSERT INTO', 'VALUES',
+    'UPDATE', 'SET', 'DELETE', 'DELETE FROM',
+    'CREATE TABLE', 'CREATE INDEX', 'CREATE VIEW',
+    'DROP TABLE', 'DROP INDEX', 'DROP VIEW',
+    'ALTER TABLE', 'ADD COLUMN', 'DROP COLUMN',
+    'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL OUTER JOIN', 'CROSS JOIN', 'ON',
+    'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET',
+    'AS', 'UNION', 'UNION ALL', 'INTERSECT', 'EXCEPT',
+    'RETURNING', 'WITH', 'RECURSIVE',
+    'TRUE', 'FALSE', 'NULL',
+    'ASC', 'DESC',
+    'BETWEEN', 'LIKE', 'ILIKE',
+    'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL', 'EXISTS', 'NOT EXISTS',
+    'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+    'BEGIN', 'COMMIT', 'ROLLBACK',
+    'EXPLAIN', 'EXPLAIN ANALYZE',
+    'TRUNCATE',
+    'PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE', 'NOT NULL', 'DEFAULT', 'REFERENCES',
+    'COALESCE', 'NULLIF',
+    'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
+];
 
-function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Completion[]>; tables: Completion[] } {
-    const schema: Record<string, Completion[]> = {};
-    const tables: Completion[] = [];
-    const seenTables = new Set<string>();
+const keywordOptions: Completion[] = SQL_KEYWORDS.map(kw => ({
+    label: kw,
+    type: 'keyword',
+    boost: 5,
+}));
 
-    for (const e of entries) {
-        if (e.kind === 'schema') {
-            // Schemas surface as namespace completions
-        } else if (e.kind === 'table' || e.kind === 'view') {
-            const qualKey = `${e.schema}.${e.name}`;
-            if (!seenTables.has(qualKey)) {
-                seenTables.add(qualKey);
-                tables.push({
-                    label: e.name,
-                    detail: e.schema,
-                    type: 'type',
-                    // High boost ensures user schema items outrank SQL keywords
-                    boost: e.kind === 'table' ? 20 : 15,
-                });
-                if (!schema[e.name]) schema[e.name] = [];
-                if (!schema[qualKey]) schema[qualKey] = [];
-            }
-        } else if (e.kind === 'column') {
-            const colCompletion: Completion = {
-                label: e.name,
-                detail: e.dataType,
-                type: 'property',
-                boost: 10,
-            };
-            const unqual = e.table;
-            const qual = `${e.schema}.${e.table}`;
-            if (!schema[unqual]) schema[unqual] = [];
-            schema[unqual].push(colCompletion);
-            if (!schema[qual]) schema[qual] = [];
-            schema[qual].push(colCompletion);
-        }
+const starOption: Completion = {
+    label: '*',
+    detail: 'all columns',
+    type: 'keyword',
+    boost: 30,
+};
+
+export function makeKeyTypeBadge(keyType: 'pk' | 'fk' | ''): HTMLElement {
+    const badge = document.createElement('span');
+    const variant = keyType === 'pk' ? 'pk' : keyType === 'fk' ? 'fk' : 'col';
+    badge.className = `cm-key-badge cm-key-badge-${variant}`;
+    badge.textContent = keyType === 'pk' ? 'PK' : keyType === 'fk' ? 'FK' : 'COL';
+    return badge;
+}
+
+// Extracts referenced table names from the FROM and JOIN clauses of a statement.
+export function extractFromTables(stmtText: string): string[] {
+    const tables: string[] = [];
+
+    // FROM clause — stop at any major keyword or end
+    const fromMatch = stmtText.match(
+        /\bFROM\s+([\w\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
+    );
+    if (fromMatch) {
+        fromMatch[1].split(',').forEach(part => {
+            const name = part.trim().split(/\s+/)[0];
+            if (name && /^\w+$/.test(name)) tables.push(name.toLowerCase());
+        });
     }
 
-    return { schema, tables };
+    // JOIN clauses
+    const joinRe = /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = joinRe.exec(stmtText)) !== null) {
+        tables.push(m[1].toLowerCase());
+    }
+
+    // UPDATE target table
+    const updateMatch = stmtText.match(/\bUPDATE\s+(\w+)/i);
+    if (updateMatch) tables.push(updateMatch[1].toLowerCase());
+
+    return [...new Set(tables)];
+}
+
+type SqlContext =
+    | { kind: 'keyword' }
+    | { kind: 'table' }
+    | { kind: 'column'; fromTables: string[]; isSelectList: boolean };
+
+// Determines what kind of completions to show based on the SQL text before the
+// current word. All comparisons are done case-insensitively. beforeWord retains
+// its trailing whitespace — the patterns rely on it to detect "right after keyword".
+export function detectSqlContext(beforeWord: string, stmtFull: string): SqlContext {
+    const upper = beforeWord.toUpperCase();
+
+    // Table context: immediately after FROM / JOIN / UPDATE (with optional table,comma list already typed)
+    if (
+        /\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upper) ||
+        /\bUPDATE\s*$/.test(upper)
+    ) {
+        return { kind: 'table' };
+    }
+
+    // Column context: after WHERE / HAVING / ON / AND / OR / SET / SELECT / ORDER BY / GROUP BY
+    const isSelectList = /\bSELECT(?:\s+DISTINCT)?\s+(?:\w+\s*,\s*)*$/.test(upper);
+    const isColumnCtx =
+        isSelectList ||
+        /\b(?:WHERE|HAVING|ON)\s*$/.test(upper) ||
+        /\b(?:AND|OR)\s*$/.test(upper) ||
+        /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(upper) ||
+        /\bBY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(upper) ||
+        /\bSET\s*$/.test(upper) ||
+        /\bSET\s+(?:\w+\s*=\s*[^,]+,\s*)+$/.test(upper);
+
+    if (isColumnCtx) {
+        return { kind: 'column', fromTables: extractFromTables(stmtFull), isSelectList };
+    }
+
+    return { kind: 'keyword' };
 }
 
 export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, completions }: QueryEditorProps) {
@@ -150,9 +236,15 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
     const onRunRef = useRef(onRun);
     const onSaveRef = useRef(onSave);
     const onChangeRef = useRef(onChange);
+    const entriesRef = useRef<CompletionEntry[]>(completions ?? []);
     onRunRef.current = onRun;
     onSaveRef.current = onSave;
     onChangeRef.current = onChange;
+
+    // Keep entries in sync without rebuilding the editor
+    useEffect(() => {
+        entriesRef.current = completions ?? [];
+    }, [completions]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -168,6 +260,54 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
             return true;
         };
 
+        // Context-aware SQL completion source. Reads from entriesRef so it always
+        // has fresh data without needing to reconfigure the extension.
+        const completionSource = (context: CompletionContext): CompletionResult | null => {
+            const word = context.matchBefore(/\w*/);
+            if (!word) return null;
+
+            const fullText = context.state.doc.toString();
+            // Find the start of the current SQL statement (after last semicolon)
+            const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
+            const stmtBeforeCursor = fullText.slice(stmtStart, context.pos);
+            const beforeWord = fullText.slice(stmtStart, word.from);
+
+            const entries = entriesRef.current;
+            const ctx = detectSqlContext(beforeWord, stmtBeforeCursor);
+
+            // In keyword context, don't auto-open on space (no typed prefix)
+            if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
+
+            let options: Completion[];
+
+            if (ctx.kind === 'table') {
+                options = entries
+                    .filter(e => e.kind === 'table' || e.kind === 'view')
+                    .map(e => ({
+                        label: e.name,
+                        detail: e.schema,
+                        type: e.kind === 'table' ? 'type' : 'variable',
+                        boost: e.kind === 'table' ? 20 : 15,
+                    }));
+            } else if (ctx.kind === 'column') {
+                const lowerTables = ctx.fromTables.length > 0 ? new Set(ctx.fromTables) : null;
+                const cols: Completion[] = entries
+                    .filter(e => e.kind === 'column' && (lowerTables === null || lowerTables.has(e.table.toLowerCase())))
+                    .map(e => ({
+                        label: e.name,
+                        detail: e.dataType,
+                        type: 'property',
+                        boost: e.keyType === 'pk' ? 15 : e.keyType === 'fk' ? 12 : 10,
+                        keyType: e.keyType,
+                    } as Completion & { keyType: string }));
+                options = ctx.isSelectList ? [starOption, ...cols] : cols;
+            } else {
+                options = keywordOptions;
+            }
+
+            return options.length > 0 ? { from: word.from, options, validFor: /^\w*$/ } : null;
+        };
+
         const state = EditorState.create({
             doc: sqlValue,
             extensions: [
@@ -175,9 +315,22 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
                 lineNumbers(),
                 highlightActiveLine(),
                 highlightActiveLineGutter(),
-                // filterStrict: prefix-only matching (no fuzzy), activateOnTyping: show on first char
-                autocompletion({ filterStrict: true, activateOnTyping: true }),
-                sqlCompartment.of(sql({ dialect: PostgreSQL })),
+                autocompletion({
+                    filterStrict: true,
+                    activateOnTyping: true,
+                    override: [completionSource],
+                    addToOptions: [{
+                        render(completion: Completion) {
+                            const kt = (completion as Completion & { keyType?: string }).keyType;
+                            if (kt === undefined) return null;
+                            return makeKeyTypeBadge(kt as 'pk' | 'fk' | '');
+                        },
+                        position: 25,
+                    }],
+                }),
+                // sql() provides syntax highlighting only; completions are handled by the
+                // override above, which bypasses the language's built-in keyword source.
+                sql({ dialect: PostgreSQL }),
                 oneDark,
                 editorTheme,
                 keymap.of([
@@ -214,15 +367,6 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
         view.dispatch({ changes: { from: 0, to: current.length, insert: sqlValue } });
         isProgrammatic.current = false;
     }, [sqlValue]);
-
-    useEffect(() => {
-        const view = viewRef.current;
-        if (!view) return;
-        const { schema, tables } = buildSqlConfig(completions ?? []);
-        view.dispatch({
-            effects: sqlCompartment.reconfigure(sql({ dialect: PostgreSQL, schema, tables })),
-        });
-    }, [completions]);
 
     const handleRun = useCallback(() => {
         const view = viewRef.current;

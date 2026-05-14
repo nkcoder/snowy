@@ -32,19 +32,19 @@ export const mockCompletions = {
     { kind: 'table', schema: 'public', table: '', name: 'transactions', dataType: '' },
     { kind: 'table', schema: 'public', table: '', name: 'audit_logs', dataType: '' },
     // users columns
-    { kind: 'column', schema: 'public', table: 'users', name: 'user_id', dataType: 'integer' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'first_name', dataType: 'character varying' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'last_name', dataType: 'character varying' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'email', dataType: 'character varying' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'created_at', dataType: 'timestamp with time zone' },
+    { kind: 'column', schema: 'public', table: 'users', name: 'user_id', dataType: 'integer', keyType: 'pk' },
+    { kind: 'column', schema: 'public', table: 'users', name: 'first_name', dataType: 'character varying', keyType: '' },
+    { kind: 'column', schema: 'public', table: 'users', name: 'last_name', dataType: 'character varying', keyType: '' },
+    { kind: 'column', schema: 'public', table: 'users', name: 'email', dataType: 'character varying', keyType: '' },
+    { kind: 'column', schema: 'public', table: 'users', name: 'created_at', dataType: 'timestamp with time zone', keyType: '' },
     // accounts columns
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'account_id', dataType: 'integer' },
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'user_id', dataType: 'integer' },
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'balance', dataType: 'numeric' },
+    { kind: 'column', schema: 'public', table: 'accounts', name: 'account_id', dataType: 'integer', keyType: 'pk' },
+    { kind: 'column', schema: 'public', table: 'accounts', name: 'user_id', dataType: 'integer', keyType: 'fk' },
+    { kind: 'column', schema: 'public', table: 'accounts', name: 'balance', dataType: 'numeric', keyType: '' },
     // transactions columns
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'transaction_id', dataType: 'integer' },
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'amount', dataType: 'numeric' },
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'created_at', dataType: 'timestamp with time zone' },
+    { kind: 'column', schema: 'public', table: 'transactions', name: 'transaction_id', dataType: 'integer', keyType: 'pk' },
+    { kind: 'column', schema: 'public', table: 'transactions', name: 'amount', dataType: 'numeric', keyType: '' },
+    { kind: 'column', schema: 'public', table: 'transactions', name: 'created_at', dataType: 'timestamp with time zone', keyType: '' },
   ],
 };
 
