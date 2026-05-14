@@ -32,12 +32,45 @@ interface SchemaNode {
   loaded: boolean;
 }
 
+interface SubFolder<T> {
+  open: boolean;
+  items: T[];
+  loaded: boolean;
+}
+
+interface KeyNode {
+  name: string;
+  columns: string;
+}
+
+interface ForeignKeyNode {
+  name: string;
+  columns: string;
+  refSchema: string;
+  refTable: string;
+  refColumns: string;
+}
+
+interface IndexNode {
+  name: string;
+  isUnique: boolean;
+  columns: string;
+}
+
+interface CheckNode {
+  name: string;
+  definition: string;
+}
+
 interface TableNode {
   name: string;
   type: 'table' | 'view';
   expanded: boolean;
-  columns: ColumnNode[];
-  loaded: boolean;
+  columns: SubFolder<ColumnNode>;
+  keys: SubFolder<KeyNode>;
+  foreignKeys: SubFolder<ForeignKeyNode>;
+  indexes: SubFolder<IndexNode>;
+  checks: SubFolder<CheckNode>;
 }
 
 interface ColumnNode {
@@ -196,6 +229,20 @@ function ToolBtn({
   );
 }
 
+// ── TableNode factory ─────────────────────────────────────────────────────────
+function emptyFolder<T>(): SubFolder<T> { return { open: false, items: [], loaded: false }; }
+
+function makeTableNode(name: string, type: 'table' | 'view'): TableNode {
+  return {
+    name, type, expanded: false,
+    columns: emptyFolder(),
+    keys: emptyFolder(),
+    foreignKeys: emptyFolder(),
+    indexes: emptyFolder(),
+    checks: emptyFolder(),
+  };
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 export function Sidebar({
   datasources,
@@ -279,11 +326,7 @@ export function Sidebar({
           ...prev,
           [dsId]: (prev[dsId] ?? []).map((s, i) => i !== idx ? s : {
             ...s, expanded: true, loaded: true,
-            tables: tables.map(t => ({
-              name: t.name,
-              type: t.type === 'VIEW' ? 'view' : 'table',
-              expanded: false, columns: [], loaded: false,
-            })),
+            tables: tables.map(t => makeTableNode(t.name, t.type === 'VIEW' ? 'view' : 'table')),
           }),
         }));
       } catch (err) {
@@ -297,35 +340,92 @@ export function Sidebar({
     }
   };
 
+  const patchTable = (dsId: string, schemaIdx: number, tableIdx: number, patch: Partial<TableNode>) => {
+    setSchemasPerDs(prev => ({
+      ...prev,
+      [dsId]: (prev[dsId] ?? []).map((s, si) => si !== schemaIdx ? s : {
+        ...s,
+        tables: s.tables.map((t, ti) => ti !== tableIdx ? t : { ...t, ...patch }),
+      }),
+    }));
+  };
+
   const toggleTable = async (dsId: string, schemaIdx: number, tableIdx: number) => {
     const schema = schemasPerDs[dsId]?.[schemaIdx];
     const table = schema?.tables[tableIdx];
     if (!schema || !table) return;
-    if (!table.loaded && !table.expanded) {
-      try {
-        const cols = await GoApp.ListColumns(dsId, schema.name, table.name);
-        setSchemasPerDs(prev => ({
-          ...prev,
-          [dsId]: (prev[dsId] ?? []).map((s, si) => si !== schemaIdx ? s : {
-            ...s,
-            tables: s.tables.map((t, ti) => ti !== tableIdx ? t : {
-              ...t, expanded: true, loaded: true,
-              columns: cols.map(c => ({ name: c.name, dataType: c.dataType, isNullable: c.isNullable, keyType: c.keyType ?? '' })),
+
+    if (!table.expanded) {
+      // Expand: auto-open columns sub-folder if not yet loaded
+      patchTable(dsId, schemaIdx, tableIdx, { expanded: true });
+      if (!table.columns.loaded) {
+        try {
+          const cols = await GoApp.ListColumns(dsId, schema.name, table.name);
+          setSchemasPerDs(prev => ({
+            ...prev,
+            [dsId]: (prev[dsId] ?? []).map((s, si) => si !== schemaIdx ? s : {
+              ...s,
+              tables: s.tables.map((t, ti) => ti !== tableIdx ? t : {
+                ...t,
+                columns: {
+                  open: true,
+                  loaded: true,
+                  items: (cols ?? []).map(c => ({ name: c.name, dataType: c.dataType, isNullable: c.isNullable, keyType: c.keyType ?? '' })),
+                },
+              }),
             }),
-          }),
-        }));
-      } catch (err) {
-        console.error('Failed to load columns', err);
+          }));
+        } catch (err) {
+          console.error('Failed to load columns', err);
+        }
+      } else {
+        patchTable(dsId, schemaIdx, tableIdx, { columns: { ...table.columns, open: true } });
       }
     } else {
-      setSchemasPerDs(prev => ({
-        ...prev,
-        [dsId]: (prev[dsId] ?? []).map((s, si) => si !== schemaIdx ? s : {
-          ...s,
-          tables: s.tables.map((t, ti) => ti !== tableIdx ? t : { ...t, expanded: !t.expanded }),
-        }),
-      }));
+      patchTable(dsId, schemaIdx, tableIdx, { expanded: false });
     }
+  };
+
+  const toggleTableSubFolder = async (
+    dsId: string, schemaIdx: number, tableIdx: number,
+    folder: 'keys' | 'foreignKeys' | 'indexes' | 'checks',
+  ) => {
+    const schema = schemasPerDs[dsId]?.[schemaIdx];
+    const table = schema?.tables[tableIdx];
+    if (!schema || !table) return;
+
+    const sub = table[folder];
+    if (sub.open) {
+      patchTable(dsId, schemaIdx, tableIdx, { [folder]: { ...sub, open: false } });
+      return;
+    }
+    if (sub.loaded) {
+      patchTable(dsId, schemaIdx, tableIdx, { [folder]: { ...sub, open: true } });
+      return;
+    }
+
+    // Load data for the first time
+    try {
+      let items: any[] = [];
+      if (folder === 'keys') {
+        items = await GoApp.ListTableKeys(dsId, schema.name, table.name);
+      } else if (folder === 'foreignKeys') {
+        items = await GoApp.ListTableForeignKeys(dsId, schema.name, table.name);
+      } else if (folder === 'indexes') {
+        items = await GoApp.ListTableIndexes(dsId, schema.name, table.name);
+      } else {
+        items = await GoApp.ListTableChecks(dsId, schema.name, table.name);
+      }
+      patchTable(dsId, schemaIdx, tableIdx, { [folder]: { open: true, loaded: true, items: items ?? [] } });
+    } catch (err) {
+      console.error(`Failed to load ${folder}`, err);
+    }
+  };
+
+  const toggleColumnsFolder = (dsId: string, schemaIdx: number, tableIdx: number) => {
+    const table = schemasPerDs[dsId]?.[schemaIdx]?.tables[tableIdx];
+    if (!table) return;
+    patchTable(dsId, schemaIdx, tableIdx, { columns: { ...table.columns, open: !table.columns.open } });
   };
 
   // ── Connection node renderer ────────────────────────────────────────────────
@@ -452,28 +552,166 @@ export function Sidebar({
                                   depth={4}
                                   expanded={table.expanded}
                                   icon={<Table2 size={11} color={T.textSec} />}
-                                  label={
-                                    <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{table.name}</span>
-                                  }
+                                  label={<span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{table.name}</span>}
                                   onClick={() => toggleTable(ds.id, realSi, realTi)}
                                   onDoubleClick={() => onTableSelect(schema.name, table.name)}
                                 />
-                                {table.expanded && table.columns.map(col => (
+                                {table.expanded && <>
+                                  {/* columns sub-folder */}
                                   <TreeRow
-                                    key={col.name}
+                                    data-testid={`subfolder-columns-${schema.name}-${table.name}`}
                                     depth={5}
-                                    hasChildren={false}
-                                    icon={<ColIcon kind={col.keyType as 'pk' | 'fk' | undefined} />}
-                                    label={
-                                      <span>
-                                        <span style={{ fontFamily: T.mono, fontSize: 11 }}>{col.name}</span>
-                                        <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>{col.dataType}</span>
-                                      </span>
-                                    }
-                                    dim={!col.keyType}
-                                    small
+                                    expanded={table.columns.open}
+                                    icon={<Columns size={11} color={T.accent} />}
+                                    label={<span style={{ color: T.textSec }}>columns</span>}
+                                    meta={table.columns.loaded ? table.columns.items.length || undefined : undefined}
+                                    onClick={() => toggleColumnsFolder(ds.id, realSi, realTi)}
                                   />
-                                ))}
+                                  {table.columns.open && table.columns.items.map(col => (
+                                    <TreeRow
+                                      key={col.name}
+                                      depth={6}
+                                      hasChildren={false}
+                                      icon={<ColIcon kind={col.keyType as 'pk' | 'fk' | undefined} />}
+                                      label={
+                                        <span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 11 }}>{col.name}</span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>{col.dataType}</span>
+                                        </span>
+                                      }
+                                      dim={!col.keyType}
+                                      small
+                                    />
+                                  ))}
+
+                                  {/* keys sub-folder */}
+                                  <TreeRow
+                                    data-testid={`subfolder-keys-${schema.name}-${table.name}`}
+                                    depth={5}
+                                    expanded={table.keys.open}
+                                    icon={
+                                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                        <circle cx="5.5" cy="8" r="3.5" stroke={T.warn} strokeWidth="1.3" />
+                                        <path d="M8.5 8h5M11.5 8v2" stroke={T.warn} strokeWidth="1.3" strokeLinecap="round" />
+                                      </svg>
+                                    }
+                                    label={<span style={{ color: T.textSec }}>keys</span>}
+                                    meta={table.keys.loaded ? table.keys.items.length || undefined : undefined}
+                                    onClick={() => toggleTableSubFolder(ds.id, realSi, realTi, 'keys')}
+                                  />
+                                  {table.keys.open && table.keys.items.map(k => (
+                                    <TreeRow
+                                      key={k.name}
+                                      depth={6}
+                                      hasChildren={false}
+                                      icon={<ColIcon kind="pk" />}
+                                      label={
+                                        <span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 11 }}>{k.name}</span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>{k.columns}</span>
+                                        </span>
+                                      }
+                                      small
+                                    />
+                                  ))}
+
+                                  {/* foreign keys sub-folder */}
+                                  <TreeRow
+                                    data-testid={`subfolder-fk-${schema.name}-${table.name}`}
+                                    depth={5}
+                                    expanded={table.foreignKeys.open}
+                                    icon={<ColIcon kind="fk" />}
+                                    label={<span style={{ color: T.textSec }}>foreign keys</span>}
+                                    meta={table.foreignKeys.loaded ? table.foreignKeys.items.length || undefined : undefined}
+                                    onClick={() => toggleTableSubFolder(ds.id, realSi, realTi, 'foreignKeys')}
+                                  />
+                                  {table.foreignKeys.open && table.foreignKeys.items.map(fk => (
+                                    <TreeRow
+                                      key={fk.name}
+                                      depth={6}
+                                      hasChildren={false}
+                                      icon={<ColIcon kind="fk" />}
+                                      label={
+                                        <span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 11 }}>{fk.name}</span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>→ {fk.refTable}</span>
+                                        </span>
+                                      }
+                                      small
+                                    />
+                                  ))}
+
+                                  {/* indexes sub-folder */}
+                                  <TreeRow
+                                    data-testid={`subfolder-indexes-${schema.name}-${table.name}`}
+                                    depth={5}
+                                    expanded={table.indexes.open}
+                                    icon={
+                                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                        <path d="M2 4h12M4 8h8M6 12h4" stroke={T.accent} strokeWidth="1.4" strokeLinecap="round" />
+                                      </svg>
+                                    }
+                                    label={<span style={{ color: T.textSec }}>indexes</span>}
+                                    meta={table.indexes.loaded ? table.indexes.items.length || undefined : undefined}
+                                    onClick={() => toggleTableSubFolder(ds.id, realSi, realTi, 'indexes')}
+                                  />
+                                  {table.indexes.open && table.indexes.items.map(idx => (
+                                    <TreeRow
+                                      key={idx.name}
+                                      depth={6}
+                                      hasChildren={false}
+                                      icon={
+                                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                          <path d="M2 4h12M4 8h8M6 12h4" stroke={idx.isUnique ? T.ok : T.textDim} strokeWidth="1.4" strokeLinecap="round" />
+                                        </svg>
+                                      }
+                                      label={
+                                        <span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 11 }}>{idx.name}</span>
+                                          {idx.isUnique && <span style={{ fontSize: 9.5, color: T.ok, marginLeft: 6, fontWeight: 600 }}>UNIQUE</span>}
+                                          <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>{idx.columns}</span>
+                                        </span>
+                                      }
+                                      small
+                                    />
+                                  ))}
+
+                                  {/* checks sub-folder */}
+                                  <TreeRow
+                                    data-testid={`subfolder-checks-${schema.name}-${table.name}`}
+                                    depth={5}
+                                    expanded={table.checks.open}
+                                    icon={
+                                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                        <rect x="2" y="2" width="12" height="12" rx="2" stroke={T.textSec} strokeWidth="1.3" />
+                                        <path d="M5 8l2 2 4-4" stroke={T.textSec} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    }
+                                    label={<span style={{ color: T.textSec }}>checks</span>}
+                                    meta={table.checks.loaded ? table.checks.items.length || undefined : undefined}
+                                    onClick={() => toggleTableSubFolder(ds.id, realSi, realTi, 'checks')}
+                                  />
+                                  {table.checks.open && table.checks.items.map(c => (
+                                    <TreeRow
+                                      key={c.name}
+                                      depth={6}
+                                      hasChildren={false}
+                                      icon={
+                                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                          <rect x="2" y="2" width="12" height="12" rx="2" stroke={T.textSec} strokeWidth="1.3" />
+                                          <path d="M5 8l2 2 4-4" stroke={T.textSec} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                      }
+                                      label={
+                                        <span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 11 }}>{c.name}</span>
+                                          <span style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim, marginLeft: 8 }}>{c.definition}</span>
+                                        </span>
+                                      }
+                                      small
+                                    />
+                                  ))}
+                                </>}
                               </div>
                             );
                           })}
@@ -501,7 +739,7 @@ export function Sidebar({
                                       onClick={() => toggleTable(ds.id, realSi, realVi)}
                                       onDoubleClick={() => onTableSelect(schema.name, view.name)}
                                     />
-                                    {view.expanded && view.columns.map(col => (
+                                    {view.expanded && view.columns.open && view.columns.items.map(col => (
                                       <TreeRow
                                         key={col.name}
                                         depth={5}

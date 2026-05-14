@@ -96,6 +96,26 @@ func (a *App) RenameQuery(dsId, oldName, newName string) error {
 	return RenameQuery(dsId, oldName, newName)
 }
 
+// ListTableKeys returns primary key constraints for a table.
+func (a *App) ListTableKeys(dsId, schema, table string) ([]TableKeyItem, error) {
+	return a.dbService.ListTableKeys(dsId, schema, table)
+}
+
+// ListTableForeignKeys returns foreign key constraints for a table.
+func (a *App) ListTableForeignKeys(dsId, schema, table string) ([]ForeignKeyItem, error) {
+	return a.dbService.ListTableForeignKeys(dsId, schema, table)
+}
+
+// ListTableIndexes returns non-primary indexes for a table.
+func (a *App) ListTableIndexes(dsId, schema, table string) ([]IndexItem, error) {
+	return a.dbService.ListTableIndexes(dsId, schema, table)
+}
+
+// ListTableChecks returns check constraints for a table.
+func (a *App) ListTableChecks(dsId, schema, table string) ([]CheckItem, error) {
+	return a.dbService.ListTableChecks(dsId, schema, table)
+}
+
 // GetCompletions returns DB-aware autocomplete entries (schemas, tables, views, columns)
 // for the given datasource. Results are cached in-memory.
 func (a *App) GetCompletions(dsId string) (*CompletionSet, error) {

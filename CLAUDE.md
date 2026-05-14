@@ -31,6 +31,8 @@ Add test suites for main components, add explanatory comments to the code.
 Always references the design prototypes under @spec folder. DataGrip is a very good example in terms of UI layout/themes and
 interactions, you can always references DataGrip.
 
+Our designs are: @spec/design, referenced DataGrip designs are: @spec/design/datagrip-references/
+
 ## Architecture
 
 ### Backend (Go)

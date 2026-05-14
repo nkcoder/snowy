@@ -34,6 +34,22 @@ export function ListSchemas(arg1) {
   return window['go']['main']['App']['ListSchemas'](arg1);
 }
 
+export function ListTableChecks(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListTableChecks'](arg1, arg2, arg3);
+}
+
+export function ListTableForeignKeys(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListTableForeignKeys'](arg1, arg2, arg3);
+}
+
+export function ListTableIndexes(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListTableIndexes'](arg1, arg2, arg3);
+}
+
+export function ListTableKeys(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListTableKeys'](arg1, arg2, arg3);
+}
+
 export function ListTables(arg1, arg2) {
   return window['go']['main']['App']['ListTables'](arg1, arg2);
 }

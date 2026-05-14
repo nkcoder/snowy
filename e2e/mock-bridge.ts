@@ -155,6 +155,31 @@ export function buildMockBridgeScript(
           GetQueryHistory: (dsId, limit) => {
             return Promise.resolve(_historyEntries.slice(0, limit));
           },
+          ListTableKeys: (dsId, schema, table) => {
+            const keys = {
+              accounts: [{ name: 'accounts_pkey', columns: 'account_id' }],
+              users: [{ name: 'users_pkey', columns: 'user_id' }],
+            };
+            return Promise.resolve(keys[table] || []);
+          },
+          ListTableForeignKeys: (dsId, schema, table) => {
+            const fks = {
+              accounts: [{ name: 'accounts_user_id_fkey', columns: 'user_id', refSchema: 'public', refTable: 'users', refColumns: 'user_id' }],
+            };
+            return Promise.resolve(fks[table] || []);
+          },
+          ListTableIndexes: (dsId, schema, table) => {
+            const indexes = {
+              users: [{ name: 'users_email_key', isUnique: true, columns: 'email' }],
+            };
+            return Promise.resolve(indexes[table] || []);
+          },
+          ListTableChecks: (dsId, schema, table) => {
+            const checks = {
+              accounts: [{ name: 'accounts_balance_check', definition: 'balance >= 0' }],
+            };
+            return Promise.resolve(checks[table] || []);
+          },
         },
       },
     };

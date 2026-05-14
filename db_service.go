@@ -195,6 +195,188 @@ func (s *DbService) ListColumns(dsId string, schema, table string) ([]ColumnItem
 
 // GetCompletions returns all schemas, tables, views and columns for a datasource.
 // Results are cached in-memory per dsId (cache is invalidated on process restart).
+// TableKeyItem represents a primary key constraint on a table.
+type TableKeyItem struct {
+	Name    string `json:"name"`
+	Columns string `json:"columns"`
+}
+
+// ForeignKeyItem represents a foreign key constraint on a table.
+type ForeignKeyItem struct {
+	Name       string `json:"name"`
+	Columns    string `json:"columns"`
+	RefSchema  string `json:"refSchema"`
+	RefTable   string `json:"refTable"`
+	RefColumns string `json:"refColumns"`
+}
+
+// IndexItem represents an index on a table (primary key indexes excluded).
+type IndexItem struct {
+	Name     string `json:"name"`
+	IsUnique bool   `json:"isUnique"`
+	Columns  string `json:"columns"`
+}
+
+// CheckItem represents a check constraint on a table.
+type CheckItem struct {
+	Name       string `json:"name"`
+	Definition string `json:"definition"`
+}
+
+func (s *DbService) ListTableKeys(dsId, schema, table string) ([]TableKeyItem, error) {
+	conn, ctx, cancel, err := s.getConnection(dsId)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+	defer cancel()
+
+	const q = `
+		SELECT tc.constraint_name,
+		       string_agg(kcu.column_name, ', ' ORDER BY kcu.ordinal_position) AS cols
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+		     ON tc.constraint_name = kcu.constraint_name
+		     AND tc.table_schema   = kcu.table_schema
+		WHERE tc.constraint_type = 'PRIMARY KEY'
+		  AND tc.table_schema = $1 AND tc.table_name = $2
+		GROUP BY tc.constraint_name`
+
+	rows, err := conn.Query(ctx, q, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]TableKeyItem, 0)
+	for rows.Next() {
+		var it TableKeyItem
+		if err := rows.Scan(&it.Name, &it.Columns); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
+func (s *DbService) ListTableForeignKeys(dsId, schema, table string) ([]ForeignKeyItem, error) {
+	conn, ctx, cancel, err := s.getConnection(dsId)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+	defer cancel()
+
+	const q = `
+		SELECT tc.constraint_name,
+		       string_agg(DISTINCT kcu.column_name, ', ' ORDER BY kcu.column_name) AS cols,
+		       MIN(ccu.table_schema) AS ref_schema,
+		       MIN(ccu.table_name)   AS ref_table,
+		       string_agg(DISTINCT ccu.column_name, ', ' ORDER BY ccu.column_name) AS ref_cols
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+		     ON tc.constraint_name = kcu.constraint_name
+		     AND tc.table_schema   = kcu.table_schema
+		JOIN information_schema.constraint_column_usage ccu
+		     ON tc.constraint_name = ccu.constraint_name
+		     AND tc.table_schema   = ccu.table_schema
+		WHERE tc.constraint_type = 'FOREIGN KEY'
+		  AND tc.table_schema = $1 AND tc.table_name = $2
+		GROUP BY tc.constraint_name`
+
+	rows, err := conn.Query(ctx, q, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]ForeignKeyItem, 0)
+	for rows.Next() {
+		var it ForeignKeyItem
+		if err := rows.Scan(&it.Name, &it.Columns, &it.RefSchema, &it.RefTable, &it.RefColumns); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
+func (s *DbService) ListTableIndexes(dsId, schema, table string) ([]IndexItem, error) {
+	conn, ctx, cancel, err := s.getConnection(dsId)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+	defer cancel()
+
+	const q = `
+		SELECT i.relname,
+		       ix.indisunique,
+		       string_agg(a.attname, ', ' ORDER BY k.n) AS cols
+		FROM pg_class t
+		JOIN pg_index     ix ON ix.indrelid = t.oid
+		JOIN pg_class      i ON i.oid = ix.indexrelid
+		JOIN pg_namespace  n ON n.oid = t.relnamespace
+		JOIN LATERAL unnest(ix.indkey) WITH ORDINALITY AS k(attnum, n) ON true
+		JOIN pg_attribute  a ON a.attrelid = t.oid AND a.attnum = k.attnum
+		WHERE n.nspname = $1 AND t.relname = $2
+		  AND NOT ix.indisprimary
+		GROUP BY i.relname, ix.indisunique
+		ORDER BY i.relname`
+
+	rows, err := conn.Query(ctx, q, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]IndexItem, 0)
+	for rows.Next() {
+		var it IndexItem
+		if err := rows.Scan(&it.Name, &it.IsUnique, &it.Columns); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
+func (s *DbService) ListTableChecks(dsId, schema, table string) ([]CheckItem, error) {
+	conn, ctx, cancel, err := s.getConnection(dsId)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close(ctx)
+	defer cancel()
+
+	const q = `
+		SELECT cc.constraint_name, cc.check_clause
+		FROM information_schema.check_constraints cc
+		JOIN information_schema.table_constraints tc
+		     ON cc.constraint_name  = tc.constraint_name
+		     AND cc.constraint_schema = tc.constraint_schema
+		WHERE tc.constraint_type = 'CHECK'
+		  AND tc.table_schema = $1 AND tc.table_name = $2
+		  AND cc.check_clause NOT LIKE '%IS NOT NULL%'
+		ORDER BY cc.constraint_name`
+
+	rows, err := conn.Query(ctx, q, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]CheckItem, 0)
+	for rows.Next() {
+		var it CheckItem
+		if err := rows.Scan(&it.Name, &it.Definition); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
 func (s *DbService) GetCompletions(dsId string) (*CompletionSet, error) {
 	if cached, ok := s.completionCache.Load(dsId); ok {
 		return cached.(*CompletionSet), nil

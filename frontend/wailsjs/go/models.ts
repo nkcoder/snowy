@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class CheckItem {
+	    name: string;
+	    definition: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CheckItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.definition = source["definition"];
+	    }
+	}
 	export class ColumnItem {
 	    name: string;
 	    dataType: string;
@@ -15,7 +29,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.dataType = source["dataType"];
 	        this.isNullable = source["isNullable"];
-	        this.keyType = source["keyType"] ?? "";
+	        this.keyType = source["keyType"];
 	    }
 	}
 	export class CompletionEntry {
@@ -147,6 +161,26 @@ export namespace main {
 		}
 	}
 	
+	export class ForeignKeyItem {
+	    name: string;
+	    columns: string;
+	    refSchema: string;
+	    refTable: string;
+	    refColumns: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForeignKeyItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
+	        this.refSchema = source["refSchema"];
+	        this.refTable = source["refTable"];
+	        this.refColumns = source["refColumns"];
+	    }
+	}
 	export class HistoryEntry {
 	    id: string;
 	    sql: string;
@@ -165,6 +199,22 @@ export namespace main {
 	        this.rowCount = source["rowCount"];
 	        this.durationMs = source["durationMs"];
 	        this.executedAt = source["executedAt"];
+	    }
+	}
+	export class IndexItem {
+	    name: string;
+	    isUnique: boolean;
+	    columns: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isUnique = source["isUnique"];
+	        this.columns = source["columns"];
 	    }
 	}
 	
@@ -224,6 +274,20 @@ export namespace main {
 	        this.schema = source["schema"];
 	        this.name = source["name"];
 	        this.type = source["type"];
+	    }
+	}
+	export class TableKeyItem {
+	    name: string;
+	    columns: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableKeyItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.columns = source["columns"];
 	    }
 	}
 	export class TestConnectionResult {
