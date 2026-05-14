@@ -4,6 +4,7 @@ export namespace main {
 	    name: string;
 	    dataType: string;
 	    isNullable: string;
+	    keyType: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ColumnItem(source);
@@ -14,6 +15,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.dataType = source["dataType"];
 	        this.isNullable = source["isNullable"];
+	        this.keyType = source["keyType"] ?? "";
 	    }
 	}
 	export class CompletionEntry {
@@ -113,6 +115,7 @@ export namespace main {
 	export class Config {
 	    projects: Project[];
 	    datasources: Datasource[];
+	    theme?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -122,6 +125,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projects = this.convertValues(source["projects"], Project);
 	        this.datasources = this.convertValues(source["datasources"], Datasource);
+	        this.theme = source["theme"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

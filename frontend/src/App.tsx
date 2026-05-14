@@ -42,7 +42,7 @@ import { ConnectionManager } from './components/ConnectionManager';
 import { TabBar, type Tab } from './components/TabBar';
 import { ResultsPanel, type ResultTab } from './components/ResultsPanel';
 import { HistoryDrawer, type HistoryEntry } from './components/HistoryDrawer';
-import { Database, Terminal, Folder, ChevronRight } from 'lucide-react';
+import { Terminal, Folder, ChevronRight } from 'lucide-react';
 import './App.css';
 
 // ── Tab helpers ────────────────────────────────────────────────────────────────
@@ -100,6 +100,17 @@ const { chrome, border, borderStrong, accent, textSec, textDim, bg, sidebar, ok,
   ui:           T.ui,
   mono:         T.mono,
 };
+
+// macOS traffic lights — decorative (native titlebar provides real controls in non-frameless mode)
+function TrafficLights() {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#ff5f57', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
+      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#febc2e', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
+      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#28c840', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
+    </div>
+  );
+}
 
 function ElephantGlyph({ color }: { color: string }) {
   return (
@@ -214,13 +225,13 @@ function App() {
   const handlePinResult = () => {
     const liveTab = resultTabs.find(t => !t.pinned);
     if (!liveTab?.data) return;
-    const pinned: ResultTab = {
-      ...liveTab,
-      id: `result-pin-${Date.now()}`,
-      pinned: true,
-    };
-    setResultTabs(prev => [...prev, pinned]);
-    setActiveResultTabId(pinned.id);
+    // Replace the live tab with a pinned snapshot (new ID so it stays fixed),
+    // then append a fresh live tab for the next query result.
+    const pinnedId = `result-pin-${Date.now()}`;
+    const pinned: ResultTab = { ...liveTab, id: pinnedId, pinned: true };
+    const newLive = makeLiveResultTab();
+    setResultTabs(prev => [...prev.map(t => t.id === liveTab.id ? pinned : t), newLive]);
+    setActiveResultTabId(pinnedId);
   };
 
   const handleCloseResultTab = (id: string) => {
@@ -359,11 +370,65 @@ function App() {
 
     return (
       <WorkspaceErrorBoundary>
-      <div style={{ display: 'flex', height: '100vh', background: bg, color: T.text, fontFamily: ui, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: bg, color: T.text, fontFamily: ui, overflow: 'hidden' }}>
+        {/* ── macOS title bar with drag region ─────────────────────────────── */}
+        <div
+          style={{
+            height: 38,
+            background: chrome,
+            borderBottom: `0.5px solid ${border}`,
+            display: 'flex', alignItems: 'center',
+            paddingLeft: 14, paddingRight: 12, gap: 14,
+            flexShrink: 0,
+            // Wails drag region — allows window dragging from this bar
+            // @ts-ignore
+            '--wails-draggable': 'drag',
+          } as React.CSSProperties}
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          data-wails-drag
+        >
+          <TrafficLights />
+          <div style={{ width: 1, height: 16, background: border, flexShrink: 0 }} />
+          {/* App title + connection indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: -0.2 }}>Snowy</span>
+            {activeDatasource && (
+              <>
+                <span style={{ color: textDim, fontSize: 12 }}>/</span>
+                <span style={{ fontSize: 12, color: textSec, fontFamily: mono }}>{activeDatasource.name}</span>
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: ok, boxShadow: `0 0 5px ${ok}`, flexShrink: 0 }} />
+              </>
+            )}
+          </div>
+          <div style={{ flex: 1 }} />
+          {/* Connection manager button */}
+          <button
+            onClick={() => setView('connections')}
+            title="Manage connections"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 10px',
+              background: T.panelAlt, border: `0.5px solid ${border}`,
+              borderRadius: 5, fontSize: 11.5, color: textSec,
+              cursor: 'pointer', fontFamily: ui,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <ellipse cx="8" cy="4" rx="5" ry="1.8" />
+              <path d="M3 4v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4" />
+              <path d="M3 8v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V8" />
+            </svg>
+            Connections
+          </button>
+        </div>
+
+        {/* ── Main workspace row ────────────────────────────────────────────── */}
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <Sidebar
-          datasourceId={activeDatasourceId}
-          datasourceName={activeDatasource?.name}
-          datasourceDb={activeDatasource?.database}
+          datasources={datasources}
+          activeDatasourceId={activeDatasourceId}
+          onConnect={handleConnect}
           onTableSelect={(s, t) => {
             const q = `SELECT * FROM ${s}.${t} LIMIT 100;`;
             openTab(makeTab(`${s}.${t}`, q));
@@ -473,6 +538,7 @@ function App() {
             onSelect={handleHistorySelect}
           />
         )}
+        </div>{/* end main workspace row */}
       </div>
       </WorkspaceErrorBoundary>
     );
@@ -483,6 +549,7 @@ function App() {
     <ConnectionManager
       projects={projects}
       datasources={datasources}
+      activeDatasourceId={activeDatasourceId}
       onConnect={handleConnect}
       onSaveAll={handleSaveAll}
       onUpdateDs={handleUpdateDs}

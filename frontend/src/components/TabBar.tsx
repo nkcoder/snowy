@@ -49,7 +49,7 @@ export function TabBar({ tabs, activeTabId, onSelect, onClose, onNew }: TabBarPr
               background: active ? T.panel : 'transparent',
               borderRight: `0.5px solid ${T.border}`,
               borderBottom: active ? `2px solid ${T.accent}` : '2px solid transparent',
-              color: active ? T.text : T.textDim,
+              color: active ? T.text : T.textSec,
               fontSize: 12,
               cursor: 'pointer',
               userSelect: 'none',
@@ -68,7 +68,7 @@ export function TabBar({ tabs, activeTabId, onSelect, onClose, onNew }: TabBarPr
               whiteSpace: 'nowrap',
               fontFamily: T.mono,
               fontSize: 11.5,
-              fontWeight: active ? 500 : 400,
+              fontWeight: active ? 600 : 400,
             }}>
               {tab.label}
             </span>

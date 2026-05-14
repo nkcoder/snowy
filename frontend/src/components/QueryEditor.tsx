@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
-import type { Completion } from '@codemirror/autocomplete';
+import { autocompletion, type Completion } from '@codemirror/autocomplete';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { Play, Save, Trash2, Clock } from 'lucide-react';
@@ -118,7 +118,8 @@ function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Co
                     label: e.name,
                     detail: e.schema,
                     type: 'type',
-                    boost: e.kind === 'table' ? 2 : 1,
+                    // High boost ensures user schema items outrank SQL keywords
+                    boost: e.kind === 'table' ? 20 : 15,
                 });
                 if (!schema[e.name]) schema[e.name] = [];
                 if (!schema[qualKey]) schema[qualKey] = [];
@@ -128,6 +129,7 @@ function buildSqlConfig(entries: CompletionEntry[]): { schema: Record<string, Co
                 label: e.name,
                 detail: e.dataType,
                 type: 'property',
+                boost: 10,
             };
             const unqual = e.table;
             const qual = `${e.schema}.${e.table}`;
@@ -173,6 +175,8 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
                 lineNumbers(),
                 highlightActiveLine(),
                 highlightActiveLineGutter(),
+                // filterStrict: prefix-only matching (no fuzzy), activateOnTyping: show on first char
+                autocompletion({ filterStrict: true, activateOnTyping: true }),
                 sqlCompartment.of(sql({ dialect: PostgreSQL })),
                 oneDark,
                 editorTheme,

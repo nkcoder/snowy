@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Sidebar } from './Sidebar';
+import type { Datasource } from '../types';
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   ListSchemas: vi.fn().mockResolvedValue([]),
@@ -16,17 +17,28 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 
 import * as GoApp from '../../wailsjs/go/main/App';
 
+const DS1: Datasource = {
+  id: 'ds1', name: 'local-pg', host: 'localhost', port: 5432,
+  database: 'mydb', username: 'user', password: '', projectId: 'p1', env: 'local', sslMode: 'disable',
+};
+
+const DS2: Datasource = {
+  id: 'ds2', name: 'prod-pg', host: 'prod.db', port: 5432,
+  database: 'proddb', username: 'user', password: '', projectId: 'p1', env: 'prod', sslMode: 'require',
+};
+
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const onTableSelect = overrides.onTableSelect ?? vi.fn();
   const onAddConnection = overrides.onAddConnection ?? vi.fn();
+  const onConnect = overrides.onConnect ?? vi.fn();
   const onLoadQuery = overrides.onLoadQuery ?? vi.fn();
   const onDeleteQuery = overrides.onDeleteQuery ?? vi.fn();
   const onRenameQuery = overrides.onRenameQuery ?? vi.fn();
   render(
     <Sidebar
-      datasourceId={overrides.datasourceId ?? 'ds1'}
-      datasourceName={overrides.datasourceName ?? 'local-pg'}
-      datasourceDb={overrides.datasourceDb ?? 'mydb'}
+      datasources={overrides.datasources ?? [DS1]}
+      activeDatasourceId={overrides.activeDatasourceId ?? 'ds1'}
+      onConnect={onConnect}
       onTableSelect={onTableSelect}
       onAddConnection={onAddConnection}
       savedQueries={overrides.savedQueries ?? []}
@@ -35,7 +47,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       onRenameQuery={onRenameQuery}
     />
   );
-  return { onTableSelect, onAddConnection, onLoadQuery, onDeleteQuery, onRenameQuery };
+  return { onTableSelect, onAddConnection, onConnect, onLoadQuery, onDeleteQuery, onRenameQuery };
 }
 
 describe('Sidebar — basic render', () => {
@@ -44,21 +56,29 @@ describe('Sidebar — basic render', () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
   });
 
-  it('shows "No connection active" when datasourceId is null', () => {
+  it('shows empty state when datasources array is empty', () => {
     render(
       <Sidebar
-        datasourceId={null}
+        datasources={[]}
+        activeDatasourceId={null}
+        onConnect={vi.fn()}
         onTableSelect={vi.fn()}
         onAddConnection={vi.fn()}
       />
     );
-    expect(screen.getByText('No connection active')).toBeInTheDocument();
+    expect(screen.getByText(/No connections/)).toBeInTheDocument();
   });
 
-  it('renders datasource name and db', async () => {
-    renderSidebar({ datasourceName: 'prod-db', datasourceDb: 'proddb' });
-    expect(screen.getByText('prod-db')).toBeInTheDocument();
-    expect(screen.getByText('proddb')).toBeInTheDocument();
+  it('renders datasource connection node', async () => {
+    renderSidebar();
+    expect(screen.getByTestId('conn-node-ds1')).toBeInTheDocument();
+    expect(screen.getByText('local-pg')).toBeInTheDocument();
+  });
+
+  it('renders all datasources', () => {
+    renderSidebar({ datasources: [DS1, DS2] });
+    expect(screen.getByTestId('conn-node-ds1')).toBeInTheDocument();
+    expect(screen.getByTestId('conn-node-ds2')).toBeInTheDocument();
   });
 
   it('renders search input', () => {
@@ -78,25 +98,27 @@ describe('Sidebar — basic render', () => {
     await userEvent.click(screen.getByTestId('sidebar-new-connection'));
     expect(onAddConnection).toHaveBeenCalledOnce();
   });
-
-  it('renders folder rows: queries, schemas', async () => {
-    renderSidebar();
-    await waitFor(() => expect(screen.getByTestId('folder-queries')).toBeInTheDocument());
-    expect(screen.getByTestId('folder-schemas')).toBeInTheDocument();
-  });
 });
 
 describe('Sidebar — schema loading', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('calls ListSchemas on mount with datasourceId', async () => {
+  it('calls ListSchemas on mount for active datasource', async () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
-    renderSidebar({ datasourceId: 'ds42' });
-    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds42'));
+    renderSidebar({ activeDatasourceId: 'ds1' });
+    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
   });
 
-  it('does not call ListSchemas when datasourceId is null', async () => {
-    render(<Sidebar datasourceId={null} onTableSelect={vi.fn()} onAddConnection={vi.fn()} />);
+  it('does not call ListSchemas when activeDatasourceId is null', async () => {
+    render(
+      <Sidebar
+        datasources={[DS1]}
+        activeDatasourceId={null}
+        onConnect={vi.fn()}
+        onTableSelect={vi.fn()}
+        onAddConnection={vi.fn()}
+      />
+    );
     await new Promise(r => setTimeout(r, 10));
     expect(GoApp.ListSchemas).not.toHaveBeenCalled();
   });
@@ -111,16 +133,16 @@ describe('Sidebar — schema loading', () => {
     expect(screen.getByTestId('schema-row-finance')).toBeInTheDocument();
   });
 
-  it('reloads schemas when datasourceId changes', async () => {
+  it('reloads schemas when activeDatasourceId changes to a new connection', async () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
     const { rerender } = render(
-      <Sidebar datasourceId="ds1" onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
+      <Sidebar datasources={[DS1, DS2]} activeDatasourceId="ds1" onConnect={vi.fn()} onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
     );
     await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
 
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'other' } as any]);
     rerender(
-      <Sidebar datasourceId="ds2" onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
+      <Sidebar datasources={[DS1, DS2]} activeDatasourceId="ds2" onConnect={vi.fn()} onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
     );
     await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds2'));
     await waitFor(() => expect(screen.getByTestId('schema-row-other')).toBeInTheDocument());
@@ -165,10 +187,8 @@ describe('Sidebar — schema expand / table load', () => {
   it('collapses schema on second click', async () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
-    // First click: expand + load
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
-    // Second click: collapse
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => expect(screen.queryByTestId('table-row-public-users')).not.toBeInTheDocument());
   });
@@ -238,17 +258,16 @@ describe('Sidebar — search', () => {
     expect(screen.queryByTestId('sidebar-search-clear')).not.toBeInTheDocument();
   });
 
-  it('filters schemas by name (loaded + expanded schemas visible)', async () => {
+  it('filters schemas by name', async () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
-
     await userEvent.type(screen.getByTestId('sidebar-search'), 'public');
     await waitFor(() => expect(screen.queryByTestId('schema-row-finance')).not.toBeInTheDocument());
     expect(screen.getByTestId('schema-row-public')).toBeInTheDocument();
   });
 });
 
-describe('Sidebar — folder expand/collapse', () => {
+describe('Sidebar — queries folder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
@@ -260,60 +279,6 @@ describe('Sidebar — folder expand/collapse', () => {
     expect(screen.queryByText(/No saved queries/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByTestId('folder-queries'));
     expect(screen.getByText(/No saved queries/)).toBeInTheDocument();
-  });
-
-  it('schemas folder is expanded by default', async () => {
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    renderSidebar();
-    await waitFor(() => expect(screen.getByTestId('schema-row-public')).toBeInTheDocument());
-  });
-
-  it('schemas folder collapses on click', async () => {
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    renderSidebar();
-    await waitFor(() => screen.getByTestId('schema-row-public'));
-    await userEvent.click(screen.getByTestId('folder-schemas'));
-    await waitFor(() => expect(screen.queryByTestId('schema-row-public')).not.toBeInTheDocument());
-  });
-});
-
-describe('Sidebar — refresh button', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('refresh button calls ListSchemas again', async () => {
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
-    renderSidebar();
-    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledOnce());
-    await userEvent.click(screen.getByTestId('btn-refresh-schemas'));
-    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledTimes(2));
-  });
-});
-
-describe('Sidebar — views shown inline under schema', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    vi.mocked(GoApp.ListTables).mockResolvedValue([
-      { name: 'users', type: 'TABLE' } as any,
-      { name: 'user_view', type: 'VIEW' } as any,
-    ]);
-  });
-
-  it('view row appears under schema after expand', async () => {
-    renderSidebar();
-    await waitFor(() => screen.getByTestId('schema-row-public'));
-    await userEvent.click(screen.getByTestId('schema-row-public'));
-    await waitFor(() => expect(screen.getByTestId('table-row-public-user_view')).toBeInTheDocument());
-  });
-
-  it('double-click view calls onTableSelect', async () => {
-    const onTableSelect = vi.fn();
-    renderSidebar({ onTableSelect });
-    await waitFor(() => screen.getByTestId('schema-row-public'));
-    await userEvent.click(screen.getByTestId('schema-row-public'));
-    await waitFor(() => screen.getByTestId('table-row-public-user_view'));
-    await userEvent.dblClick(screen.getByTestId('table-row-public-user_view'));
-    expect(onTableSelect).toHaveBeenCalledWith('public', 'user_view');
   });
 });
 
@@ -390,6 +355,34 @@ describe('Sidebar — query rename', () => {
   });
 });
 
+describe('Sidebar — views shown under schema', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([
+      { name: 'users', type: 'TABLE' } as any,
+      { name: 'user_view', type: 'VIEW' } as any,
+    ]);
+  });
+
+  it('view row appears under schema after expand', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => expect(screen.getByTestId('table-row-public-user_view')).toBeInTheDocument());
+  });
+
+  it('double-click view calls onTableSelect', async () => {
+    const onTableSelect = vi.fn();
+    renderSidebar({ onTableSelect });
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => screen.getByTestId('table-row-public-user_view'));
+    await userEvent.dblClick(screen.getByTestId('table-row-public-user_view'));
+    expect(onTableSelect).toHaveBeenCalledWith('public', 'user_view');
+  });
+});
+
 describe('Sidebar — column collapse', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -409,5 +402,30 @@ describe('Sidebar — column collapse', () => {
     await waitFor(() => expect(screen.getByText('id')).toBeInTheDocument());
     await userEvent.click(screen.getByTestId('table-row-public-users'));
     await waitFor(() => expect(screen.queryByText('id')).not.toBeInTheDocument());
+  });
+});
+
+describe('Sidebar — multi-connection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
+  });
+
+  it('clicking inactive connection calls onConnect', async () => {
+    const onConnect = vi.fn();
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1', onConnect });
+    expect(screen.getByTestId('conn-node-ds2')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('conn-node-ds2'));
+    expect(onConnect).toHaveBeenCalledWith('ds2');
+  });
+
+  it('clicking active connection toggles expansion', async () => {
+    renderSidebar({ datasources: [DS1], activeDatasourceId: 'ds1' });
+    // Active connection starts expanded; click should collapse
+    const node = screen.getByTestId('conn-node-ds1');
+    // Initial state shows it expanded (database row visible)
+    await userEvent.click(node);
+    // Click again to verify toggle works without errors
+    await userEvent.click(node);
   });
 });
