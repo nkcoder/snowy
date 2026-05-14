@@ -229,6 +229,50 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
     return { kind: 'keyword' };
 }
 
+// Pure helper: apply a +50 boost to any option whose label starts with `prefix`.
+// Called after the base options are built so prefix matches always rank above
+// substring matches that share the same base boost value.
+export function applyPrefixBoost(options: Completion[], prefix: string): Completion[] {
+    if (!prefix) return options;
+    const lower = prefix.toLowerCase();
+    return options.map(o =>
+        o.label.toLowerCase().startsWith(lower)
+            ? { ...o, boost: (o.boost ?? 0) + 50 }
+            : o
+    );
+}
+
+// Pure helper: build the raw completion option list for a given context.
+// Does NOT apply prefix boosting — call applyPrefixBoost separately.
+export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlContext): Completion[] {
+    if (ctx.kind === 'table') {
+        return entries
+            .filter(e => e.kind === 'table' || e.kind === 'view')
+            .map(e => ({
+                label: e.name,
+                detail: e.schema,
+                type: e.kind === 'table' ? 'type' : 'variable',
+                boost: e.kind === 'table' ? 20 : 15,
+            }));
+    }
+
+    if (ctx.kind === 'column') {
+        const lowerTables = ctx.fromTables.length > 0 ? new Set(ctx.fromTables) : null;
+        const cols: Completion[] = entries
+            .filter(e => e.kind === 'column' && (lowerTables === null || lowerTables.has(e.table.toLowerCase())))
+            .map(e => ({
+                label: e.name,
+                detail: e.dataType,
+                type: 'property',
+                boost: e.keyType === 'pk' ? 15 : e.keyType === 'fk' ? 12 : 10,
+                keyType: e.keyType,
+            } as Completion & { keyType: string }));
+        return ctx.isSelectList ? [starOption, ...cols] : cols;
+    }
+
+    return keywordOptions;
+}
+
 export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, completions }: QueryEditorProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
@@ -278,32 +322,10 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
             // In keyword context, don't auto-open on space (no typed prefix)
             if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
 
-            let options: Completion[];
-
-            if (ctx.kind === 'table') {
-                options = entries
-                    .filter(e => e.kind === 'table' || e.kind === 'view')
-                    .map(e => ({
-                        label: e.name,
-                        detail: e.schema,
-                        type: e.kind === 'table' ? 'type' : 'variable',
-                        boost: e.kind === 'table' ? 20 : 15,
-                    }));
-            } else if (ctx.kind === 'column') {
-                const lowerTables = ctx.fromTables.length > 0 ? new Set(ctx.fromTables) : null;
-                const cols: Completion[] = entries
-                    .filter(e => e.kind === 'column' && (lowerTables === null || lowerTables.has(e.table.toLowerCase())))
-                    .map(e => ({
-                        label: e.name,
-                        detail: e.dataType,
-                        type: 'property',
-                        boost: e.keyType === 'pk' ? 15 : e.keyType === 'fk' ? 12 : 10,
-                        keyType: e.keyType,
-                    } as Completion & { keyType: string }));
-                options = ctx.isSelectList ? [starOption, ...cols] : cols;
-            } else {
-                options = keywordOptions;
-            }
+            const options = applyPrefixBoost(
+                buildCompletionOptions(entries, ctx),
+                word.text,
+            );
 
             return options.length > 0 ? { from: word.from, options, validFor: /^\w*$/ } : null;
         };
