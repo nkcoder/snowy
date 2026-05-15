@@ -80,8 +80,14 @@ func (s *DbService) getConnection(dsId string) (*pgx.Conn, context.Context, cont
 		sslMode = "disable"
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", ds.Username, ds.Password, ds.Host, ds.Port, ds.Database, sslMode)
-	conn, err := pgx.Connect(ctx, connString)
+	connConfig, err := pgx.ParseConfig(fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+		ds.Host, ds.Port, ds.Database, ds.Username, sslMode))
+	if err != nil {
+		cancel()
+		return nil, nil, nil, err
+	}
+	connConfig.Password = ds.Password
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
 		cancel()
 		return nil, nil, nil, err
