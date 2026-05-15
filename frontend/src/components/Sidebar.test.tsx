@@ -95,15 +95,15 @@ describe('Sidebar — basic render', () => {
     expect(screen.getByPlaceholderText('Filter objects…')).toBeInTheDocument();
   });
 
-  it('renders Connections button', () => {
+  it('renders New connection toolbar button', () => {
     renderSidebar();
-    expect(screen.getByTestId('sidebar-new-connection')).toBeInTheDocument();
+    expect(screen.getByTitle('New connection')).toBeInTheDocument();
   });
 
-  it('Connections button calls onAddConnection', async () => {
+  it('New connection button calls onAddConnection', async () => {
     const onAddConnection = vi.fn();
     renderSidebar({ onAddConnection });
-    await userEvent.click(screen.getByTestId('sidebar-new-connection'));
+    await userEvent.click(screen.getByTitle('New connection'));
     expect(onAddConnection).toHaveBeenCalledOnce();
   });
 });

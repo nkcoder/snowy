@@ -102,16 +102,6 @@ const { chrome, border, borderStrong, accent, textSec, textDim, bg, sidebar, ok,
   mono:         T.mono,
 };
 
-// macOS traffic lights — decorative (native titlebar provides real controls in non-frameless mode)
-function TrafficLights() {
-  return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#ff5f57', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
-      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#febc2e', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
-      <span style={{ width: 12, height: 12, borderRadius: 6, background: '#28c840', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.15)', display: 'inline-block' }} />
-    </div>
-  );
-}
 
 function ElephantGlyph({ color }: { color: string }) {
   return (
@@ -144,6 +134,12 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => { loadConfig(); }, []);
+
+  useEffect(() => {
+    const suppress = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', suppress);
+    return () => document.removeEventListener('contextmenu', suppress);
+  }, []);
 
   const loadConfig = async () => {
     try {
@@ -401,8 +397,6 @@ function App() {
           // @ts-ignore
           data-wails-drag
         >
-          <TrafficLights />
-          <div style={{ width: 1, height: 16, background: border, flexShrink: 0 }} />
           {/* App title + connection indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: T.text, letterSpacing: -0.2 }}>Snowy</span>
