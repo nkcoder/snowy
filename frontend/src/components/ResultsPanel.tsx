@@ -134,8 +134,7 @@ export function ResultsPanel({
                   </span>
                 )}
                 {tab.pinned && (
-                  <span
-                    role="button"
+                  <button
                     onClick={e => { e.stopPropagation(); onCloseTab(tab.id); }}
                     style={{
                       marginLeft: 2,
@@ -144,11 +143,14 @@ export function ResultsPanel({
                       alignItems: 'center',
                       cursor: 'pointer',
                       borderRadius: 2,
-                      padding: '1px 2px',
+                      padding: '4px',
+                      background: 'none',
+                      border: 'none',
+                      lineHeight: 0,
                     }}
                   >
                     <X size={10} />
-                  </span>
+                  </button>
                 )}
               </button>
             );
