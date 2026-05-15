@@ -1,6 +1,7 @@
 build/bin
 node_modules
 frontend/dist
+docker/postgres.env
 
 **/.DS_Store
 

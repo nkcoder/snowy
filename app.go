@@ -150,8 +150,13 @@ func (a *App) TestDatasource(host string, port int, database, username, password
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", username, password, host, port, database, sslMode)
-	conn, err := pgx.Connect(ctx, connString)
+	connConfig, err := pgx.ParseConfig(fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+		host, port, database, username, sslMode))
+	if err != nil {
+		return TestConnectionResult{Success: false, Message: err.Error()}
+	}
+	connConfig.Password = password
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
 		return TestConnectionResult{Success: false, Message: err.Error()}
 	}

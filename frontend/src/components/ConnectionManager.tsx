@@ -63,6 +63,10 @@ export function FieldInput({
       value={value}
       placeholder={placeholder}
       data-testid={testId}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
       onChange={e => onChange?.(e.target.value)}
       style={{
         background: T.panelAlt,
@@ -347,6 +351,10 @@ export function ConnectionForm({
                   type={showPass ? 'text' : 'password'}
                   value={form.password}
                   data-testid="field-password"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   onChange={e => set('password', e.target.value)}
                   placeholder="••••••••"
                   style={{
