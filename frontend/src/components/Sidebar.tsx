@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronRight, ChevronDown,
   RefreshCw, Plus, Settings, X, Search, FileCode2,
@@ -18,6 +18,7 @@ interface SidebarProps {
   onTableSelect: (schema: string, table: string) => void;
   onAddConnection?: () => void;
   onNewConsole?: () => void;
+  onDisconnect?: () => void;
   savedQueries?: { filename: string }[];
   onLoadQuery?: (filename: string) => void;
   onDeleteQuery?: (filename: string) => void;
@@ -121,7 +122,7 @@ function ColIcon({ kind }: { kind?: 'pk' | 'fk' }) {
 // ── TreeRow primitive ─────────────────────────────────────────────────────────
 function TreeRow({
   depth, expanded, hasChildren = true, icon, label, meta,
-  selected, onClick, onDoubleClick, badge, actions, dim = false,
+  selected, onClick, onDoubleClick, onContextMenu, badge, actions, dim = false,
   bold = false, small = false, 'data-testid': testId,
 }: {
   depth: number;
@@ -133,6 +134,7 @@ function TreeRow({
   selected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   badge?: React.ReactNode;
   actions?: React.ReactNode;
   dim?: boolean;
@@ -146,6 +148,7 @@ function TreeRow({
       data-testid={testId}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       style={{
         height: small ? 20 : ROW_H,
         display: 'flex', alignItems: 'center',
@@ -229,6 +232,24 @@ function ToolBtn({
   );
 }
 
+// ── Context menu item ─────────────────────────────────────────────────────────
+function CtxMenuItem({ label, disabled, onClick }: { label: string; disabled?: boolean; onClick: () => void }) {
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      style={{
+        padding: '5px 14px',
+        color: disabled ? T.textDim : T.text,
+        cursor: disabled ? 'default' : 'pointer',
+        userSelect: 'none',
+      }}
+      className={disabled ? undefined : 'snowy-row'}
+    >
+      {label}
+    </div>
+  );
+}
+
 // ── TableNode factory ─────────────────────────────────────────────────────────
 function emptyFolder<T>(): SubFolder<T> { return { open: false, items: [], loaded: false }; }
 
@@ -248,7 +269,7 @@ export function Sidebar({
   datasources,
   activeDatasourceId,
   onConnect,
-  onTableSelect, onAddConnection, onNewConsole,
+  onTableSelect, onAddConnection, onNewConsole, onDisconnect,
   savedQueries: savedQueriesProp,
   onLoadQuery, onDeleteQuery, onRenameQuery,
   width = 260,
@@ -266,12 +287,28 @@ export function Sidebar({
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
+  // ── Context menu state ────────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ dsId: string; x: number; y: number } | null>(null);
+  const ctxMenuRef = useRef<HTMLDivElement>(null);
+
   // Auto-expand the active connection when it changes
   useEffect(() => {
     if (activeDatasourceId) {
       setExpandedDs(prev => new Set([...prev, activeDatasourceId]));
     }
   }, [activeDatasourceId]);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setCtxMenu(null); };
+    const onPointer = (e: MouseEvent) => {
+      if (ctxMenuRef.current && !ctxMenuRef.current.contains(e.target as Node)) setCtxMenu(null);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onPointer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!ctxMenu]);
 
   // ── Schema loading ────────────────────────────────────────────────────────
   const loadSchemas = useCallback(async (dsId: string) => {
@@ -451,6 +488,7 @@ export function Sidebar({
           depth={0}
           expanded={isExpanded}
           icon={<ElephantIcon size={15} color={connColor} />}
+          onContextMenu={e => { e.preventDefault(); setCtxMenu({ dsId: ds.id, x: e.clientX, y: e.clientY }); }}
           label={
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -847,6 +885,9 @@ export function Sidebar({
     );
   };
 
+  const ctxIsActive = ctxMenu?.dsId === activeDatasourceId;
+  const closeMenu = (cb?: () => void) => { setCtxMenu(null); cb?.(); };
+
   return (
     <div style={{
       width: 260, flexShrink: 0,
@@ -971,6 +1012,46 @@ export function Sidebar({
           datasources.map(ds => renderConnectionNode(ds))
         )}
       </div>
+
+      {/* ── Context menu ─────────────────────────────────────────── */}
+      {ctxMenu && (
+        <div
+          ref={ctxMenuRef}
+          data-testid={`ctx-menu-${ctxMenu.dsId}`}
+          style={{
+            position: 'fixed',
+            left: ctxMenu.x,
+            top: ctxMenu.y,
+            zIndex: 1000,
+            background: T.panel,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            minWidth: 160,
+            padding: '4px 0',
+            fontSize: 12.5,
+            fontFamily: T.ui,
+          }}
+        >
+          <CtxMenuItem
+            label="New Query Console"
+            disabled={!ctxIsActive}
+            onClick={() => closeMenu(onNewConsole)}
+          />
+          <CtxMenuItem
+            label="Refresh"
+            onClick={() => closeMenu(() => {
+              if (!ctxIsActive) onConnect(ctxMenu.dsId);
+              loadSchemas(ctxMenu.dsId);
+            })}
+          />
+          <CtxMenuItem
+            label="Disconnect"
+            disabled={!ctxIsActive}
+            onClick={() => closeMenu(onDisconnect)}
+          />
+        </div>
+      )}
 
       {/* ── Footer ───────────────────────────────────────────────── */}
       <div style={{

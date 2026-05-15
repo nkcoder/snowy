@@ -203,6 +203,11 @@ function App() {
     openTab(tab);
   };
 
+  const handleDisconnect = () => {
+    setActiveDatasourceId(null);
+    setView('connections');
+  };
+
   // ── Connect / workspace ──────────────────────────────────────────────────────
   const handleConnect = (dsId: string) => {
     setActiveDatasourceId(dsId);
@@ -448,6 +453,7 @@ function App() {
           onRenameQuery={handleRenameQuery}
           onAddConnection={() => setView('connections')}
           onNewConsole={handleNewTab}
+          onDisconnect={handleDisconnect}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Editor area */}

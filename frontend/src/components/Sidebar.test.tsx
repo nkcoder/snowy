@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Sidebar } from './Sidebar';
 import type { Datasource } from '../types';
@@ -38,6 +38,8 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const onLoadQuery = overrides.onLoadQuery ?? vi.fn();
   const onDeleteQuery = overrides.onDeleteQuery ?? vi.fn();
   const onRenameQuery = overrides.onRenameQuery ?? vi.fn();
+  const onNewConsole = overrides.onNewConsole ?? vi.fn();
+  const onDisconnect = overrides.onDisconnect ?? vi.fn();
   render(
     <Sidebar
       datasources={overrides.datasources ?? [DS1]}
@@ -49,9 +51,11 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       onLoadQuery={onLoadQuery}
       onDeleteQuery={onDeleteQuery}
       onRenameQuery={onRenameQuery}
+      onNewConsole={onNewConsole}
+      onDisconnect={onDisconnect}
     />
   );
-  return { onTableSelect, onAddConnection, onConnect, onLoadQuery, onDeleteQuery, onRenameQuery };
+  return { onTableSelect, onAddConnection, onConnect, onLoadQuery, onDeleteQuery, onRenameQuery, onNewConsole, onDisconnect };
 }
 
 describe('Sidebar — basic render', () => {
@@ -539,5 +543,93 @@ describe('Sidebar — multi-connection', () => {
     await userEvent.click(node);
     // Click again to verify toggle works without errors
     await userEvent.click(node);
+  });
+});
+
+describe('Sidebar — context menu', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
+  });
+
+  it('right-clicking a datasource node shows context menu', () => {
+    renderSidebar();
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
+  });
+
+  it('Escape key dismisses the context menu', async () => {
+    renderSidebar();
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('clicking outside dismisses the context menu', async () => {
+    renderSidebar();
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('sidebar-search'));
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"New Query Console" calls onNewConsole and closes menu when ds is active', async () => {
+    const { onNewConsole } = renderSidebar({ activeDatasourceId: 'ds1' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('New Query Console'));
+    expect(onNewConsole).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"New Query Console" is disabled when ds is inactive', async () => {
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds2' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    const item = screen.getByText('New Query Console');
+    await userEvent.click(item);
+    // clicking a disabled item should do nothing — menu still open
+    expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
+  });
+
+  it('"Disconnect" calls onDisconnect and closes menu when ds is active', async () => {
+    const { onDisconnect } = renderSidebar({ activeDatasourceId: 'ds1' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Disconnect'));
+    expect(onDisconnect).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"Disconnect" is disabled when ds is inactive', async () => {
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds2' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Disconnect'));
+    expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
+  });
+
+  it('"Refresh" on active ds calls ListSchemas and closes menu', async () => {
+    renderSidebar({ activeDatasourceId: 'ds1' });
+    // wait for initial load to settle
+    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
+    vi.mocked(GoApp.ListSchemas).mockClear();
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Refresh'));
+    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"Refresh" on inactive ds calls onConnect then ListSchemas', async () => {
+    const { onConnect } = renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds2' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Refresh'));
+    expect(onConnect).toHaveBeenCalledWith('ds1');
+    await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
+  });
+
+  it('context menu does not appear on schema rows', async () => {
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    fireEvent.contextMenu(screen.getByTestId('schema-row-public'));
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
   });
 });
