@@ -58,6 +58,7 @@ function makeLiveResultTab(): ResultTab {
     id: 'live',
     label: 'Result 1',
     data: null,
+    error: null,
     rowCount: 0,
     durationMs: 0,
     timestamp: new Date(),
@@ -337,10 +338,10 @@ function App() {
       _resultSeq++;
       const label = `Result ${_resultSeq}`;
 
-      // Update live tab
+      // Update live tab — clear any previous error
       setResultTabs(prev => prev.map(t =>
         !t.pinned
-          ? { ...t, label, data: result, rowCount, durationMs, sql, timestamp: new Date() }
+          ? { ...t, label, data: result, error: null, rowCount, durationMs, sql, timestamp: new Date() }
           : t
       ));
       setActiveResultTabId('live');
@@ -350,7 +351,14 @@ function App() {
         .catch((err: any) => console.warn('RecordHistory failed', err));
 
     } catch (err: any) {
-      alert('Query failed: ' + err);
+      const message = typeof err === 'string' ? err : (err?.message ?? String(err));
+      _resultSeq++;
+      setResultTabs(prev => prev.map(t =>
+        !t.pinned
+          ? { ...t, label: `Result ${_resultSeq}`, data: null, error: message, rowCount: 0, durationMs: 0, sql, timestamp: new Date() }
+          : t
+      ));
+      setActiveResultTabId('live');
     } finally {
       setQueryLoading(false);
     }
