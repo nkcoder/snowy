@@ -21,6 +21,7 @@ interface ResultsPanelProps {
   loading: boolean;
   onSelectTab: (id: string) => void;
   onPin: () => void;
+  onUnpin: (id: string) => void;
   onCloseTab: (id: string) => void;
   onOpenHistory: () => void;
 }
@@ -59,6 +60,7 @@ export function ResultsPanel({
   loading,
   onSelectTab,
   onPin,
+  onUnpin,
   onCloseTab,
   onOpenHistory,
 }: ResultsPanelProps) {
@@ -112,10 +114,22 @@ export function ResultsPanel({
                 }}
               >
                 {tab.pinned && (
-                  <Pin
-                    size={10}
-                    style={{ transform: 'rotate(45deg)', color: T.accent, flexShrink: 0 }}
-                  />
+                  <button
+                    onClick={e => { e.stopPropagation(); onUnpin(tab.id); }}
+                    title="Unpin"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      lineHeight: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Pin size={10} style={{ transform: 'rotate(45deg)', color: T.accent }} />
+                  </button>
                 )}
                 <span>{tab.label}</span>
                 {tab.error !== null && (

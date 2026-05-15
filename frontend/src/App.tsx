@@ -246,6 +246,18 @@ function App() {
     });
   };
 
+  const handleUnpinResult = (id: string) => {
+    const pinned = resultTabs.find(t => t.id === id);
+    if (!pinned) return;
+    // Promote the pinned snapshot back to the live slot and remove the pinned tab
+    setResultTabs(prev =>
+      prev
+        .filter(t => t.id !== id)
+        .map(t => t.pinned ? t : { ...pinned, id: 'live', pinned: false })
+    );
+    setActiveResultTabId('live');
+  };
+
   // ── History ──────────────────────────────────────────────────────────────────
   const handleOpenHistory = async () => {
     if (!activeDatasourceId) return;
@@ -517,6 +529,7 @@ function App() {
                 loading={queryLoading}
                 onSelectTab={setActiveResultTabId}
                 onPin={handlePinResult}
+                onUnpin={handleUnpinResult}
                 onCloseTab={handleCloseResultTab}
                 onOpenHistory={handleOpenHistory}
               />
