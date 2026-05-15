@@ -88,7 +88,14 @@ Our designs are: @spec/design, referenced DataGrip designs are: @spec/design/dat
 
 Sprints deliver independent, runnable increments. Current sprint plan: Sprint 7 (sidebar drill-in — done), Sprint 8 (rich autocomplete), Sprint 9 (right-click menu + connection comment field). When completing a sprint: run all test suites, verify with `wails dev` against the demo DB, raise a PR.
 
+Create a new branch for each issue (bug, feature, enhancement, refactor etc.).
+Use /tdd for development.
+Use /playwright-cli for testing.
+Use caveman mode if possible.
+
 ## Key constraints
 - Each DB call creates and closes its own `pgx.Conn` — no connection pool
 - Config is written atomically but passwords stored in plaintext in `~/.snowy/config.json`
 - `frontend/dist` must exist before `wails build` (embed fails otherwise); `wails build` handles this automatically; manual `go build` does not
+
+
