@@ -924,7 +924,7 @@ export function Sidebar({
           onClick={() => activeDatasourceId && loadSchemas(activeDatasourceId)}
           disabled={!activeDatasourceId || loadingDs.size > 0}
         />
-        <ToolBtn icon={<Square size={11} />} title="Stop" color={T.err} />
+        <ToolBtn icon={<Square size={11} />} title="Disconnect" color={T.err} onClick={onDisconnect} disabled={!activeDatasourceId} />
         <div style={{ width: 1, height: 14, background: T.border, margin: '0 4px', flexShrink: 0 }} />
         <ToolBtn
           icon={<Terminal size={13} />}
@@ -1060,19 +1060,6 @@ export function Sidebar({
         display: 'flex', alignItems: 'center', gap: 6,
         flexShrink: 0,
       }}>
-        <button
-          data-testid="sidebar-new-connection"
-          onClick={onAddConnection}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '3px 8px',
-            background: T.accent, color: '#fff',
-            borderRadius: 4, fontSize: 11.5, fontWeight: 500,
-            border: 'none', cursor: 'pointer',
-          }}
-        >
-          <Plus size={11} color="#fff" /> Connections
-        </button>
         <div style={{ flex: 1 }} />
         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}>
           <Settings size={13} />
