@@ -229,6 +229,23 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
     return { kind: 'keyword' };
 }
 
+// Returns true when the SQL text ends inside an open string literal (single or
+// double-quoted). SQL escapes a literal quote by doubling it (''), so two
+// consecutive same-type quotes do NOT toggle the in-string state.
+export function isInsideString(text: string): boolean {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === "'" && !inDouble) {
+            if (text[i + 1] === "'") { i++; } else { inSingle = !inSingle; }
+        } else if (ch === '"' && !inSingle) {
+            if (text[i + 1] === '"') { i++; } else { inDouble = !inDouble; }
+        }
+    }
+    return inSingle || inDouble;
+}
+
 // Pure helper: apply a +50 boost to any option whose label starts with `prefix`.
 // Called after the base options are built so prefix matches always rank above
 // substring matches that share the same base boost value.
@@ -315,6 +332,9 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
             const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
             const stmtBeforeCursor = fullText.slice(stmtStart, context.pos);
             const beforeWord = fullText.slice(stmtStart, word.from);
+
+            // No completions inside string literals
+            if (isInsideString(beforeWord)) return null;
 
             const entries = entriesRef.current;
             const ctx = detectSqlContext(beforeWord, stmtBeforeCursor);

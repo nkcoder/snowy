@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { QueryEditor, makeKeyTypeBadge, detectSqlContext, extractFromTables, buildCompletionOptions, applyPrefixBoost } from './QueryEditor';
+import { QueryEditor, makeKeyTypeBadge, detectSqlContext, extractFromTables, buildCompletionOptions, applyPrefixBoost, isInsideString } from './QueryEditor';
 import type { CompletionEntry } from './QueryEditor';
 
 // CodeMirror uses complex DOM APIs (contenteditable, ResizeObserver, etc.)
@@ -325,5 +325,43 @@ describe('applyPrefixBoost', () => {
     const emailAddr = result.find(o => o.label === 'email_address')!;
     expect(emId.boost).toBe(60);
     expect(emailAddr.boost).toBe(60);
+  });
+});
+
+describe('isInsideString', () => {
+  it('returns false for text with no quotes', () => {
+    expect(isInsideString('SELECT * FROM users WHERE ')).toBe(false);
+  });
+
+  it('returns true inside an unclosed single-quoted string', () => {
+    expect(isInsideString("SELECT * FROM users WHERE email = '")).toBe(true);
+    expect(isInsideString("WHERE name = 'd")).toBe(true);
+  });
+
+  it('returns false after a closed single-quoted string', () => {
+    expect(isInsideString("WHERE name = 'alice' AND ")).toBe(false);
+  });
+
+  it('returns true inside an unclosed double-quoted identifier', () => {
+    expect(isInsideString('SELECT "my_col')).toBe(true);
+  });
+
+  it('returns false after a closed double-quoted identifier', () => {
+    expect(isInsideString('SELECT "my_col" FROM ')).toBe(false);
+  });
+
+  it('handles SQL escaped single quote (two consecutive quotes stay outside)', () => {
+    // WHERE name = 'o''brien' AND  — cursor after AND, outside string
+    expect(isInsideString("WHERE name = 'o''brien' AND ")).toBe(false);
+  });
+
+  it('handles empty string', () => {
+    expect(isInsideString('')).toBe(false);
+  });
+
+  it('returns true mid-value in the screenshot scenario', () => {
+    // Replicates the bug from the screenshot: "where from_account_id = 'd"
+    // beforeWord is everything up to (but not including) 'd'
+    expect(isInsideString("SELECT *\nfrom transactions\nwhere from_account_id = '")).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ export type ResultTab = {
   id: string;
   label: string;
   data: { columns: string[]; rows: any[][] } | null;
+  error: string | null;
   rowCount: number;
   durationMs: number;
   timestamp: Date;
@@ -117,7 +118,12 @@ export function ResultsPanel({
                   />
                 )}
                 <span>{tab.label}</span>
-                {tab.data !== null && (
+                {tab.error !== null && (
+                  <span style={{ fontSize: 10, color: T.err, fontFamily: T.mono, marginLeft: 2 }}>
+                    error
+                  </span>
+                )}
+                {tab.data !== null && tab.error === null && (
                   <span style={{
                     fontSize: 10,
                     color: T.textDim,
@@ -219,8 +225,22 @@ export function ResultsPanel({
       </div>
 
       {/* Result content */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        <ResultsTable data={activeTab?.data ?? null} loading={loading} />
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {activeTab?.error ? (
+          <div style={{
+            padding: '14px 18px',
+            fontFamily: T.mono,
+            fontSize: 12,
+            color: T.err,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            lineHeight: 1.6,
+          }}>
+            {activeTab.error}
+          </div>
+        ) : (
+          <ResultsTable data={activeTab?.data ?? null} loading={loading} />
+        )}
       </div>
     </div>
   );
