@@ -67,6 +67,8 @@ export function ResultsPanel({
   const activeTab = resultTabs.find(t => t.id === activeResultTabId) ?? resultTabs[0] ?? null;
   const liveTab = resultTabs.find(t => !t.pinned) ?? null;
   const canPin = !!liveTab?.data && !loading;
+  const activeTabPinned = activeTab?.pinned ?? false;
+  const pinActive = activeTabPinned || canPin;
 
   const handleExport = () => {
     if (!activeTab?.data) return;
@@ -114,22 +116,10 @@ export function ResultsPanel({
                 }}
               >
                 {tab.pinned && (
-                  <button
-                    onClick={e => { e.stopPropagation(); onUnpin(tab.id); }}
-                    title="Unpin"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '4px',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      lineHeight: 0,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Pin size={10} style={{ transform: 'rotate(45deg)', color: T.accent }} />
-                  </button>
+                  <Pin
+                    size={10}
+                    style={{ transform: 'rotate(45deg)', color: T.accent, flexShrink: 0 }}
+                  />
                 )}
                 <span>{tab.label}</span>
                 {tab.error !== null && (
@@ -182,9 +172,9 @@ export function ResultsPanel({
           flexShrink: 0,
         }}>
           <button
-            onClick={onPin}
-            disabled={!canPin}
-            title="Pin result"
+            onClick={activeTabPinned ? () => onUnpin(activeTab!.id) : onPin}
+            disabled={!pinActive}
+            title={activeTabPinned ? 'Unpin result' : 'Pin result'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -192,17 +182,17 @@ export function ResultsPanel({
               padding: '3px 7px',
               fontSize: 10,
               fontWeight: 500,
-              color: canPin ? T.textSec : T.textDim,
-              background: 'none',
-              border: canPin ? `1px solid ${T.border}` : '1px solid transparent',
+              color: activeTabPinned ? T.accent : pinActive ? T.textSec : T.textDim,
+              background: activeTabPinned ? `${T.accent}18` : 'none',
+              border: pinActive ? `1px solid ${activeTabPinned ? T.accent : T.border}` : '1px solid transparent',
               borderRadius: 3,
-              cursor: canPin ? 'pointer' : 'default',
+              cursor: pinActive ? 'pointer' : 'default',
               fontFamily: 'inherit',
               letterSpacing: 0.2,
             }}
           >
-            <Pin size={11} />
-            Pin
+            <Pin size={11} style={{ transform: activeTabPinned ? 'rotate(45deg)' : 'none' }} />
+            {activeTabPinned ? 'Unpin' : 'Pin'}
           </button>
           <button
             onClick={onOpenHistory}
