@@ -134,6 +134,53 @@ function App() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // ── Resizable panels ─────────────────────────────────────────────────────────
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const v = localStorage.getItem('snowy.sidebarWidth');
+    return v ? Math.max(160, Math.min(480, parseInt(v, 10))) : 260;
+  });
+  const [bottomHeight, setBottomHeight] = useState(() => {
+    const v = localStorage.getItem('snowy.bottomPanelHeight');
+    return v ? Math.max(120, Math.min(600, parseInt(v, 10))) : 320;
+  });
+
+  const startSidebarDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sidebarWidth;
+    let latest = startW;
+    const onMove = (ev: MouseEvent) => {
+      latest = Math.max(160, Math.min(480, startW + ev.clientX - startX));
+      setSidebarWidth(latest);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      localStorage.setItem('snowy.sidebarWidth', String(latest));
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const startBottomDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = bottomHeight;
+    let latest = startH;
+    const onMove = (ev: MouseEvent) => {
+      const maxH = Math.floor(window.innerHeight * 0.6);
+      latest = Math.max(120, Math.min(maxH, startH - (ev.clientY - startY)));
+      setBottomHeight(latest);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      localStorage.setItem('snowy.bottomPanelHeight', String(latest));
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   // ── Dialogs ──────────────────────────────────────────────────────────────────
   type DialogState =
     | { type: 'save-query' }
@@ -477,6 +524,16 @@ function App() {
           onAddConnection={() => setView('connections')}
           onNewConsole={handleNewTab}
           onDisconnect={handleDisconnect}
+          width={sidebarWidth}
+        />
+        {/* Sidebar resize handle */}
+        <div
+          onMouseDown={startSidebarDrag}
+          style={{
+            width: 4, flexShrink: 0, cursor: 'col-resize',
+            background: 'transparent',
+            borderLeft: `1px solid ${border}`,
+          }}
         />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Editor area */}
@@ -506,8 +563,17 @@ function App() {
             </div>
           </div>
 
-          {/* Services panel (bottom, 320px) */}
-          <div style={{ height: 320, display: 'flex', minHeight: 0, borderTop: `1px solid ${borderStrong}`, flexShrink: 0 }}>
+          {/* Bottom panel resize handle */}
+          <div
+            onMouseDown={startBottomDrag}
+            style={{
+              height: 4, flexShrink: 0, cursor: 'row-resize',
+              background: 'transparent',
+              borderTop: `1px solid ${borderStrong}`,
+            }}
+          />
+          {/* Services panel (bottom) */}
+          <div style={{ height: bottomHeight, display: 'flex', minHeight: 0, flexShrink: 0 }}>
             {/* Mini services tree */}
             <div style={{ width: 220, background: sidebar, borderRight: `0.5px solid ${border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               {/* Services header */}

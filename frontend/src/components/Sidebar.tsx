@@ -890,7 +890,7 @@ export function Sidebar({
 
   return (
     <div style={{
-      width: 260, flexShrink: 0,
+      width, flexShrink: 0,
       background: T.sidebar,
       borderRight: `0.5px solid ${T.border}`,
       display: 'flex', flexDirection: 'column',
