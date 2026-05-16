@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Wifi, Eye, EyeOff, Loader, Copy, X } from 'lucide-react';
+import { Plus, Wifi, Eye, EyeOff, Loader, Copy, X, ChevronDown } from 'lucide-react';
 import * as GoApp from '../../wailsjs/go/main/App';
 import { T, ENV_COLORS } from '../lib/tokens';
 import type { Project, Datasource } from '../types';
@@ -99,26 +99,31 @@ export function SelectInput({
   'data-testid'?: string;
 }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      data-testid={testId}
-      style={{
-        background: T.panelAlt,
-        border: `0.5px solid ${T.border}`,
-        borderRadius: 4,
-        padding: '7px 10px',
-        fontSize: 12,
-        color: T.text,
-        fontFamily: T.ui,
-        outline: 'none',
-        width: '100%',
-        appearance: 'none' as const,
-        cursor: 'pointer',
-      }}
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div style={{ position: 'relative' }}>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        data-testid={testId}
+        style={{
+          background: T.panelAlt,
+          border: `0.5px solid ${T.border}`,
+          borderRadius: 4,
+          padding: '7px 28px 7px 10px',
+          fontSize: 12,
+          color: T.text,
+          fontFamily: T.ui,
+          outline: 'none',
+          width: '100%',
+          appearance: 'none' as const,
+          cursor: 'pointer',
+        }}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textDim, display: 'flex', alignItems: 'center' }}>
+        <ChevronDown size={11} />
+      </div>
+    </div>
   );
 }
 
@@ -193,14 +198,27 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
   );
 }
 
+// ── FormRow — DataGrip-style label:value row ─────────────────────────────────
+function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding: '4px 24px', gap: 0 }}>
+      <div style={{ width: 136, flexShrink: 0, fontSize: 12, color: T.textSec, textAlign: 'right', paddingRight: 14 }}>
+        {label}:
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
+
 // ── Connection form ──────────────────────────────────────────────────────────
 export function ConnectionForm({
-  initial, projectId, onSave, onCancel, onTest,
+  initial, projectId, onSave, onCancel, onApply, onTest,
 }: {
   initial: Partial<Datasource>;
   projectId: string;
   onSave: (ds: Datasource) => Promise<void>;
   onCancel: () => void;
+  onApply?: (ds: Datasource) => Promise<void>;
   onTest: (ds: Partial<Datasource>) => Promise<TestResult>;
 }) {
   const [form, setForm] = useState<Omit<Datasource, 'id' | 'projectId'>>({
@@ -215,7 +233,9 @@ export function ConnectionForm({
     sslMode:  initial.sslMode  ?? 'require',
   });
   const [showPass, setShowPass] = useState(false);
-  const [savePassword, setSavePassword] = useState(!!initial.password || !initial.id);
+  const [saveMode, setSaveMode] = useState<'forever' | 'until_restart' | 'never'>(
+    initial.password ? 'forever' : 'never'
+  );
   const [activeTab, setActiveTab] = useState(0);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
@@ -226,8 +246,13 @@ export function ConnectionForm({
     setForm(f => ({ ...f, [k]: v }));
 
   const derivedUrl = `postgres://${form.username}@${form.host}:${form.port}/${form.database}?sslmode=${form.sslMode}`;
-  const envColor = ENV_COLORS[form.env] ?? T.textSec;
-  const envLabels: Record<string, string> = { local: 'Local', dev: 'Development', stg: 'Staging', prod: 'Production' };
+
+  const buildDs = (): Datasource => ({
+    id: initial.id ?? `${Date.now()}`,
+    projectId,
+    ...form,
+    password: saveMode === 'forever' ? form.password : '',
+  });
 
   const handleTest = async () => {
     setTesting(true);
@@ -238,53 +263,31 @@ export function ConnectionForm({
   };
 
   const handleSave = async () => {
-    setError(null);
-    setSaving(true);
-    try {
-      const savedPassword = savePassword ? form.password : '';
-      await onSave({ id: initial.id ?? `${Date.now()}`, projectId, ...form, password: savedPassword });
-    } catch (e: any) {
-      setError(String(e));
-    } finally {
-      setSaving(false);
-    }
+    setError(null); setSaving(true);
+    try { await onSave(buildDs()); }
+    catch (e: any) { setError(String(e)); }
+    finally { setSaving(false); }
   };
 
-  const tabs = ['General', 'Options', 'SSH/SSL', 'Schemas', 'Advanced'];
+  const handleApply = async () => {
+    setError(null); setSaving(true);
+    try { await onApply?.(buildDs()); }
+    catch (e: any) { setError(String(e)); }
+    finally { setSaving(false); }
+  };
+
+  const tabs = ['General', 'Options', 'SSL'];
   const canSave = !saving && !!form.name && !!form.host && !!form.database;
+  const isNew = !initial.id;
 
   return (
-    <div data-testid="connection-form" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.panel, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        padding: '14px 24px',
-        borderBottom: `0.5px solid ${T.divider}`,
-        display: 'flex', alignItems: 'center', gap: 10,
-        background: initial.id ? T.panel : T.accent + '0d',
-        borderLeft: initial.id ? 'none' : `3px solid ${T.accent}`,
-      }}>
-        <ElephantIcon color={envColor} size={18} />
-        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, letterSpacing: -0.3 }}>
-          {form.name || (initial.id ? initial.name : 'New connection')}
-        </div>
-        <div style={{ padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: envColor + '22', color: envColor, letterSpacing: 0.4, textTransform: 'uppercase' as const }}>
-          {envLabels[form.env] ?? form.env}
-        </div>
-        {!initial.id && (
-          <div style={{ padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: T.accent + '33', color: T.accent, letterSpacing: 0.4, textTransform: 'uppercase' as const, border: `0.5px solid ${T.accent}55` }}>
-            Unsaved
-          </div>
-        )}
-        <div style={{ flex: 1 }} />
-        {initial.id && (
-          <div style={{ fontSize: 11, color: T.textDim, fontFamily: T.mono }}>
-            PostgreSQL · {form.host}:{form.port}
-          </div>
-        )}
-      </div>
-
+    <div data-testid="connection-form" style={{
+      flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0,
+      background: T.panel, overflow: 'hidden',
+      borderLeft: isNew ? `3px solid ${T.accent}` : 'none',
+    }}>
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, padding: '0 24px', borderBottom: `0.5px solid ${T.divider}`, background: T.panel }}>
+      <div style={{ display: 'flex', padding: '0 24px', borderBottom: `0.5px solid ${T.divider}`, background: T.panel, flexShrink: 0 }}>
         {tabs.map((tab, i) => (
           <div
             key={tab}
@@ -297,7 +300,6 @@ export function ConnectionForm({
               fontWeight: i === activeTab ? 600 : 400,
               borderBottom: i === activeTab ? `2px solid ${T.accent}` : '2px solid transparent',
               marginBottom: -0.5, cursor: 'pointer',
-              opacity: i > 0 ? 0.45 : 1,
             }}
           >
             {tab}
@@ -305,63 +307,70 @@ export function ConnectionForm({
         ))}
       </div>
 
-      {/* General tab */}
+      {/* General tab — DataGrip row layout */}
       {activeTab === 0 && (
-        <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Name row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 14 }}>
-            <div>
-              <FieldLabel>Name</FieldLabel>
-              <FieldInput value={form.name} onChange={v => set('name', v)} placeholder="e.g. snowy@dev" data-testid="field-name" />
-            </div>
-            <div>
-              <FieldLabel>Environment</FieldLabel>
-              <SelectInput
-                value={form.env}
-                onChange={v => set('env', v)}
-                data-testid="field-env"
-                options={[
-                  { value: 'local', label: 'Local' },
-                  { value: 'dev',   label: 'Development' },
-                  { value: 'stg',   label: 'Staging' },
-                  { value: 'prod',  label: 'Production' },
-                ]}
-              />
-            </div>
-          </div>
+        <div style={{ flex: 1, paddingTop: 16, paddingBottom: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
 
-          <SectionLabel>Connection</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14 }}>
-            <div>
-              <FieldLabel>Host</FieldLabel>
-              <FieldInput value={form.host} onChange={v => set('host', v)} mono placeholder="localhost" data-testid="field-host" />
+          {/* Name + Environment */}
+          <FormRow label="Name">
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <FieldInput value={form.name} onChange={v => set('name', v)} placeholder="e.g. postgres@localhost" data-testid="field-name" />
+              </div>
+              {isNew && (
+                <div style={{ padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: T.accent + '33', color: T.accent, letterSpacing: 0.4, textTransform: 'uppercase' as const, border: `0.5px solid ${T.accent}55`, flexShrink: 0 }}>
+                  Unsaved
+                </div>
+              )}
+              <span style={{ fontSize: 11, color: T.textSec, flexShrink: 0 }}>Environment:</span>
+              <div style={{ width: 130, flexShrink: 0 }}>
+                <SelectInput
+                  value={form.env}
+                  onChange={v => set('env', v)}
+                  data-testid="field-env"
+                  options={[
+                    { value: 'local', label: 'Local' },
+                    { value: 'dev',   label: 'Development' },
+                    { value: 'stg',   label: 'Staging' },
+                    { value: 'prod',  label: 'Production' },
+                  ]}
+                />
+              </div>
             </div>
-            <div>
-              <FieldLabel>Port</FieldLabel>
-              <FieldInput value={form.port} onChange={v => set('port', Number(v))} mono type="number" data-testid="field-port" />
-            </div>
-            <div>
-              <FieldLabel>Database</FieldLabel>
-              <FieldInput value={form.database} onChange={v => set('database', v)} mono placeholder="postgres" data-testid="field-database" />
-            </div>
-          </div>
+          </FormRow>
 
-          <SectionLabel>Authentication</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <FieldLabel>Auth method</FieldLabel>
-              <SelectInput value="password" onChange={() => {}} options={[{ value: 'password', label: 'User & Password' }]} />
-            </div>
-            <div>
-              <FieldLabel>User</FieldLabel>
-              <FieldInput value={form.username} onChange={v => set('username', v)} mono placeholder="postgres" data-testid="field-username" />
-            </div>
-          </div>
+          {/* Driver */}
+          <FormRow label="Driver">
+            <SelectInput value="postgresql" onChange={() => {}} options={[{ value: 'postgresql', label: 'PostgreSQL' }]} />
+          </FormRow>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <FieldLabel>Password</FieldLabel>
-              <div style={{ position: 'relative' }}>
+          {/* Host + Port */}
+          <FormRow label="Host">
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <FieldInput value={form.host} onChange={v => set('host', v)} mono placeholder="localhost" data-testid="field-host" />
+              </div>
+              <span style={{ fontSize: 11, color: T.textSec, flexShrink: 0 }}>Port:</span>
+              <div style={{ width: 80, flexShrink: 0 }}>
+                <FieldInput value={form.port} onChange={v => set('port', Number(v))} mono type="number" data-testid="field-port" />
+              </div>
+            </div>
+          </FormRow>
+
+          {/* Authentication */}
+          <FormRow label="Authentication">
+            <SelectInput value="password" onChange={() => {}} options={[{ value: 'password', label: 'User & Password' }]} />
+          </FormRow>
+
+          {/* User */}
+          <FormRow label="User">
+            <FieldInput value={form.username} onChange={v => set('username', v)} mono placeholder="postgres" data-testid="field-username" />
+          </FormRow>
+
+          {/* Password + Save dropdown */}
+          <FormRow label="Password">
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={form.password}
@@ -371,7 +380,7 @@ export function ConnectionForm({
                   autoCapitalize="off"
                   spellCheck={false}
                   onChange={e => set('password', e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="<hidden>"
                   style={{
                     background: T.panelAlt, border: `0.5px solid ${T.border}`, borderRadius: 4,
                     padding: '7px 30px 7px 10px', fontSize: 12, color: T.text, fontFamily: T.mono,
@@ -387,68 +396,63 @@ export function ConnectionForm({
                   {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
                 </button>
               </div>
-              {/* Save password toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11, color: T.textSec }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', userSelect: 'none' as const }}>
-                  <div
-                    data-testid="save-password-checkbox"
-                    onClick={() => setSavePassword(true)}
-                    style={{
-                      width: 12, height: 12, borderRadius: 2, cursor: 'pointer',
-                      background: savePassword ? T.accent : T.panelAlt,
-                      border: `1px solid ${savePassword ? T.accent : T.borderStrong}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {savePassword && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1, fontWeight: 800 }}>✓</span>}
-                  </div>
-                  Save password
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', userSelect: 'none' as const }}>
-                  <div
-                    data-testid="ask-password-checkbox"
-                    onClick={() => setSavePassword(false)}
-                    style={{
-                      width: 12, height: 12, borderRadius: 2, cursor: 'pointer',
-                      background: !savePassword ? T.accent : T.panelAlt,
-                      border: `1px solid ${!savePassword ? T.accent : T.borderStrong}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {!savePassword && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1, fontWeight: 800 }}>✓</span>}
-                  </div>
-                  Ask every time
-                </label>
+              <span style={{ fontSize: 11, color: T.textSec, flexShrink: 0 }}>Save:</span>
+              <div style={{ width: 120, flexShrink: 0 }}>
+                <SelectInput
+                  value={saveMode}
+                  onChange={v => setSaveMode(v as typeof saveMode)}
+                  options={[
+                    { value: 'forever',       label: 'Forever' },
+                    { value: 'until_restart', label: 'Until restart' },
+                    { value: 'never',         label: 'Never' },
+                  ]}
+                />
               </div>
             </div>
-            <div>
-              <FieldLabel>SSL mode</FieldLabel>
-              <SelectInput
-                value={form.sslMode}
-                onChange={v => set('sslMode', v)}
-                data-testid="field-ssl"
-                options={[
-                  { value: 'disable',     label: 'Disable' },
-                  { value: 'require',     label: 'Require' },
-                  { value: 'verify-ca',   label: 'Verify CA' },
-                  { value: 'verify-full', label: 'Verify Full' },
-                ]}
-              />
-            </div>
-          </div>
+          </FormRow>
 
-          <div>
-            <FieldLabel>URL</FieldLabel>
-            <div style={{ padding: '7px 10px', background: T.panelAlt, border: `0.5px solid ${T.border}`, borderRadius: 4, fontFamily: T.mono, fontSize: 11.5, color: T.textSec, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {derivedUrl}
+          {/* Database */}
+          <FormRow label="Database">
+            <FieldInput value={form.database} onChange={v => set('database', v)} mono placeholder="postgres" data-testid="field-database" />
+          </FormRow>
+
+          {/* URL (read-only) */}
+          <FormRow label="URL">
+            <div>
+              <div style={{ padding: '7px 10px', background: T.panelAlt, border: `0.5px solid ${T.border}`, borderRadius: 4, fontFamily: T.mono, fontSize: 11.5, color: T.textSec, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {derivedUrl}
+              </div>
+              <div style={{ fontSize: 10.5, color: T.textDim, fontStyle: 'italic', marginTop: 3 }}>
+                Overrides settings above
+              </div>
             </div>
-          </div>
+          </FormRow>
         </div>
       )}
 
-      {activeTab > 0 && (
+      {/* Options tab */}
+      {activeTab === 1 && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textDim, fontSize: 12, fontStyle: 'italic' }}>
           Not yet implemented
+        </div>
+      )}
+
+      {/* SSL tab */}
+      {activeTab === 2 && (
+        <div style={{ flex: 1, paddingTop: 16, paddingBottom: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <FormRow label="SSL mode">
+            <SelectInput
+              value={form.sslMode}
+              onChange={v => set('sslMode', v)}
+              data-testid="field-ssl"
+              options={[
+                { value: 'disable',     label: 'Disable' },
+                { value: 'require',     label: 'Require' },
+                { value: 'verify-ca',   label: 'Verify CA' },
+                { value: 'verify-full', label: 'Verify Full' },
+              ]}
+            />
+          </FormRow>
         </div>
       )}
 
@@ -493,11 +497,7 @@ export function ConnectionForm({
           {testing ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} color={testResult?.success ? T.ok : T.textSec} />}
           Test Connection
         </button>
-        {testResult?.success && (
-          <div style={{ fontSize: 11, color: T.ok, fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: 5 }}>
-            ✓ Succeeded
-          </div>
-        )}
+        <span style={{ fontSize: 11, color: T.textDim }}>PostgreSQL</span>
         <div style={{ flex: 1 }} />
         <button
           data-testid="btn-cancel"
@@ -506,6 +506,17 @@ export function ConnectionForm({
         >
           Cancel
         </button>
+        {onApply && (
+          <button
+            data-testid="btn-apply"
+            onClick={handleApply}
+            disabled={!canSave}
+            style={{ padding: '5px 14px', background: T.panelAlt, color: canSave ? T.text : T.textDim, border: `0.5px solid ${T.border}`, borderRadius: 4, fontSize: 12, fontWeight: 500, cursor: canSave ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            {saving && <Loader size={11} className="animate-spin" />}
+            Apply
+          </button>
+        )}
         <button
           data-testid="btn-save"
           onClick={handleSave}
@@ -559,10 +570,21 @@ export function ConnectionManager({ projects, datasources, activeDatasourceId, o
     onConnect(ds.id);
   };
 
+  const handleApplyNew = async (ds: Datasource) => {
+    const withProject = { ...ds, projectId: ds.projectId || defaultProjectId };
+    await onSaveAll(projects, [...datasources, withProject]);
+    setSelectedDsId(ds.id);
+    setFormMode('edit');
+  };
+
   const handleSaveEdit = async (ds: Datasource) => {
     await onUpdateDs(ds);
     setFormMode(null);
     onConnect(ds.id);
+  };
+
+  const handleApplyEdit = async (ds: Datasource) => {
+    await onUpdateDs(ds);
   };
 
   const handleDuplicate = async (ds: Datasource) => {
@@ -682,6 +704,7 @@ export function ConnectionManager({ projects, datasources, activeDatasourceId, o
           initial={{ projectId: defaultProjectId }}
           projectId={defaultProjectId}
           onSave={handleSaveNew}
+          onApply={handleApplyNew}
           onCancel={() => setFormMode(datasources.length > 0 ? 'edit' : null)}
           onTest={handleTest}
         />
@@ -691,6 +714,7 @@ export function ConnectionManager({ projects, datasources, activeDatasourceId, o
           initial={selectedDs}
           projectId={selectedDs.projectId}
           onSave={handleSaveEdit}
+          onApply={handleApplyEdit}
           onCancel={() => setFormMode(null)}
           onTest={handleTest}
         />

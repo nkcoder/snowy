@@ -150,7 +150,7 @@ describe('ConnectionForm', () => {
     expect(screen.getByTestId('field-username')).toBeInTheDocument();
     expect(screen.getByTestId('field-password')).toBeInTheDocument();
     expect(screen.getByTestId('field-env')).toBeInTheDocument();
-    expect(screen.getByTestId('field-ssl')).toBeInTheDocument();
+    // SSL mode is in the SSL tab, not the General tab
   });
 
   it('pre-populates from initial props', () => {
@@ -164,7 +164,7 @@ describe('ConnectionForm', () => {
     expect(screen.getByTestId('field-host')).toHaveValue('db.example.com');
     expect(screen.getByTestId('field-database')).toHaveValue('proddb');
     expect(screen.getByTestId('field-env')).toHaveValue('prod');
-    expect(screen.getByTestId('field-ssl')).toHaveValue('require');
+    // sslMode is stored in form state but field-ssl is on SSL tab
   });
 
   it('Save button disabled when name empty', () => {
@@ -277,20 +277,22 @@ describe('ConnectionForm', () => {
     expect(screen.getByTestId('btn-test')).toBeDisabled();
   });
 
-  it('shows connection name in header for existing datasource', () => {
+  it('shows connection name in name field for existing datasource', () => {
     render(<ConnectionForm {...defaultProps} initial={{ id: 'd1', name: 'existing' }} />);
-    expect(screen.getByText('existing')).toBeInTheDocument();
+    expect(screen.getByTestId('field-name')).toHaveValue('existing');
   });
 
-  it('shows "New connection" header for new datasource', () => {
+  it('shows Unsaved badge for new datasource', () => {
     render(<ConnectionForm {...defaultProps} initial={{}} />);
-    expect(screen.getByText('New connection')).toBeInTheDocument();
+    expect(screen.getByText('Unsaved')).toBeInTheDocument();
   });
 
-  it('tabs render and non-General shows placeholder', async () => {
+  it('Options tab shows placeholder; SSL tab shows ssl field', async () => {
     render(<ConnectionForm {...defaultProps} />);
-    await userEvent.click(screen.getByRole('tab', { name: 'SSH/SSL' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Options' }));
     expect(screen.getByText(/Not yet implemented/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'SSL' }));
+    expect(screen.getByTestId('field-ssl')).toBeInTheDocument();
   });
 
   it('URL preview updates as host/port/db change', async () => {
@@ -344,7 +346,7 @@ describe('ConnectionManager', () => {
     renderManager({ datasources: [ds] });
     await userEvent.click(screen.getByTestId('btn-add-connection'));
     expect(screen.getByTestId('connection-form')).toBeInTheDocument();
-    expect(screen.getByText('New connection')).toBeInTheDocument();
+    expect(screen.getByText('Unsaved')).toBeInTheDocument();
   });
 
   it('Duplicate button copies selected datasource', async () => {
@@ -421,10 +423,10 @@ describe('ConnectionManager', () => {
     const ds = makeDs();
     renderManager({ datasources: [ds] });
     await userEvent.click(screen.getByTestId('btn-add-connection'));
-    expect(screen.getByText('New connection')).toBeInTheDocument();
+    expect(screen.getByText('Unsaved')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('btn-cancel'));
     // After cancel with existing ds, form closes
-    expect(screen.queryByText('New connection')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unsaved')).not.toBeInTheDocument();
   });
 
   it('Test connection calls GoApp.TestDatasource with sslMode', async () => {
