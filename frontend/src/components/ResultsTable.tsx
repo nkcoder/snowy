@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, Download, ListFilter, Hash, Type, ChevronDown } from 'lucide-react';
+import { Filter, Download, ListFilter, Hash, Type, ChevronDown, Pin } from 'lucide-react';
 import { T } from '../lib/tokens';
 
 interface ResultsTableProps {
@@ -8,9 +8,15 @@ interface ResultsTableProps {
         rows: any[][];
     } | null;
     loading: boolean;
+    activeTabPinned?: boolean;
+    pinActive?: boolean;
+    onPin?: () => void;
+    onUnpin?: (id: string) => void;
+    activeTabId?: string;
+    onExport?: () => void;
 }
 
-export function ResultsTable({ data, loading }: ResultsTableProps) {
+export function ResultsTable({ data, loading, activeTabPinned, pinActive, onPin, onUnpin, activeTabId, onExport }: ResultsTableProps) {
     if (loading) {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: T.panel, color: T.textDim }}>
@@ -44,9 +50,37 @@ export function ResultsTable({ data, loading }: ResultsTableProps) {
                     <ListFilter size={14} />
                 </button>
                 <div style={{ width: 1, height: 16, background: T.border }} />
-                <button style={{ padding: 4, color: T.textSec, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <button
+                    onClick={onExport}
+                    disabled={!onExport}
+                    title="Export CSV"
+                    style={{ padding: 4, color: onExport ? T.textSec : T.textDim, background: 'none', border: 'none', cursor: onExport ? 'pointer' : 'default', display: 'flex', alignItems: 'center' }}
+                >
                     <Download size={14} />
                 </button>
+                <div style={{ width: 1, height: 16, background: T.border }} />
+                {(onPin || onUnpin) && (
+                    <button
+                        onClick={activeTabPinned ? () => onUnpin!(activeTabId!) : onPin}
+                        disabled={!pinActive}
+                        title={activeTabPinned ? 'Unpin result' : 'Pin result'}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            padding: '3px 7px',
+                            fontSize: 10, fontWeight: 500,
+                            color: activeTabPinned ? T.accent : pinActive ? T.textSec : T.textDim,
+                            background: activeTabPinned ? `${T.accent}18` : 'none',
+                            border: pinActive ? `1px solid ${activeTabPinned ? T.accent : T.border}` : '1px solid transparent',
+                            borderRadius: 3,
+                            cursor: pinActive ? 'pointer' : 'default',
+                            fontFamily: 'inherit',
+                            letterSpacing: 0.2,
+                        }}
+                    >
+                        <Pin size={11} style={{ transform: activeTabPinned ? 'rotate(45deg)' : 'none' }} />
+                        {activeTabPinned ? 'Unpin' : 'Pin'}
+                    </button>
+                )}
                 <div style={{ marginLeft: 'auto', fontSize: 10, color: T.textDim, fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                     Read-only
                 </div>

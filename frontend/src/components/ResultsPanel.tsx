@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pin, X, History, Download } from 'lucide-react';
+import { Pin, X, History } from 'lucide-react';
 import { ResultsTable } from './ResultsTable';
 import { T } from '../lib/tokens';
 
@@ -21,6 +21,7 @@ interface ResultsPanelProps {
   loading: boolean;
   onSelectTab: (id: string) => void;
   onPin: () => void;
+  onUnpin: (id: string) => void;
   onCloseTab: (id: string) => void;
   onOpenHistory: () => void;
 }
@@ -59,12 +60,15 @@ export function ResultsPanel({
   loading,
   onSelectTab,
   onPin,
+  onUnpin,
   onCloseTab,
   onOpenHistory,
 }: ResultsPanelProps) {
   const activeTab = resultTabs.find(t => t.id === activeResultTabId) ?? resultTabs[0] ?? null;
   const liveTab = resultTabs.find(t => !t.pinned) ?? null;
   const canPin = !!liveTab?.data && !loading;
+  const activeTabPinned = activeTab?.pinned ?? false;
+  const pinActive = activeTabPinned || canPin;
 
   const handleExport = () => {
     if (!activeTab?.data) return;
@@ -134,8 +138,7 @@ export function ResultsPanel({
                   </span>
                 )}
                 {tab.pinned && (
-                  <span
-                    role="button"
+                  <button
                     onClick={e => { e.stopPropagation(); onCloseTab(tab.id); }}
                     style={{
                       marginLeft: 2,
@@ -144,11 +147,14 @@ export function ResultsPanel({
                       alignItems: 'center',
                       cursor: 'pointer',
                       borderRadius: 2,
-                      padding: '1px 2px',
+                      padding: '4px',
+                      background: 'none',
+                      border: 'none',
+                      lineHeight: 0,
                     }}
                   >
                     <X size={10} />
-                  </span>
+                  </button>
                 )}
               </button>
             );
@@ -166,29 +172,6 @@ export function ResultsPanel({
           flexShrink: 0,
         }}>
           <button
-            onClick={onPin}
-            disabled={!canPin}
-            title="Pin result"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '3px 7px',
-              fontSize: 10,
-              fontWeight: 500,
-              color: canPin ? T.textSec : T.textDim,
-              background: 'none',
-              border: canPin ? `1px solid ${T.border}` : '1px solid transparent',
-              borderRadius: 3,
-              cursor: canPin ? 'pointer' : 'default',
-              fontFamily: 'inherit',
-              letterSpacing: 0.2,
-            }}
-          >
-            <Pin size={11} />
-            Pin
-          </button>
-          <button
             onClick={onOpenHistory}
             title="Query history"
             style={{
@@ -203,23 +186,6 @@ export function ResultsPanel({
             }}
           >
             <History size={13} />
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={!activeTab?.data}
-            title="Export CSV"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: 4,
-              color: activeTab?.data ? T.textSec : T.textDim,
-              background: 'none',
-              border: 'none',
-              borderRadius: 3,
-              cursor: activeTab?.data ? 'pointer' : 'default',
-            }}
-          >
-            <Download size={13} />
           </button>
         </div>
       </div>
@@ -239,7 +205,16 @@ export function ResultsPanel({
             {activeTab.error}
           </div>
         ) : (
-          <ResultsTable data={activeTab?.data ?? null} loading={loading} />
+          <ResultsTable
+            data={activeTab?.data ?? null}
+            loading={loading}
+            activeTabPinned={activeTabPinned}
+            pinActive={pinActive}
+            onPin={onPin}
+            onUnpin={onUnpin}
+            activeTabId={activeTab?.id}
+            onExport={activeTab?.data ? handleExport : undefined}
+          />
         )}
       </div>
     </div>
