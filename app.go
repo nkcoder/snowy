@@ -36,6 +36,11 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
+// GetAppVersion returns the app version and build date.
+func (a *App) GetAppVersion() map[string]string {
+	return map[string]string{"version": Version, "buildDate": BuildDate}
+}
+
 // GetConfig returns the full configuration
 func (a *App) GetConfig() (Config, error) {
 	return a.configManager.LoadConfig()

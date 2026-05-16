@@ -11,13 +11,17 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// Version and BuildDate are set at build time via -ldflags.
+var Version = "0.0.1"
+var BuildDate = ""
+
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "snowy",
+		Title:  "Snowy",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

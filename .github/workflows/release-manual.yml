@@ -45,7 +45,10 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
       - name: Build
-        run: wails build -platform darwin/universal
+        run: |
+          BUILD_DATE=$(date -u +%Y-%m-%d)
+          wails build -platform darwin/universal \
+            -ldflags "-X main.Version=$TAG -X main.BuildDate=$BUILD_DATE"
 
       - name: Package
         run: ditto -c -k --keepParent build/bin/snowy.app snowy-macos.zip

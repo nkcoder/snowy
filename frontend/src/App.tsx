@@ -125,6 +125,8 @@ function App() {
   const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [metadataByDs, setMetadataByDs] = useState<Record<string, any>>({});
+  const [appVersion, setAppVersion] = useState<{ version: string; buildDate: string }>({ version: '0.0.1', buildDate: '' });
+  const [cmAddMode, setCmAddMode] = useState(false);
 
   // ── Result tabs ──────────────────────────────────────────────────────────────
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([makeLiveResultTab()]);
@@ -188,7 +190,10 @@ function App() {
     | { type: 'confirm-close'; tabId: string; tabLabel: string };
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
-  useEffect(() => { loadConfig(); }, []);
+  useEffect(() => {
+    loadConfig();
+    GoApp.GetAppVersion().then(v => setAppVersion({ version: v.version ?? '0.0.1', buildDate: v.buildDate ?? '' })).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const suppress = (e: MouseEvent) => e.preventDefault();
@@ -540,7 +545,9 @@ function App() {
           onLoadQuery={handleLoadQuery}
           onDeleteQuery={handleDeleteQuery}
           onRenameQuery={handleRenameQuery}
-          onAddConnection={() => setView('connections')}
+          onAddConnection={() => { setView('connections'); setCmAddMode(true); }}
+          appVersion={appVersion.version}
+          appBuildDate={appVersion.buildDate}
           onNewConsole={handleNewTab}
           onDisconnect={handleDisconnect}
           width={sidebarWidth}
@@ -697,6 +704,10 @@ function App() {
       onConnect={handleConnect}
       onSaveAll={handleSaveAll}
       onUpdateDs={handleUpdateDs}
+      startInAddMode={cmAddMode}
+      onAddModeConsumed={() => setCmAddMode(false)}
+      appVersion={appVersion.version}
+      appBuildDate={appVersion.buildDate}
     />
   );
 }
