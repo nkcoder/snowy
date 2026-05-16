@@ -311,7 +311,10 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
         if (!containerRef.current) return;
 
         const runCmd = (view: EditorView) => {
-            const content = view.state.doc.toString();
+            const sel = view.state.selection.main;
+            const content = sel.empty
+                ? view.state.doc.toString()
+                : view.state.sliceDoc(sel.from, sel.to);
             onRunRef.current(content);
             return true;
         };
@@ -412,7 +415,12 @@ export function QueryEditor({ sql: sqlValue, onChange, onRun, onSave, loading, c
 
     const handleRun = useCallback(() => {
         const view = viewRef.current;
-        onRun(view ? view.state.doc.toString() : sqlValue);
+        if (!view) { onRun(sqlValue); return; }
+        const sel = view.state.selection.main;
+        const content = sel.empty
+            ? view.state.doc.toString()
+            : view.state.sliceDoc(sel.from, sel.to);
+        onRun(content);
     }, [onRun, sqlValue]);
 
     const handleClear = useCallback(() => {
