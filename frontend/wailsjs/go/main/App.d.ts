@@ -6,6 +6,8 @@ export function DeleteSavedQuery(arg1:string,arg2:string):Promise<void>;
 
 export function ExecuteQuery(arg1:string,arg2:string):Promise<main.QueryResult>;
 
+export function GetCachedMetadata(arg1:string):Promise<main.DatabaseMetadata>;
+
 export function GetCompletions(arg1:string):Promise<main.CompletionSet>;
 
 export function GetConfig():Promise<main.Config>;
@@ -31,6 +33,8 @@ export function ListTables(arg1:string,arg2:string):Promise<Array<main.TableItem
 export function LoadSavedQuery(arg1:string,arg2:string):Promise<string>;
 
 export function RecordHistory(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+
+export function RefreshMetadata(arg1:string):Promise<main.DatabaseMetadata>;
 
 export function RenameQuery(arg1:string,arg2:string,arg3:string):Promise<void>;
 

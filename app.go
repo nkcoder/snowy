@@ -122,6 +122,23 @@ func (a *App) GetCompletions(dsId string) (*CompletionSet, error) {
 	return a.dbService.GetCompletions(dsId)
 }
 
+// GetCachedMetadata returns the last saved DatabaseMetadata for a datasource.
+// Returns an empty DatabaseMetadata (no schemas) if no cache file exists.
+func (a *App) GetCachedMetadata(dsId string) (DatabaseMetadata, error) {
+	return a.dbService.LoadCachedMetadata(dsId)
+}
+
+// RefreshMetadata fetches fresh DatabaseMetadata from the DB, saves it to the
+// local cache at ~/.snowy/cache/<dsId>.json, and returns it.
+func (a *App) RefreshMetadata(dsId string) (DatabaseMetadata, error) {
+	meta, err := a.dbService.FetchDatabaseMetadata(dsId)
+	if err != nil {
+		return DatabaseMetadata{}, err
+	}
+	_ = a.dbService.SaveMetadataCache(dsId, meta)
+	return meta, nil
+}
+
 // RecordHistory appends a query execution record to ~/.snowy/history/<dsId>.jsonl.
 func (a *App) RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
 	return RecordHistory(dsId, sql, rowCount, durationMs)

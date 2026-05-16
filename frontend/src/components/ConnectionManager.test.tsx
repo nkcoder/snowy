@@ -70,7 +70,7 @@ describe('makeEmptyForm', () => {
     expect(f.host).toBe('localhost');
     expect(f.port).toBe(5432);
     expect(f.env).toBe('local');
-    expect(f.sslMode).toBe('disable');
+    expect(f.sslMode).toBe('require');
     expect(f.name).toBe('');
   });
 });
