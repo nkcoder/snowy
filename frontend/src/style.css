@@ -48,9 +48,8 @@
   --t-vibrancy: rgba(37,35,32,0.85);
 
   /* Typography */
-  --t-font-ui:      -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", system-ui, sans-serif;
-  --t-font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", system-ui, sans-serif;
-  --t-font-mono:    "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  --t-font-ui:   "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --t-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 /* ── SnowyLight overrides ────────────────────────────────────────────────── */
@@ -86,6 +85,8 @@ html, body {
   background-color: var(--t-bg);
   color: var(--t-text);
   font-family: var(--t-font-ui);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
   margin: 0;
   height: 100vh;
   overflow: hidden;
