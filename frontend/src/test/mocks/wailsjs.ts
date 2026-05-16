@@ -1,6 +1,7 @@
 // Mock for ../../wailsjs/go/main/App — used by vitest via moduleNameMapper / alias
 import { vi } from 'vitest';
 
+export const GetAppVersion = vi.fn().mockResolvedValue({ version: 'dev', buildDate: '' });
 export const GetConfig = vi.fn().mockResolvedValue({ projects: [], datasources: [] });
 export const SaveConfig = vi.fn().mockResolvedValue(undefined);
 export const UpdateDatasource = vi.fn().mockResolvedValue(undefined);

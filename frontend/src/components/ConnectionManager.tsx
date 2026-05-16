@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Wifi, Eye, EyeOff, Loader, Copy, X } from 'lucide-react';
 import * as GoApp from '../../wailsjs/go/main/App';
 import { T, ENV_COLORS } from '../lib/tokens';
@@ -19,6 +19,10 @@ export interface ConnectionManagerProps {
   onConnect: (dsId: string) => void;
   onSaveAll: (projects: Project[], datasources: Datasource[]) => Promise<void>;
   onUpdateDs: (ds: Datasource) => Promise<void>;
+  startInAddMode?: boolean;
+  onAddModeConsumed?: () => void;
+  appVersion?: string;
+  appBuildDate?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -252,7 +256,13 @@ export function ConnectionForm({
   return (
     <div data-testid="connection-form" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: T.panel, overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ padding: '14px 24px', borderBottom: `0.5px solid ${T.divider}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{
+        padding: '14px 24px',
+        borderBottom: `0.5px solid ${T.divider}`,
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: initial.id ? T.panel : T.accent + '0d',
+        borderLeft: initial.id ? 'none' : `3px solid ${T.accent}`,
+      }}>
         <ElephantIcon color={envColor} size={18} />
         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, letterSpacing: -0.3 }}>
           {form.name || (initial.id ? initial.name : 'New connection')}
@@ -260,6 +270,11 @@ export function ConnectionForm({
         <div style={{ padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: envColor + '22', color: envColor, letterSpacing: 0.4, textTransform: 'uppercase' as const }}>
           {envLabels[form.env] ?? form.env}
         </div>
+        {!initial.id && (
+          <div style={{ padding: '1px 7px', borderRadius: 3, fontSize: 10, fontWeight: 700, background: T.accent + '33', color: T.accent, letterSpacing: 0.4, textTransform: 'uppercase' as const, border: `0.5px solid ${T.accent}55` }}>
+            Unsaved
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         {initial.id && (
           <div style={{ fontSize: 11, color: T.textDim, fontFamily: T.mono }}>
@@ -506,10 +521,18 @@ export function ConnectionForm({
 }
 
 // ── ConnectionManager ────────────────────────────────────────────────────────
-export function ConnectionManager({ projects, datasources, activeDatasourceId, onConnect, onSaveAll, onUpdateDs }: ConnectionManagerProps) {
+export function ConnectionManager({ projects, datasources, activeDatasourceId, onConnect, onSaveAll, onUpdateDs, startInAddMode, onAddModeConsumed, appVersion, appBuildDate }: ConnectionManagerProps) {
   const [selectedDsId, setSelectedDsId] = useState<string | null>(datasources[0]?.id ?? null);
   const [formMode, setFormMode] = useState<FormMode>(datasources.length === 0 ? 'add' : null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (startInAddMode) {
+      setFormMode('add');
+      setSelectedDsId(null);
+      onAddModeConsumed?.();
+    }
+  }, [startInAddMode]);
 
   const selectedDs = datasources.find(d => d.id === selectedDsId) ?? null;
   const defaultProjectId = projects[0]?.id ?? 'default';
@@ -641,6 +664,14 @@ export function ConnectionManager({ projects, datasources, activeDatasourceId, o
             <div style={{ padding: '16px 10px', color: T.textDim, fontSize: 12, fontStyle: 'italic', textAlign: 'center' }}>
               No data sources
             </div>
+          )}
+        </div>
+
+        {/* Version footer */}
+        <div style={{ padding: '8px 10px', borderTop: `0.5px solid ${T.divider}`, display: 'flex', alignItems: 'baseline', gap: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: T.textDim, letterSpacing: -0.2 }}>Snowy</span>
+          {appVersion && (
+            <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono, opacity: 0.7 }}>v{appVersion}</span>
           )}
         </div>
       </div>

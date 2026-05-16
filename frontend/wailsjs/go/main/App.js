@@ -10,6 +10,10 @@ export function ExecuteQuery(arg1, arg2) {
   return window['go']['main']['App']['ExecuteQuery'](arg1, arg2);
 }
 
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
+}
+
 export function GetCachedMetadata(arg1) {
   return window['go']['main']['App']['GetCachedMetadata'](arg1);
 }

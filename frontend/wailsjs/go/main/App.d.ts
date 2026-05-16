@@ -6,6 +6,8 @@ export function DeleteSavedQuery(arg1:string,arg2:string):Promise<void>;
 
 export function ExecuteQuery(arg1:string,arg2:string):Promise<main.QueryResult>;
 
+export function GetAppVersion():Promise<Record<string, string>>;
+
 export function GetCachedMetadata(arg1:string):Promise<main.DatabaseMetadata>;
 
 export function GetCompletions(arg1:string):Promise<main.CompletionSet>;

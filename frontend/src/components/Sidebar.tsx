@@ -46,6 +46,8 @@ interface SidebarProps {
   width?: number;
   preloadedMetadata?: DatabaseMetadata | null;
   onRefreshMetadata?: () => Promise<void>;
+  appVersion?: string;
+  appBuildDate?: string;
 }
 
 interface SchemaNode {
@@ -297,6 +299,8 @@ export function Sidebar({
   width = 260,
   preloadedMetadata,
   onRefreshMetadata,
+  appVersion,
+  appBuildDate,
 }: SidebarProps) {
   const savedQueries = savedQueriesProp ?? [];
 
@@ -1139,6 +1143,12 @@ export function Sidebar({
         display: 'flex', alignItems: 'center', gap: 6,
         flexShrink: 0,
       }}>
+        {appVersion && (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: T.textDim, letterSpacing: -0.2 }}>Snowy</span>
+            <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono, opacity: 0.7 }}>v{appVersion}</span>
+          </div>
+        )}
         <div style={{ flex: 1 }} />
         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textDim, padding: 2, display: 'flex', alignItems: 'center' }}>
           <Settings size={13} />
