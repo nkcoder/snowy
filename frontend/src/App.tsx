@@ -42,6 +42,7 @@ import { ConnectionManager } from './components/ConnectionManager';
 import { TabBar, type Tab } from './components/TabBar';
 import { ResultsPanel, type ResultTab } from './components/ResultsPanel';
 import { HistoryDrawer, type HistoryEntry } from './components/HistoryDrawer';
+import { InputDialog, ConfirmDialog } from './components/Dialog';
 import { Terminal, Folder, ChevronRight } from 'lucide-react';
 import './App.css';
 
@@ -133,6 +134,12 @@ function App() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // ── Dialogs ──────────────────────────────────────────────────────────────────
+  type DialogState =
+    | { type: 'save-query' }
+    | { type: 'confirm-close'; tabId: string; tabLabel: string };
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+
   useEffect(() => { loadConfig(); }, []);
 
   useEffect(() => {
@@ -179,9 +186,7 @@ function App() {
 
   const handleTabSelect = (id: string) => setActiveTabId(id);
 
-  const handleTabClose = (id: string) => {
-    const tab = tabs.find(t => t.id === id);
-    if (tab?.dirty && !window.confirm(`"${tab.label}" has unsaved changes. Close anyway?`)) return;
+  const doCloseTab = (id: string) => {
     setTabs(prev => {
       const next = prev.filter(t => t.id !== id);
       if (activeTabId === id && next.length > 0) {
@@ -192,6 +197,15 @@ function App() {
       }
       return next;
     });
+  };
+
+  const handleTabClose = (id: string) => {
+    const tab = tabs.find(t => t.id === id);
+    if (tab?.dirty) {
+      setDialog({ type: 'confirm-close', tabId: id, tabLabel: tab.label });
+      return;
+    }
+    doCloseTab(id);
   };
 
   const handleNewTab = () => {
@@ -322,14 +336,8 @@ function App() {
     }
   };
 
-  const handleSaveQuery = async () => {
+  const doSaveQuery = async (filename: string) => {
     if (!activeDatasourceId || !activeTab) return;
-    let filename = activeTab.filename;
-    if (!filename) {
-      const name = window.prompt('Save query as (without .sql):');
-      if (!name?.trim()) return;
-      filename = name.trim();
-    }
     try {
       await GoApp.SaveQuery(activeDatasourceId, filename, activeTab.sql);
       const updated = await GoApp.ListSavedQueries(activeDatasourceId);
@@ -337,8 +345,17 @@ function App() {
       const savedFilename = filename.endsWith('.sql') ? filename : `${filename}.sql`;
       updateActiveTab({ filename: savedFilename, label: savedFilename, dirty: false });
     } catch (err) {
-      alert('Failed to save: ' + err);
+      console.error('Failed to save query', err);
     }
+  };
+
+  const handleSaveQuery = () => {
+    if (!activeDatasourceId || !activeTab) return;
+    if (!activeTab.filename) {
+      setDialog({ type: 'save-query' });
+      return;
+    }
+    doSaveQuery(activeTab.filename);
   };
 
   const handleRunQuery = async (sql: string) => {
@@ -560,6 +577,25 @@ function App() {
           />
         )}
         </div>{/* end main workspace row */}
+
+        {/* Dialogs */}
+        {dialog?.type === 'save-query' && (
+          <InputDialog
+            title="Save query"
+            placeholder="filename (without .sql)"
+            confirmLabel="Save"
+            onConfirm={name => { setDialog(null); doSaveQuery(name); }}
+            onCancel={() => setDialog(null)}
+          />
+        )}
+        {dialog?.type === 'confirm-close' && (
+          <ConfirmDialog
+            message={`"${dialog.tabLabel}" has unsaved changes. Close anyway?`}
+            confirmLabel="Close anyway"
+            onConfirm={() => { setDialog(null); doCloseTab(dialog.tabId); }}
+            onCancel={() => setDialog(null)}
+          />
+        )}
       </div>
       </WorkspaceErrorBoundary>
     );
