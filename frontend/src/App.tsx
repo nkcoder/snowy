@@ -124,6 +124,7 @@ function App() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
+  const [metadataByDs, setMetadataByDs] = useState<Record<string, any>>({});
 
   // ── Result tabs ──────────────────────────────────────────────────────────────
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([makeLiveResultTab()]);
@@ -199,7 +200,7 @@ function App() {
     try {
       const config = await GoApp.GetConfig();
       const ds = (config.datasources ?? []).map((d: any) => ({
-        env: 'local', sslMode: 'disable', ...d,
+        env: 'local', sslMode: 'require', ...d,
       }));
       setProjects(config.projects ?? []);
       setDatasources(ds);
@@ -266,6 +267,15 @@ function App() {
   };
 
   // ── Connect / workspace ──────────────────────────────────────────────────────
+  const refreshMetadata = async (dsId: string): Promise<void> => {
+    try {
+      const fresh = await (GoApp as any).RefreshMetadata(dsId);
+      setMetadataByDs(prev => ({ ...prev, [dsId]: fresh }));
+    } catch (err) {
+      console.warn('RefreshMetadata failed', err);
+    }
+  };
+
   const handleConnect = (dsId: string) => {
     setActiveDatasourceId(dsId);
     setSavedQueries([]);
@@ -282,6 +292,15 @@ function App() {
     GoApp.GetCompletions(dsId)
       .then(data => setCompletions(data?.entries ?? []))
       .catch(err => console.warn('GetCompletions failed', err));
+    // Load cached metadata immediately, then refresh in background
+    (GoApp as any).GetCachedMetadata(dsId)
+      .then((cached: any) => {
+        if (cached?.schemas?.length > 0) {
+          setMetadataByDs(prev => ({ ...prev, [dsId]: cached }));
+        }
+      })
+      .catch(() => {});
+    refreshMetadata(dsId);
   };
 
   // ── Result tab actions ───────────────────────────────────────────────────────
@@ -525,6 +544,8 @@ function App() {
           onNewConsole={handleNewTab}
           onDisconnect={handleDisconnect}
           width={sidebarWidth}
+          preloadedMetadata={activeDatasourceId ? metadataByDs[activeDatasourceId] ?? null : null}
+          onRefreshMetadata={activeDatasourceId ? () => refreshMetadata(activeDatasourceId) : undefined}
         />
         {/* Sidebar resize handle */}
         <div

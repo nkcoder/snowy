@@ -11,6 +11,26 @@ import type { Datasource } from '../types';
 const ROW_H = 24;
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+interface PreloadedTableMetadata {
+  name: string;
+  type: string;
+  columns: ColumnNode[];
+  keys: KeyNode[];
+  foreignKeys: ForeignKeyNode[];
+  indexes: IndexNode[];
+  checks: CheckNode[];
+}
+
+interface PreloadedSchemaMetadata {
+  name: string;
+  tables: PreloadedTableMetadata[];
+}
+
+interface DatabaseMetadata {
+  schemas: PreloadedSchemaMetadata[];
+}
+
 interface SidebarProps {
   datasources: Datasource[];
   activeDatasourceId: string | null;
@@ -24,6 +44,8 @@ interface SidebarProps {
   onDeleteQuery?: (filename: string) => void;
   onRenameQuery?: (oldFilename: string, newFilename: string) => void;
   width?: number;
+  preloadedMetadata?: DatabaseMetadata | null;
+  onRefreshMetadata?: () => Promise<void>;
 }
 
 interface SchemaNode {
@@ -273,6 +295,8 @@ export function Sidebar({
   savedQueries: savedQueriesProp,
   onLoadQuery, onDeleteQuery, onRenameQuery,
   width = 260,
+  preloadedMetadata,
+  onRefreshMetadata,
 }: SidebarProps) {
   const savedQueries = savedQueriesProp ?? [];
 
@@ -310,7 +334,7 @@ export function Sidebar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!ctxMenu]);
 
-  // ── Schema loading ────────────────────────────────────────────────────────
+  // ── Schema loading (lazy fallback) ───────────────────────────────────────
   const loadSchemas = useCallback(async (dsId: string) => {
     if (!dsId) return;
     setLoadingDs(prev => new Set([...prev, dsId]));
@@ -329,12 +353,63 @@ export function Sidebar({
     }
   }, []);
 
-  // Load schemas for active connection when it changes or is expanded
+  // Populate full tree from preloaded metadata (cache hit or background refresh).
+  // Preserves expand/open state on subsequent refreshes.
   useEffect(() => {
-    if (activeDatasourceId && !schemasPerDs[activeDatasourceId]) {
+    if (!preloadedMetadata || !activeDatasourceId) return;
+    setSchemasPerDs(prev => {
+      const existing = prev[activeDatasourceId] ?? [];
+      return {
+        ...prev,
+        [activeDatasourceId]: preloadedMetadata.schemas.map(s => {
+          const existingSchema = existing.find(es => es.name === s.name);
+          return {
+            name: s.name,
+            expanded: existingSchema?.expanded ?? false,
+            loaded: true,
+            tables: s.tables.map(t => {
+              const existingTable = existingSchema?.tables.find(et => et.name === t.name);
+              return {
+                name: t.name,
+                type: (t.type === 'VIEW' ? 'view' : 'table') as 'table' | 'view',
+                expanded: existingTable?.expanded ?? false,
+                columns: { open: existingTable?.columns.open ?? false, loaded: true, items: t.columns },
+                keys: { open: existingTable?.keys.open ?? false, loaded: true, items: t.keys },
+                foreignKeys: { open: existingTable?.foreignKeys.open ?? false, loaded: true, items: t.foreignKeys },
+                indexes: { open: existingTable?.indexes.open ?? false, loaded: true, items: t.indexes },
+                checks: { open: existingTable?.checks.open ?? false, loaded: true, items: t.checks },
+              };
+            }),
+          };
+        }),
+      };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloadedMetadata, activeDatasourceId]);
+
+  // Fallback auto-load: only fires when App.tsx is not providing preloaded metadata
+  // (i.e., in tests or standalone usage where onRefreshMetadata is absent).
+  useEffect(() => {
+    if (activeDatasourceId && !schemasPerDs[activeDatasourceId] && !onRefreshMetadata) {
       loadSchemas(activeDatasourceId);
     }
-  }, [activeDatasourceId, schemasPerDs, loadSchemas]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDatasourceId]);
+
+  // handleRefreshClick: uses full metadata refresh when available, else schema-only fallback.
+  const handleRefreshClick = useCallback(async (dsId: string) => {
+    if (!dsId) return;
+    setLoadingDs(prev => new Set([...prev, dsId]));
+    try {
+      if (onRefreshMetadata) {
+        await onRefreshMetadata();
+      } else {
+        await loadSchemas(dsId);
+      }
+    } finally {
+      setLoadingDs(prev => { const n = new Set(prev); n.delete(dsId); return n; });
+    }
+  }, [onRefreshMetadata, loadSchemas]);
 
   // ── Toggle connection expansion ────────────────────────────────────────────
   const toggleDs = (dsId: string) => {
@@ -921,7 +996,7 @@ export function Sidebar({
         <ToolBtn
           icon={<RefreshCw size={12} className={loadingDs.size > 0 ? 'animate-spin' : ''} />}
           title="Synchronize"
-          onClick={() => activeDatasourceId && loadSchemas(activeDatasourceId)}
+          onClick={() => activeDatasourceId && handleRefreshClick(activeDatasourceId)}
           disabled={!activeDatasourceId || loadingDs.size > 0}
         />
         <ToolBtn icon={<Square size={11} />} title="Disconnect" color={T.err} onClick={onDisconnect} disabled={!activeDatasourceId} />
@@ -1041,8 +1116,12 @@ export function Sidebar({
           <CtxMenuItem
             label="Refresh"
             onClick={() => closeMenu(() => {
-              if (!ctxIsActive) onConnect(ctxMenu.dsId);
-              loadSchemas(ctxMenu.dsId);
+              if (!ctxIsActive) {
+                onConnect(ctxMenu.dsId);
+                if (!onRefreshMetadata) loadSchemas(ctxMenu.dsId);
+              } else {
+                handleRefreshClick(ctxMenu.dsId);
+              }
             })}
           />
           <CtxMenuItem

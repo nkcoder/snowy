@@ -31,7 +31,7 @@ export function makeEmptyForm(): Omit<Datasource, 'id' | 'projectId'> {
     username: '',
     password: '',
     env: 'local',
-    sslMode: 'disable',
+    sslMode: 'require',
   };
 }
 
@@ -208,7 +208,7 @@ export function ConnectionForm({
     username: initial.username ?? '',
     password: initial.password ?? '',
     env:      initial.env      ?? 'local',
-    sslMode:  initial.sslMode  ?? 'disable',
+    sslMode:  initial.sslMode  ?? 'require',
   });
   const [showPass, setShowPass] = useState(false);
   const [savePassword, setSavePassword] = useState(!!initial.password || !initial.id);

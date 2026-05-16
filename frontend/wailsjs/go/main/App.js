@@ -10,6 +10,10 @@ export function ExecuteQuery(arg1, arg2) {
   return window['go']['main']['App']['ExecuteQuery'](arg1, arg2);
 }
 
+export function GetCachedMetadata(arg1) {
+  return window['go']['main']['App']['GetCachedMetadata'](arg1);
+}
+
 export function GetCompletions(arg1) {
   return window['go']['main']['App']['GetCompletions'](arg1);
 }
@@ -60,6 +64,10 @@ export function LoadSavedQuery(arg1, arg2) {
 
 export function RecordHistory(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['RecordHistory'](arg1, arg2, arg3, arg4);
+}
+
+export function RefreshMetadata(arg1) {
+  return window['go']['main']['App']['RefreshMetadata'](arg1);
 }
 
 export function RenameQuery(arg1, arg2, arg3) {
