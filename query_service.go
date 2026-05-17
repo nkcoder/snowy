@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-// queriesDir returns ~/.snowy/queries/<dsId>/
-func queriesDir(dsId string) (string, error) {
+// queriesDir returns ~/.snowy/queries/<dsID>/
+func queriesDir(dsID string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, ".snowy", "queries", dsId)
+	dir := filepath.Join(home, ".snowy", "queries", dsID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
@@ -25,13 +25,13 @@ type SavedQuery struct {
 	Filename string `json:"filename"`
 }
 
-// SaveQuery writes sql to ~/.snowy/queries/<dsId>/<filename>.sql.
+// SaveQuery writes sql to ~/.snowy/queries/<dsID>/<filename>.sql.
 // filename must not contain path separators.
-func SaveQuery(dsId, filename, sql string) error {
+func SaveQuery(dsID, filename, sql string) error {
 	if strings.ContainsAny(filename, "/\\") {
 		return fmt.Errorf("invalid filename")
 	}
-	dir, err := queriesDir(dsId)
+	dir, err := queriesDir(dsID)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func SaveQuery(dsId, filename, sql string) error {
 }
 
 // ListSavedQueries returns all .sql filenames for a datasource.
-func ListSavedQueries(dsId string) ([]SavedQuery, error) {
-	dir, err := queriesDir(dsId)
+func ListSavedQueries(dsID string) ([]SavedQuery, error) {
+	dir, err := queriesDir(dsID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,11 @@ func ListSavedQueries(dsId string) ([]SavedQuery, error) {
 }
 
 // LoadSavedQuery reads the contents of a saved query file.
-func LoadSavedQuery(dsId, filename string) (string, error) {
+func LoadSavedQuery(dsID, filename string) (string, error) {
 	if strings.ContainsAny(filename, "/\\") {
 		return "", fmt.Errorf("invalid filename")
 	}
-	dir, err := queriesDir(dsId)
+	dir, err := queriesDir(dsID)
 	if err != nil {
 		return "", err
 	}
@@ -77,11 +77,11 @@ func LoadSavedQuery(dsId, filename string) (string, error) {
 }
 
 // DeleteSavedQuery removes a saved query file.
-func DeleteSavedQuery(dsId, filename string) error {
+func DeleteSavedQuery(dsID, filename string) error {
 	if strings.ContainsAny(filename, "/\\") {
 		return fmt.Errorf("invalid filename")
 	}
-	dir, err := queriesDir(dsId)
+	dir, err := queriesDir(dsID)
 	if err != nil {
 		return err
 	}
@@ -89,11 +89,11 @@ func DeleteSavedQuery(dsId, filename string) error {
 }
 
 // RenameQuery renames a saved query file.
-func RenameQuery(dsId, oldName, newName string) error {
+func RenameQuery(dsID, oldName, newName string) error {
 	if strings.ContainsAny(oldName, "/\\") || strings.ContainsAny(newName, "/\\") {
 		return fmt.Errorf("invalid filename")
 	}
-	dir, err := queriesDir(dsId)
+	dir, err := queriesDir(dsID)
 	if err != nil {
 		return err
 	}

@@ -11,10 +11,6 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// Version and BuildDate are set at build time via -ldflags.
-var Version = "0.0.1"
-var BuildDate = ""
-
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()

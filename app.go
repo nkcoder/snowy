@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// Version and BuildDate are set at build time via -ldflags.
+var (
+	Version   = "0.0.1"
+	BuildDate = ""
+)
+
 // App struct
 type App struct {
 	ctx           context.Context
@@ -57,101 +63,101 @@ func (a *App) UpdateDatasource(ds Datasource) error {
 }
 
 // ListSchemas returns schemas for a datasource
-func (a *App) ListSchemas(dsId string) ([]SchemaItem, error) {
-	return a.dbService.ListSchemas(dsId)
+func (a *App) ListSchemas(dsID string) ([]SchemaItem, error) {
+	return a.dbService.ListSchemas(dsID)
 }
 
 // ListTables returns tables for a schema
-func (a *App) ListTables(dsId string, schema string) ([]TableItem, error) {
-	return a.dbService.ListTables(dsId, schema)
+func (a *App) ListTables(dsID string, schema string) ([]TableItem, error) {
+	return a.dbService.ListTables(dsID, schema)
 }
 
 // ListColumns returns columns for a table
-func (a *App) ListColumns(dsId string, schema, table string) ([]ColumnItem, error) {
-	return a.dbService.ListColumns(dsId, schema, table)
+func (a *App) ListColumns(dsID string, schema, table string) ([]ColumnItem, error) {
+	return a.dbService.ListColumns(dsID, schema, table)
 }
 
 // ExecuteQuery executes a SQL query and returns tabular results
-func (a *App) ExecuteQuery(dsId string, sql string) (*QueryResult, error) {
-	return a.dbService.ExecuteQuery(dsId, sql)
+func (a *App) ExecuteQuery(dsID string, sql string) (*QueryResult, error) {
+	return a.dbService.ExecuteQuery(dsID, sql)
 }
 
-// SaveQuery saves a SQL query to disk under ~/.snowy/queries/<dsId>/.
-func (a *App) SaveQuery(dsId, filename, sql string) error {
-	return SaveQuery(dsId, filename, sql)
+// SaveQuery saves a SQL query to disk under ~/.snowy/queries/<dsID>/.
+func (a *App) SaveQuery(dsID, filename, sql string) error {
+	return SaveQuery(dsID, filename, sql)
 }
 
 // ListSavedQueries lists .sql files saved for a datasource.
-func (a *App) ListSavedQueries(dsId string) ([]SavedQuery, error) {
-	return ListSavedQueries(dsId)
+func (a *App) ListSavedQueries(dsID string) ([]SavedQuery, error) {
+	return ListSavedQueries(dsID)
 }
 
 // LoadSavedQuery reads a saved query file.
-func (a *App) LoadSavedQuery(dsId, filename string) (string, error) {
-	return LoadSavedQuery(dsId, filename)
+func (a *App) LoadSavedQuery(dsID, filename string) (string, error) {
+	return LoadSavedQuery(dsID, filename)
 }
 
 // DeleteSavedQuery removes a saved query file.
-func (a *App) DeleteSavedQuery(dsId, filename string) error {
-	return DeleteSavedQuery(dsId, filename)
+func (a *App) DeleteSavedQuery(dsID, filename string) error {
+	return DeleteSavedQuery(dsID, filename)
 }
 
 // RenameQuery renames a saved query file.
-func (a *App) RenameQuery(dsId, oldName, newName string) error {
-	return RenameQuery(dsId, oldName, newName)
+func (a *App) RenameQuery(dsID, oldName, newName string) error {
+	return RenameQuery(dsID, oldName, newName)
 }
 
 // ListTableKeys returns primary key constraints for a table.
-func (a *App) ListTableKeys(dsId, schema, table string) ([]TableKeyItem, error) {
-	return a.dbService.ListTableKeys(dsId, schema, table)
+func (a *App) ListTableKeys(dsID, schema, table string) ([]TableKeyItem, error) {
+	return a.dbService.ListTableKeys(dsID, schema, table)
 }
 
 // ListTableForeignKeys returns foreign key constraints for a table.
-func (a *App) ListTableForeignKeys(dsId, schema, table string) ([]ForeignKeyItem, error) {
-	return a.dbService.ListTableForeignKeys(dsId, schema, table)
+func (a *App) ListTableForeignKeys(dsID, schema, table string) ([]ForeignKeyItem, error) {
+	return a.dbService.ListTableForeignKeys(dsID, schema, table)
 }
 
 // ListTableIndexes returns non-primary indexes for a table.
-func (a *App) ListTableIndexes(dsId, schema, table string) ([]IndexItem, error) {
-	return a.dbService.ListTableIndexes(dsId, schema, table)
+func (a *App) ListTableIndexes(dsID, schema, table string) ([]IndexItem, error) {
+	return a.dbService.ListTableIndexes(dsID, schema, table)
 }
 
 // ListTableChecks returns check constraints for a table.
-func (a *App) ListTableChecks(dsId, schema, table string) ([]CheckItem, error) {
-	return a.dbService.ListTableChecks(dsId, schema, table)
+func (a *App) ListTableChecks(dsID, schema, table string) ([]CheckItem, error) {
+	return a.dbService.ListTableChecks(dsID, schema, table)
 }
 
 // GetCompletions returns DB-aware autocomplete entries (schemas, tables, views, columns)
 // for the given datasource. Results are cached in-memory.
-func (a *App) GetCompletions(dsId string) (*CompletionSet, error) {
-	return a.dbService.GetCompletions(dsId)
+func (a *App) GetCompletions(dsID string) (*CompletionSet, error) {
+	return a.dbService.GetCompletions(dsID)
 }
 
 // GetCachedMetadata returns the last saved DatabaseMetadata for a datasource.
 // Returns an empty DatabaseMetadata (no schemas) if no cache file exists.
-func (a *App) GetCachedMetadata(dsId string) (DatabaseMetadata, error) {
-	return a.dbService.LoadCachedMetadata(dsId)
+func (a *App) GetCachedMetadata(dsID string) (DatabaseMetadata, error) {
+	return a.dbService.LoadCachedMetadata(dsID)
 }
 
 // RefreshMetadata fetches fresh DatabaseMetadata from the DB, saves it to the
-// local cache at ~/.snowy/cache/<dsId>.json, and returns it.
-func (a *App) RefreshMetadata(dsId string) (DatabaseMetadata, error) {
-	meta, err := a.dbService.FetchDatabaseMetadata(dsId)
+// local cache at ~/.snowy/cache/<dsID>.json, and returns it.
+func (a *App) RefreshMetadata(dsID string) (DatabaseMetadata, error) {
+	meta, err := a.dbService.FetchDatabaseMetadata(dsID)
 	if err != nil {
 		return DatabaseMetadata{}, err
 	}
-	_ = a.dbService.SaveMetadataCache(dsId, meta)
+	_ = a.dbService.SaveMetadataCache(dsID, meta)
 	return meta, nil
 }
 
-// RecordHistory appends a query execution record to ~/.snowy/history/<dsId>.jsonl.
-func (a *App) RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
-	return RecordHistory(dsId, sql, rowCount, durationMs)
+// RecordHistory appends a query execution record to ~/.snowy/history/<dsID>.jsonl.
+func (a *App) RecordHistory(dsID, sql string, rowCount int, durationMs int64) error {
+	return RecordHistory(dsID, sql, rowCount, durationMs)
 }
 
 // GetQueryHistory returns the last limit history entries for a datasource, newest first.
-func (a *App) GetQueryHistory(dsId string, limit int) ([]HistoryEntry, error) {
-	return GetQueryHistory(dsId, limit)
+func (a *App) GetQueryHistory(dsID string, limit int) ([]HistoryEntry, error) {
+	return GetQueryHistory(dsID, limit)
 }
 
 type TestConnectionResult struct {
