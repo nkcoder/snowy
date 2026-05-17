@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Sidebar } from './Sidebar';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Datasource } from '../types';
+import { Sidebar } from './Sidebar';
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   ListSchemas: vi.fn().mockResolvedValue([]),
@@ -22,13 +22,29 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 import * as GoApp from '../../wailsjs/go/main/App';
 
 const DS1: Datasource = {
-  id: 'ds1', name: 'local-pg', host: 'localhost', port: 5432,
-  database: 'mydb', username: 'user', password: '', projectId: 'p1', env: 'local', sslMode: 'disable',
+  id: 'ds1',
+  name: 'local-pg',
+  host: 'localhost',
+  port: 5432,
+  database: 'mydb',
+  username: 'user',
+  password: '',
+  projectId: 'p1',
+  env: 'local',
+  sslMode: 'disable',
 };
 
 const DS2: Datasource = {
-  id: 'ds2', name: 'prod-pg', host: 'prod.db', port: 5432,
-  database: 'proddb', username: 'user', password: '', projectId: 'p1', env: 'prod', sslMode: 'require',
+  id: 'ds2',
+  name: 'prod-pg',
+  host: 'prod.db',
+  port: 5432,
+  database: 'proddb',
+  username: 'user',
+  password: '',
+  projectId: 'p1',
+  env: 'prod',
+  sslMode: 'require',
 };
 
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
@@ -55,7 +71,16 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       onDisconnect={onDisconnect}
     />
   );
-  return { onTableSelect, onAddConnection, onConnect, onLoadQuery, onDeleteQuery, onRenameQuery, onNewConsole, onDisconnect };
+  return {
+    onTableSelect,
+    onAddConnection,
+    onConnect,
+    onLoadQuery,
+    onDeleteQuery,
+    onRenameQuery,
+    onNewConsole,
+    onDisconnect,
+  };
 }
 
 describe('Sidebar — basic render', () => {
@@ -127,14 +152,14 @@ describe('Sidebar — schema loading', () => {
         onAddConnection={vi.fn()}
       />
     );
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
     expect(GoApp.ListSchemas).not.toHaveBeenCalled();
   });
 
   it('renders schema rows after load', async () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([
-      { name: 'public' } as any,
-      { name: 'finance' } as any,
+      { name: 'public' } as never,
+      { name: 'finance' } as never,
     ]);
     renderSidebar();
     await waitFor(() => expect(screen.getByTestId('schema-row-public')).toBeInTheDocument());
@@ -142,15 +167,27 @@ describe('Sidebar — schema loading', () => {
   });
 
   it('reloads schemas when activeDatasourceId changes to a new connection', async () => {
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
     const { rerender } = render(
-      <Sidebar datasources={[DS1, DS2]} activeDatasourceId="ds1" onConnect={vi.fn()} onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
+      <Sidebar
+        datasources={[DS1, DS2]}
+        activeDatasourceId="ds1"
+        onConnect={vi.fn()}
+        onTableSelect={vi.fn()}
+        onAddConnection={vi.fn()}
+      />
     );
     await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
 
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'other' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'other' } as never]);
     rerender(
-      <Sidebar datasources={[DS1, DS2]} activeDatasourceId="ds2" onConnect={vi.fn()} onTableSelect={vi.fn()} onAddConnection={vi.fn()} />
+      <Sidebar
+        datasources={[DS1, DS2]}
+        activeDatasourceId="ds2"
+        onConnect={vi.fn()}
+        onTableSelect={vi.fn()}
+        onAddConnection={vi.fn()}
+      />
     );
     await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds2'));
     await waitFor(() => expect(screen.getByTestId('schema-row-other')).toBeInTheDocument());
@@ -160,10 +197,10 @@ describe('Sidebar — schema loading', () => {
 describe('Sidebar — schema expand / table load', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
     vi.mocked(GoApp.ListTables).mockResolvedValue([
-      { name: 'users', type: 'TABLE' } as any,
-      { name: 'posts', type: 'TABLE' } as any,
+      { name: 'users', type: 'TABLE' } as never,
+      { name: 'posts', type: 'TABLE' } as never,
     ]);
   });
 
@@ -198,18 +235,20 @@ describe('Sidebar — schema expand / table load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('schema-row-public'));
-    await waitFor(() => expect(screen.queryByTestId('table-row-public-users')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByTestId('table-row-public-users')).not.toBeInTheDocument()
+    );
   });
 });
 
 describe('Sidebar — column load', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'users', type: 'TABLE' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'users', type: 'TABLE' } as never]);
     vi.mocked(GoApp.ListColumns).mockResolvedValue([
-      { name: 'id', dataType: 'int4', isNullable: 'NO' } as any,
-      { name: 'email', dataType: 'text', isNullable: 'YES' } as any,
+      { name: 'id', dataType: 'int4', isNullable: 'NO' } as never,
+      { name: 'email', dataType: 'text', isNullable: 'YES' } as never,
     ]);
   });
 
@@ -228,7 +267,9 @@ describe('Sidebar — column load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-columns-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-columns-public-users')).toBeInTheDocument()
+    );
     await waitFor(() => expect(screen.getByText('id')).toBeInTheDocument());
     expect(screen.getByText('email')).toBeInTheDocument();
   });
@@ -239,7 +280,9 @@ describe('Sidebar — column load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-keys-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-keys-public-users')).toBeInTheDocument()
+    );
   });
 
   it('shows foreign keys sub-folder after table expand', async () => {
@@ -248,7 +291,9 @@ describe('Sidebar — column load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-fk-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-fk-public-users')).toBeInTheDocument()
+    );
   });
 
   it('shows indexes sub-folder after table expand', async () => {
@@ -257,7 +302,9 @@ describe('Sidebar — column load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-indexes-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-indexes-public-users')).toBeInTheDocument()
+    );
   });
 
   it('shows checks sub-folder after table expand', async () => {
@@ -266,27 +313,35 @@ describe('Sidebar — column load', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-checks-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-checks-public-users')).toBeInTheDocument()
+    );
   });
 });
 
 describe('Sidebar — sub-folder drill-in', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'accounts', type: 'TABLE' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'accounts', type: 'TABLE' } as never]);
     vi.mocked(GoApp.ListColumns).mockResolvedValue([]);
     vi.mocked(GoApp.ListTableKeys).mockResolvedValue([
-      { name: 'pk_accounts', columns: 'account_id' } as any,
+      { name: 'pk_accounts', columns: 'account_id' } as never,
     ]);
     vi.mocked(GoApp.ListTableForeignKeys).mockResolvedValue([
-      { name: 'fk_accounts_user', columns: 'user_id', refSchema: 'public', refTable: 'users', refColumns: 'id' } as any,
+      {
+        name: 'fk_accounts_user',
+        columns: 'user_id',
+        refSchema: 'public',
+        refTable: 'users',
+        refColumns: 'id',
+      } as never,
     ]);
     vi.mocked(GoApp.ListTableIndexes).mockResolvedValue([
-      { name: 'idx_accounts_status', isUnique: false, columns: 'status' } as any,
+      { name: 'idx_accounts_status', isUnique: false, columns: 'status' } as never,
     ]);
     vi.mocked(GoApp.ListTableChecks).mockResolvedValue([
-      { name: 'chk_balance', definition: 'balance >= 0' } as any,
+      { name: 'chk_balance', definition: 'balance >= 0' } as never,
     ]);
   });
 
@@ -302,28 +357,36 @@ describe('Sidebar — sub-folder drill-in', () => {
   it('clicking keys sub-folder loads and shows key items', async () => {
     await expandToTable();
     await userEvent.click(screen.getByTestId('subfolder-keys-public-accounts'));
-    await waitFor(() => expect(GoApp.ListTableKeys).toHaveBeenCalledWith('ds1', 'public', 'accounts'));
+    await waitFor(() =>
+      expect(GoApp.ListTableKeys).toHaveBeenCalledWith('ds1', 'public', 'accounts')
+    );
     await waitFor(() => expect(screen.getByText('pk_accounts')).toBeInTheDocument());
   });
 
   it('clicking foreign keys sub-folder loads and shows FK items', async () => {
     await expandToTable();
     await userEvent.click(screen.getByTestId('subfolder-fk-public-accounts'));
-    await waitFor(() => expect(GoApp.ListTableForeignKeys).toHaveBeenCalledWith('ds1', 'public', 'accounts'));
+    await waitFor(() =>
+      expect(GoApp.ListTableForeignKeys).toHaveBeenCalledWith('ds1', 'public', 'accounts')
+    );
     await waitFor(() => expect(screen.getByText('fk_accounts_user')).toBeInTheDocument());
   });
 
   it('clicking indexes sub-folder loads and shows index items', async () => {
     await expandToTable();
     await userEvent.click(screen.getByTestId('subfolder-indexes-public-accounts'));
-    await waitFor(() => expect(GoApp.ListTableIndexes).toHaveBeenCalledWith('ds1', 'public', 'accounts'));
+    await waitFor(() =>
+      expect(GoApp.ListTableIndexes).toHaveBeenCalledWith('ds1', 'public', 'accounts')
+    );
     await waitFor(() => expect(screen.getByText('idx_accounts_status')).toBeInTheDocument());
   });
 
   it('clicking checks sub-folder loads and shows check items', async () => {
     await expandToTable();
     await userEvent.click(screen.getByTestId('subfolder-checks-public-accounts'));
-    await waitFor(() => expect(GoApp.ListTableChecks).toHaveBeenCalledWith('ds1', 'public', 'accounts'));
+    await waitFor(() =>
+      expect(GoApp.ListTableChecks).toHaveBeenCalledWith('ds1', 'public', 'accounts')
+    );
     await waitFor(() => expect(screen.getByText('chk_balance')).toBeInTheDocument());
   });
 
@@ -345,12 +408,12 @@ describe('Sidebar — search', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([
-      { name: 'public' } as any,
-      { name: 'finance' } as any,
+      { name: 'public' } as never,
+      { name: 'finance' } as never,
     ]);
     vi.mocked(GoApp.ListTables).mockResolvedValue([
-      { name: 'users', type: 'TABLE' } as any,
-      { name: 'payments', type: 'TABLE' } as any,
+      { name: 'users', type: 'TABLE' } as never,
+      { name: 'payments', type: 'TABLE' } as never,
     ]);
   });
 
@@ -474,10 +537,10 @@ describe('Sidebar — query rename', () => {
 describe('Sidebar — views shown under schema', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
     vi.mocked(GoApp.ListTables).mockResolvedValue([
-      { name: 'users', type: 'TABLE' } as any,
-      { name: 'user_view', type: 'VIEW' } as any,
+      { name: 'users', type: 'TABLE' } as never,
+      { name: 'user_view', type: 'VIEW' } as never,
     ]);
   });
 
@@ -485,7 +548,9 @@ describe('Sidebar — views shown under schema', () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
     await userEvent.click(screen.getByTestId('schema-row-public'));
-    await waitFor(() => expect(screen.getByTestId('table-row-public-user_view')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('table-row-public-user_view')).toBeInTheDocument()
+    );
   });
 
   it('double-click view calls onTableSelect', async () => {
@@ -502,10 +567,10 @@ describe('Sidebar — views shown under schema', () => {
 describe('Sidebar — column collapse', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
-    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'users', type: 'TABLE' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'users', type: 'TABLE' } as never]);
     vi.mocked(GoApp.ListColumns).mockResolvedValue([
-      { name: 'id', dataType: 'int4', isNullable: 'NO' } as any,
+      { name: 'id', dataType: 'int4', isNullable: 'NO' } as never,
     ]);
   });
 
@@ -515,9 +580,13 @@ describe('Sidebar — column collapse', () => {
     await userEvent.click(screen.getByTestId('schema-row-public'));
     await waitFor(() => screen.getByTestId('table-row-public-users'));
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.getByTestId('subfolder-columns-public-users')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('subfolder-columns-public-users')).toBeInTheDocument()
+    );
     await userEvent.click(screen.getByTestId('table-row-public-users'));
-    await waitFor(() => expect(screen.queryByTestId('subfolder-columns-public-users')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByTestId('subfolder-columns-public-users')).not.toBeInTheDocument()
+    );
   });
 });
 
@@ -626,7 +695,7 @@ describe('Sidebar — context menu', () => {
   });
 
   it('context menu does not appear on schema rows', async () => {
-    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as any]);
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
     fireEvent.contextMenu(screen.getByTestId('schema-row-public'));

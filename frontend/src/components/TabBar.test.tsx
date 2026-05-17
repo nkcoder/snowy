@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { TabBar, type Tab } from './TabBar';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Tab, TabBar } from './TabBar';
 
 function makeTab(overrides: Partial<Tab> = {}): Tab {
   return { id: 'tab-1', label: 'untitled', filename: null, sql: '', dirty: false, ...overrides };

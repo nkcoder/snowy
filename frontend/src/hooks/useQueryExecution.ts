@@ -1,0 +1,127 @@
+import { useRef, useState } from 'react';
+import * as GoApp from '../../wailsjs/go/main/App';
+import type { ResultTab } from '../components/ResultsPanel';
+
+function makeLiveResultTab(): ResultTab {
+  return {
+    id: 'live',
+    label: 'Result 1',
+    data: null,
+    error: null,
+    rowCount: 0,
+    durationMs: 0,
+    timestamp: new Date(),
+    pinned: false,
+    sql: '',
+  };
+}
+
+export function useQueryExecution(activeDatasourceId: string | null) {
+  const seqRef = useRef(0);
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [resultTabs, setResultTabs] = useState<ResultTab[]>([makeLiveResultTab()]);
+  const [activeResultTabId, setActiveResultTabId] = useState<string>('live');
+
+  const resetResults = () => {
+    seqRef.current = 0;
+    const live = makeLiveResultTab();
+    setResultTabs([live]);
+    setActiveResultTabId('live');
+  };
+
+  const handleRunQuery = async (sql: string) => {
+    if (!activeDatasourceId) return;
+    setQueryLoading(true);
+    try {
+      const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
+      const rowCount = result.rowCount ?? result.rows?.length ?? 0;
+      const durationMs = result.durationMs ?? 0;
+      seqRef.current++;
+      const label = `Result ${seqRef.current}`;
+      setResultTabs((prev) =>
+        prev.map((t) =>
+          !t.pinned
+            ? {
+                ...t,
+                label,
+                data: result,
+                error: null,
+                rowCount,
+                durationMs,
+                sql,
+                timestamp: new Date(),
+              }
+            : t
+        )
+      );
+      setActiveResultTabId('live');
+      GoApp.RecordHistory(activeDatasourceId, sql, rowCount, durationMs).catch(() => {});
+    } catch (err: unknown) {
+      const message =
+        typeof err === 'string' ? err : err instanceof Error ? err.message : String(err);
+      seqRef.current++;
+      setResultTabs((prev) =>
+        prev.map((t) =>
+          !t.pinned
+            ? {
+                ...t,
+                label: `Result ${seqRef.current}`,
+                data: null,
+                error: message,
+                rowCount: 0,
+                durationMs: 0,
+                sql,
+                timestamp: new Date(),
+              }
+            : t
+        )
+      );
+      setActiveResultTabId('live');
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
+  const handlePinResult = () => {
+    const liveTab = resultTabs.find((t) => !t.pinned);
+    if (!liveTab?.data) return;
+    const pinnedId = `result-pin-${Date.now()}`;
+    const pinned: ResultTab = { ...liveTab, id: pinnedId, pinned: true };
+    const newLive = makeLiveResultTab();
+    setResultTabs((prev) => [...prev.map((t) => (t.id === liveTab.id ? pinned : t)), newLive]);
+    setActiveResultTabId(pinnedId);
+  };
+
+  const handleCloseResultTab = (id: string) => {
+    setResultTabs((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      if (activeResultTabId === id) {
+        setActiveResultTabId(next[next.length - 1]?.id ?? 'live');
+      }
+      return next;
+    });
+  };
+
+  const handleUnpinResult = (id: string) => {
+    const pinned = resultTabs.find((t) => t.id === id);
+    if (!pinned) return;
+    setResultTabs((prev) =>
+      prev
+        .filter((t) => t.id !== id)
+        .map((t) => (t.pinned ? t : { ...pinned, id: 'live', pinned: false }))
+    );
+    setActiveResultTabId('live');
+  };
+
+  return {
+    queryLoading,
+    resultTabs,
+    activeResultTabId,
+    setActiveResultTabId,
+    handleRunQuery,
+    handlePinResult,
+    handleCloseResultTab,
+    handleUnpinResult,
+    resetResults,
+  };
+}
