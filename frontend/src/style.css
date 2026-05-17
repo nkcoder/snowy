@@ -5,83 +5,84 @@
 /* ── SnowyDark (default / :root) ─────────────────────────────────────────── */
 :root {
   /* Surface */
-  --t-bg:           #1a1917;
-  --t-chrome:       #252320;
-  --t-chrome-hi:    #2d2b27;
-  --t-panel:        #1f1d1b;
-  --t-panel-alt:    #232120;
-  --t-sidebar:      #1d1b19;
+  --t-bg: #1a1917;
+  --t-chrome: #252320;
+  --t-chrome-hi: #2d2b27;
+  --t-panel: #1f1d1b;
+  --t-panel-alt: #232120;
+  --t-sidebar: #1d1b19;
 
   /* Borders & dividers */
-  --t-border:        rgba(255,255,255,0.07);
-  --t-border-strong: rgba(255,255,255,0.13);
-  --t-divider:       rgba(255,255,255,0.05);
+  --t-border: rgba(255, 255, 255, 0.07);
+  --t-border-strong: rgba(255, 255, 255, 0.13);
+  --t-divider: rgba(255, 255, 255, 0.05);
 
   /* Text */
-  --t-text:      #ecebe8;
-  --t-text-sec:  #a9a59d;
-  --t-text-dim:  #6e6a62;
+  --t-text: #ecebe8;
+  --t-text-sec: #a9a59d;
+  --t-text-dim: #6e6a62;
 
   /* Interaction */
-  --t-hover:           rgba(255,255,255,0.04);
-  --t-selected:        oklch(0.28 0.07 240);
+  --t-hover: rgba(255, 255, 255, 0.04);
+  --t-selected: oklch(0.28 0.07 240);
   --t-selected-border: oklch(0.62 0.17 240);
 
   /* Accent */
-  --t-accent:       oklch(0.62 0.17 240);
+  --t-accent: oklch(0.62 0.17 240);
   --t-accent-hover: oklch(0.68 0.17 240);
 
   /* Semantic */
-  --t-ok:     oklch(0.60 0.14 155);
-  --t-warn:   oklch(0.70 0.15 75);
-  --t-err:    oklch(0.58 0.19 25);
-  --t-info:   oklch(0.62 0.14 240);
-  --t-mag:    oklch(0.60 0.18 320);
+  --t-ok: oklch(0.6 0.14 155);
+  --t-warn: oklch(0.7 0.15 75);
+  --t-err: oklch(0.58 0.19 25);
+  --t-info: oklch(0.62 0.14 240);
+  --t-mag: oklch(0.6 0.18 320);
   --t-purple: oklch(0.58 0.17 290);
 
   /* Grid */
-  --t-grid-stripe: rgba(255,255,255,0.018);
+  --t-grid-stripe: rgba(255, 255, 255, 0.018);
   --t-grid-header: #232120;
 
   /* Shadow & vibrancy */
-  --t-shadow:   0 1px 0 rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.4);
-  --t-vibrancy: rgba(37,35,32,0.85);
+  --t-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.4);
+  --t-vibrancy: rgba(37, 35, 32, 0.85);
 
   /* Typography */
-  --t-font-ui:   "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --t-font-ui: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --t-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 /* ── SnowyLight overrides ────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --t-bg:           #f3f1ec;
-  --t-chrome:       #e8e5df;
-  --t-chrome-hi:    #f7f5f1;
-  --t-panel:        #fbfaf7;
-  --t-panel-alt:    #f6f4ef;
-  --t-sidebar:      #e8e5df;
+  --t-bg: #f3f1ec;
+  --t-chrome: #e8e5df;
+  --t-chrome-hi: #f7f5f1;
+  --t-panel: #fbfaf7;
+  --t-panel-alt: #f6f4ef;
+  --t-sidebar: #e8e5df;
 
-  --t-border:        rgba(0,0,0,0.09);
-  --t-border-strong: rgba(0,0,0,0.14);
-  --t-divider:       rgba(0,0,0,0.06);
+  --t-border: rgba(0, 0, 0, 0.09);
+  --t-border-strong: rgba(0, 0, 0, 0.14);
+  --t-divider: rgba(0, 0, 0, 0.06);
 
-  --t-text:      #1c1b19;
-  --t-text-sec:  #5a574f;
-  --t-text-dim:  #8b877d;
+  --t-text: #1c1b19;
+  --t-text-sec: #5a574f;
+  --t-text-dim: #8b877d;
 
-  --t-hover:           rgba(0,0,0,0.04);
-  --t-selected:        oklch(0.93 0.04 240);
-  --t-selected-border: oklch(0.70 0.14 240);
+  --t-hover: rgba(0, 0, 0, 0.04);
+  --t-selected: oklch(0.93 0.04 240);
+  --t-selected-border: oklch(0.7 0.14 240);
 
-  --t-grid-stripe: rgba(0,0,0,0.018);
+  --t-grid-stripe: rgba(0, 0, 0, 0.018);
   --t-grid-header: #f0ede7;
 
-  --t-shadow:   0 1px 0 rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06);
-  --t-vibrancy: rgba(232,229,223,0.85);
+  --t-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --t-vibrancy: rgba(232, 229, 223, 0.85);
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
-html, body {
+html,
+body {
   background-color: var(--t-bg);
   color: var(--t-text);
   font-family: var(--t-font-ui);
@@ -132,5 +133,7 @@ html, body {
 
 /* ── Spinner animation ───────────────────────────────────────────────────── */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

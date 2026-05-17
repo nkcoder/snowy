@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Datasource, Project } from '../types';
 import {
-  ConnectionManager,
   ConnectionForm,
-  makeEmptyForm,
+  ConnectionManager,
   FieldInput,
+  makeEmptyForm,
   SelectInput,
 } from './ConnectionManager';
-import type { Project, Datasource } from '../types';
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   TestDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'ok' }),
@@ -28,9 +28,16 @@ const proj1: Project = { id: 'p1', name: 'Alpha' };
 
 function makeDs(overrides: Partial<Datasource> = {}): Datasource {
   return {
-    id: 'd1', name: 'local-pg', host: 'localhost', port: 5432,
-    database: 'mydb', username: 'postgres', password: 'secret',
-    projectId: 'p1', env: 'local', sslMode: 'disable',
+    id: 'd1',
+    name: 'local-pg',
+    host: 'localhost',
+    port: 5432,
+    database: 'mydb',
+    username: 'postgres',
+    password: 'secret',
+    projectId: 'p1',
+    env: 'local',
+    sslMode: 'disable',
     ...overrides,
   };
 }
@@ -45,8 +52,13 @@ function renderManager(
   } = {}
 ) {
   const onConnect = (overrides.onConnect ?? vi.fn()) as (dsId: string) => void;
-  const onSaveAll = (overrides.onSaveAll ?? vi.fn().mockResolvedValue(undefined)) as (p: Project[], d: Datasource[]) => Promise<void>;
-  const onUpdateDs = (overrides.onUpdateDs ?? vi.fn().mockResolvedValue(undefined)) as (ds: Datasource) => Promise<void>;
+  const onSaveAll = (overrides.onSaveAll ?? vi.fn().mockResolvedValue(undefined)) as (
+    p: Project[],
+    d: Datasource[]
+  ) => Promise<void>;
+  const onUpdateDs = (overrides.onUpdateDs ?? vi.fn().mockResolvedValue(undefined)) as (
+    ds: Datasource
+  ) => Promise<void>;
   const projects = overrides.projects ?? [proj1];
   const datasources = overrides.datasources ?? [];
 
@@ -104,7 +116,10 @@ describe('SelectInput', () => {
       <SelectInput
         value="a"
         onChange={vi.fn()}
-        options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]}
+        options={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ]}
       />
     );
     expect(screen.getByRole('option', { name: 'A' })).toBeInTheDocument();
@@ -117,7 +132,10 @@ describe('SelectInput', () => {
       <SelectInput
         value="a"
         onChange={onChange}
-        options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }]}
+        options={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ]}
         data-testid="sel"
       />
     );
@@ -157,7 +175,16 @@ describe('ConnectionForm', () => {
     render(
       <ConnectionForm
         {...defaultProps}
-        initial={{ name: 'prod-db', host: 'db.example.com', port: 5433, database: 'proddb', username: 'admin', password: 'pw', env: 'prod', sslMode: 'require' }}
+        initial={{
+          name: 'prod-db',
+          host: 'db.example.com',
+          port: 5433,
+          database: 'proddb',
+          username: 'admin',
+          password: 'pw',
+          env: 'prod',
+          sslMode: 'require',
+        }}
       />
     );
     expect(screen.getByTestId('field-name')).toHaveValue('prod-db');
@@ -237,11 +264,7 @@ describe('ConnectionForm', () => {
   it('shows success test result', async () => {
     const onTest = vi.fn().mockResolvedValue({ success: true, message: '8ms' });
     render(
-      <ConnectionForm
-        {...defaultProps}
-        onTest={onTest}
-        initial={{ host: 'h', database: 'db' }}
-      />
+      <ConnectionForm {...defaultProps} onTest={onTest} initial={{ host: 'h', database: 'db' }} />
     );
     await userEvent.click(screen.getByTestId('btn-test'));
     await waitFor(() => expect(screen.getByTestId('test-result')).toBeInTheDocument());
@@ -251,11 +274,7 @@ describe('ConnectionForm', () => {
   it('shows failure test result', async () => {
     const onTest = vi.fn().mockResolvedValue({ success: false, message: 'refused' });
     render(
-      <ConnectionForm
-        {...defaultProps}
-        onTest={onTest}
-        initial={{ host: 'h', database: 'db' }}
-      />
+      <ConnectionForm {...defaultProps} onTest={onTest} initial={{ host: 'h', database: 'db' }} />
     );
     await userEvent.click(screen.getByTestId('btn-test'));
     await waitFor(() => expect(screen.getByTestId('test-result')).toBeInTheDocument());
@@ -358,8 +377,8 @@ describe('ConnectionManager', () => {
     await userEvent.click(screen.getByTestId('btn-duplicate-selected'));
     await waitFor(() => expect(onSaveAll).toHaveBeenCalledOnce());
     const [, savedDs] = onSaveAll.mock.calls[0] as [Project[], Datasource[]];
-    expect(savedDs.find(d => d.name === 'local-pg (copy)')).toBeTruthy();
-    expect(savedDs.find(d => d.id !== 'd1')).toBeTruthy();
+    expect(savedDs.find((d) => d.name === 'local-pg (copy)')).toBeTruthy();
+    expect(savedDs.find((d) => d.id !== 'd1')).toBeTruthy();
   });
 
   it('Delete button shows confirm dialog for selected datasource', async () => {
@@ -380,7 +399,7 @@ describe('ConnectionManager', () => {
     await userEvent.click(screen.getByTestId('confirm-ok'));
     await waitFor(() => expect(onSaveAll).toHaveBeenCalledOnce());
     const [, savedDs] = onSaveAll.mock.calls[0] as [Project[], Datasource[]];
-    expect(savedDs.find(d => d.id === 'd1')).toBeUndefined();
+    expect(savedDs.find((d) => d.id === 'd1')).toBeUndefined();
   });
 
   it('cancels datasource delete', async () => {
@@ -402,7 +421,7 @@ describe('ConnectionManager', () => {
     await userEvent.click(screen.getByTestId('btn-save'));
     await waitFor(() => expect(onSaveAll).toHaveBeenCalledOnce());
     const [, savedDs] = onSaveAll.mock.calls[0] as [Project[], Datasource[]];
-    expect(savedDs.find(d => d.name === 'new-conn')).toBeTruthy();
+    expect(savedDs.find((d) => d.name === 'new-conn')).toBeTruthy();
   });
 
   it('Save edited connection calls onUpdateDs', async () => {

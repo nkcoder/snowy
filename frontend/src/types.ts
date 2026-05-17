@@ -14,6 +14,6 @@ export interface Datasource {
   username: string;
   password: string;
   projectId: string;
-  env: string;    // local | dev | stg | prod
+  env: string; // local | dev | stg | prod
   sslMode: string; // disable | require | verify-ca | verify-full
 }

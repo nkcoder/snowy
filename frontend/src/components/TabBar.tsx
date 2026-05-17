@@ -1,10 +1,10 @@
-import { FileCode2, X, Plus } from 'lucide-react';
+import { FileCode2, Plus, X } from 'lucide-react';
 import { T } from '../lib/tokens';
 
 export interface Tab {
   id: string;
-  label: string;          // display name (filename or "schema.table" or "untitled")
-  filename: string | null; // null = unsaved
+  label: string;
+  filename: string | null;
   sql: string;
   dirty: boolean;
 }
@@ -22,17 +22,12 @@ export function TabBar({ tabs, activeTabId, onSelect, onClose, onNew }: TabBarPr
     <div
       data-testid="tab-bar"
       style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        height: 30,
         background: T.chrome,
         borderBottom: `0.5px solid ${T.border}`,
-        flexShrink: 0,
-        overflowX: 'auto',
-        overflowY: 'hidden',
       }}
+      className="flex items-stretch h-[30px] shrink-0 overflow-x-auto overflow-y-hidden"
     >
-      {tabs.map(tab => {
+      {tabs.map((tab) => {
         const active = tab.id === activeTabId;
         return (
           <div
@@ -40,68 +35,41 @@ export function TabBar({ tabs, activeTabId, onSelect, onClose, onNew }: TabBarPr
             data-testid={`tab-${tab.id}`}
             onClick={() => onSelect(tab.id)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '0 10px 0 10px',
-              minWidth: 100,
-              maxWidth: 200,
               background: active ? T.panel : 'transparent',
               borderRight: `0.5px solid ${T.border}`,
               borderBottom: active ? `2px solid ${T.accent}` : '2px solid transparent',
               color: active ? T.text : T.textSec,
-              fontSize: 12,
-              cursor: 'pointer',
-              userSelect: 'none',
-              flexShrink: 0,
-              position: 'relative',
             }}
+            className="flex items-center gap-1 px-2.5 min-w-[100px] max-w-[200px] text-xs cursor-pointer select-none shrink-0 relative"
           >
-            {/* File icon */}
-            <FileCode2 size={12} color={active ? T.accent : T.textDim} style={{ flexShrink: 0 }} />
-
-            {/* Label */}
-            <span style={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              fontFamily: T.mono,
-              fontSize: 11.5,
-              fontWeight: active ? 600 : 400,
-            }}>
+            <FileCode2 size={12} color={active ? T.accent : T.textDim} className="shrink-0" />
+            <span
+              style={{ fontFamily: T.mono, fontWeight: active ? 600 : 400 }}
+              className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]"
+            >
               {tab.label}
             </span>
-
-            {/* Dirty dot + close */}
             <div
-              style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}
-              onClick={e => e.stopPropagation()}
+              className="flex items-center gap-0.5 shrink-0"
+              onClick={(e) => e.stopPropagation()}
             >
               {tab.dirty && (
                 <span
                   data-testid={`tab-dirty-${tab.id}`}
-                  style={{ color: T.accent, fontSize: 14, lineHeight: 1, marginRight: 2 }}
+                  style={{ color: T.accent }}
+                  className="text-sm leading-none mr-0.5"
                   title="Unsaved changes"
                 >
                   ●
                 </span>
               )}
               <button
+                type="button"
                 data-testid={`tab-close-${tab.id}`}
                 onClick={() => onClose(tab.id)}
                 title="Close tab"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: T.textDim,
-                  padding: '2px 2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 3,
-                  lineHeight: 1,
-                }}
+                style={{ color: T.textDim }}
+                className="bg-transparent border-none cursor-pointer p-[2px] flex items-center rounded-[3px] leading-none"
               >
                 <X size={11} />
               </button>
@@ -110,22 +78,16 @@ export function TabBar({ tabs, activeTabId, onSelect, onClose, onNew }: TabBarPr
         );
       })}
 
-      {/* New tab button */}
       <button
+        type="button"
         data-testid="tab-new"
         onClick={onNew}
         title="New tab"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 8px',
-          background: 'none',
-          border: 'none',
           borderRight: `0.5px solid ${T.border}`,
-          cursor: 'pointer',
           color: T.textDim,
-          flexShrink: 0,
         }}
+        className="flex items-center px-2 bg-transparent border-none cursor-pointer shrink-0"
       >
         <Plus size={13} />
       </button>

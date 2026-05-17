@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome lint ./src",
+    "format": "biome format --write ./src",
+    "check": "biome check ./src"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -29,6 +32,7 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx-development": "^7.27.1",
+    "@biomejs/biome": "^2.4.15",
     "@tailwindcss/postcss": "^4.2.4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

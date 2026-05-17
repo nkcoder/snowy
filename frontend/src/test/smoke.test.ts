@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { T, ENV_COLORS } from '../lib/tokens';
+import { describe, expect, it } from 'vitest';
+import { ENV_COLORS, T } from '../lib/tokens';
 
 describe('tokens', () => {
   it('exports T with bg as CSS variable reference', () => {

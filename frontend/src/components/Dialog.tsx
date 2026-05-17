@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { T } from '../lib/tokens';
 
 interface BaseProps {
@@ -21,110 +21,161 @@ interface ConfirmDialogProps extends BaseProps {
 
 function Backdrop({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 2000,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      className="fixed inset-0 z-[2000] flex items-center justify-center"
+    >
       {children}
     </div>
   );
 }
 
-const boxStyle: React.CSSProperties = {
-  background: T.panel,
-  border: `1px solid ${T.borderStrong}`,
-  borderRadius: 8,
-  padding: '20px 22px',
-  width: 340,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 14,
-  fontFamily: T.ui,
-};
-
-const btnRow: React.CSSProperties = {
-  display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 2,
-};
-
-function cancelBtnStyle(): React.CSSProperties {
-  return {
-    padding: '5px 14px', fontSize: 12, borderRadius: 4,
-    background: 'none', border: `1px solid ${T.border}`,
-    color: T.textSec, cursor: 'pointer', fontFamily: T.ui,
-  };
+function Box({
+  children,
+  onKeyDown,
+}: {
+  children: React.ReactNode;
+  onKeyDown?: React.KeyboardEventHandler;
+}) {
+  return (
+    <div
+      style={{
+        background: T.panel,
+        border: `1px solid ${T.borderStrong}`,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        fontFamily: T.ui,
+      }}
+      className="rounded-lg p-5 w-[340px] flex flex-col gap-3.5"
+      onKeyDown={onKeyDown}
+    >
+      {children}
+    </div>
+  );
 }
 
-function confirmBtnStyle(): React.CSSProperties {
-  return {
-    padding: '5px 14px', fontSize: 12, borderRadius: 4,
-    background: T.accent, border: 'none',
-    color: '#fff', cursor: 'pointer', fontFamily: T.ui, fontWeight: 500,
-  };
-}
-
-export function InputDialog({ title, placeholder, defaultValue = '', confirmLabel = 'Save', onConfirm, onCancel }: InputDialogProps) {
+export function InputDialog({
+  title,
+  placeholder,
+  defaultValue = '',
+  confirmLabel = 'Save',
+  onConfirm,
+  onCancel,
+}: InputDialogProps) {
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && value.trim()) { e.preventDefault(); onConfirm(value.trim()); }
-    if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    if (e.key === 'Enter' && value.trim()) {
+      e.preventDefault();
+      onConfirm(value.trim());
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
   };
 
   return (
     <Backdrop>
-      <div style={boxStyle} onKeyDown={handleKeyDown}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{title}</div>
+      <Box onKeyDown={handleKeyDown}>
+        <div style={{ color: T.text }} className="text-[13px] font-semibold">
+          {title}
+        </div>
         <input
           ref={inputRef}
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
           placeholder={placeholder}
           autoComplete="off"
           style={{
-            width: '100%', boxSizing: 'border-box',
-            padding: '6px 10px', fontSize: 12,
-            background: T.bg, border: `1px solid ${T.border}`,
-            borderRadius: 4, color: T.text, outline: 'none',
+            background: T.bg,
+            border: `1px solid ${T.border}`,
+            color: T.text,
             fontFamily: T.mono,
           }}
+          className="w-full box-border px-2.5 py-1.5 text-xs rounded outline-none"
         />
-        <div style={btnRow}>
-          <button style={cancelBtnStyle()} onClick={onCancel}>Cancel</button>
-          <button style={confirmBtnStyle()} onClick={() => value.trim() && onConfirm(value.trim())} disabled={!value.trim()}>
+        <div className="flex justify-end gap-2 mt-0.5">
+          <button
+            type="button"
+            style={{
+              border: `1px solid ${T.border}`,
+              color: T.textSec,
+              fontFamily: T.ui,
+            }}
+            className="px-3.5 py-1 text-xs rounded cursor-pointer bg-transparent"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            style={{ background: T.accent, fontFamily: T.ui }}
+            className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+            onClick={() => value.trim() && onConfirm(value.trim())}
+            disabled={!value.trim()}
+          >
             {confirmLabel}
           </button>
         </div>
-      </div>
+      </Box>
     </Backdrop>
   );
 }
 
-export function ConfirmDialog({ message, confirmLabel = 'Close anyway', onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  message,
+  confirmLabel = 'Close anyway',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => { confirmRef.current?.focus(); }, []);
+  useEffect(() => {
+    confirmRef.current?.focus();
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
-    if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onConfirm();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
   };
 
   return (
     <Backdrop>
-      <div style={boxStyle} onKeyDown={handleKeyDown}>
-        <div style={{ fontSize: 12.5, color: T.text, lineHeight: 1.5 }}>{message}</div>
-        <div style={btnRow}>
-          <button style={cancelBtnStyle()} onClick={onCancel}>Cancel</button>
-          <button ref={confirmRef} style={{ ...confirmBtnStyle(), background: T.err }} onClick={onConfirm}>
+      <Box onKeyDown={handleKeyDown}>
+        <div style={{ color: T.text }} className="text-[12.5px] leading-relaxed">
+          {message}
+        </div>
+        <div className="flex justify-end gap-2 mt-0.5">
+          <button
+            type="button"
+            style={{ border: `1px solid ${T.border}`, color: T.textSec, fontFamily: T.ui }}
+            className="px-3.5 py-1 text-xs rounded cursor-pointer bg-transparent"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            ref={confirmRef}
+            style={{ background: T.err, fontFamily: T.ui }}
+            className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+            onClick={onConfirm}
+          >
             {confirmLabel}
           </button>
         </div>
-      </div>
+      </Box>
     </Backdrop>
   );
 }

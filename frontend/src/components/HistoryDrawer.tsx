@@ -1,14 +1,9 @@
-import React from 'react';
-import { X, Clock, ChevronRight } from 'lucide-react';
+import { ChevronRight, Clock, X } from 'lucide-react';
+import type { main } from '../../wailsjs/go/models';
 import { T } from '../lib/tokens';
+import { fmtDuration } from '../lib/utils';
 
-export type HistoryEntry = {
-  id: string;
-  sql: string;
-  rowCount: number;
-  durationMs: number;
-  executedAt: string;
-};
+export type HistoryEntry = main.HistoryEntry;
 
 interface HistoryDrawerProps {
   entries: HistoryEntry[];
@@ -26,18 +21,12 @@ function relativeTime(isoStr: string): string {
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function fmtDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function sqlSnippet(sql: string, max = 90): string {
   const trimmed = sql.replace(/\s+/g, ' ').trim();
-  return trimmed.length > max ? trimmed.slice(0, max) + '…' : trimmed;
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
 export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDrawerProps) {
@@ -46,131 +35,104 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
       {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.35)',
-          zIndex: 99,
-        }}
+        style={{ background: 'rgba(0,0,0,0.35)' }}
+        className="fixed inset-0 z-[99]"
       />
 
       {/* Drawer */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 420,
-        background: T.panel,
-        borderLeft: `1px solid ${T.border}`,
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 100,
-        boxShadow: T.shadow,
-      }}>
+      <div
+        style={{
+          background: T.panel,
+          borderLeft: `1px solid ${T.border}`,
+          boxShadow: T.shadow,
+        }}
+        className="fixed top-0 right-0 bottom-0 w-[420px] flex flex-col z-[100]"
+      >
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: 44,
-          padding: '0 16px',
-          borderBottom: `1px solid ${T.border}`,
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: T.text }}>
+        <div
+          style={{ borderBottom: `1px solid ${T.border}` }}
+          className="flex items-center justify-between h-11 px-4 shrink-0"
+        >
+          <div
+            style={{ color: T.text }}
+            className="flex items-center gap-2 text-[13px] font-semibold"
+          >
             <Clock size={15} color={T.accent} />
             Query History
           </div>
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: 5,
-              color: T.textDim,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: 4,
-            }}
+            style={{ color: T.textDim }}
+            className="flex items-center p-1 bg-transparent border-none cursor-pointer rounded"
           >
             <X size={15} />
           </button>
         </div>
 
         {/* Entry list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+        <div className="flex-1 overflow-y-auto py-1.5">
           {loading && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: T.textDim, fontSize: 12 }}>
+            <div style={{ color: T.textDim }} className="py-6 px-4 text-center text-xs">
               Loading…
             </div>
           )}
           {!loading && entries.length === 0 && (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: T.textDim, fontSize: 12, fontStyle: 'italic' }}>
+            <div style={{ color: T.textDim }} className="py-10 px-4 text-center text-xs italic">
               No history yet. Run a query to start recording.
             </div>
           )}
-          {!loading && entries.map(entry => (
-            <button
-              key={entry.id}
-              onClick={() => onSelect(entry.sql)}
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '10px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: `1px solid ${T.divider}`,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = T.hover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-            >
-              {/* Meta row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                <Clock size={10} color={T.textDim} />
-                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
-                  {relativeTime(entry.executedAt)}
-                </span>
-                <span style={{ color: T.textDim, fontSize: 10 }}>·</span>
-                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
-                  {entry.rowCount} rows
-                </span>
-                <span style={{ color: T.textDim, fontSize: 10 }}>·</span>
-                <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>
-                  {fmtDuration(entry.durationMs)}
-                </span>
-                <ChevronRight size={10} color={T.textDim} style={{ marginLeft: 'auto' }} />
-              </div>
-              {/* SQL snippet */}
-              <div style={{
-                fontSize: 11.5,
-                color: T.textSec,
-                fontFamily: T.mono,
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-              }}>
-                {sqlSnippet(entry.sql)}
-              </div>
-            </button>
-          ))}
+          {!loading &&
+            entries.map((entry) => (
+              <button
+                type="button"
+                key={entry.id}
+                onClick={() => onSelect(entry.sql)}
+                style={{
+                  borderBottom: `1px solid ${T.divider}`,
+                  fontFamily: 'inherit',
+                }}
+                className="block w-full text-left px-4 py-2.5 bg-transparent border-none cursor-pointer"
+                onMouseEnter={(e) => (e.currentTarget.style.background = T.hover)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock size={10} color={T.textDim} />
+                  <span style={{ color: T.textDim, fontFamily: T.mono }} className="text-[10px]">
+                    {relativeTime(entry.executedAt)}
+                  </span>
+                  <span style={{ color: T.textDim }} className="text-[10px]">
+                    ·
+                  </span>
+                  <span style={{ color: T.textDim, fontFamily: T.mono }} className="text-[10px]">
+                    {entry.rowCount} rows
+                  </span>
+                  <span style={{ color: T.textDim }} className="text-[10px]">
+                    ·
+                  </span>
+                  <span style={{ color: T.textDim, fontFamily: T.mono }} className="text-[10px]">
+                    {fmtDuration(entry.durationMs)}
+                  </span>
+                  <ChevronRight size={10} color={T.textDim} className="ml-auto" />
+                </div>
+                <div
+                  style={{ color: T.textSec, fontFamily: T.mono }}
+                  className="text-[11.5px] leading-relaxed whitespace-pre-wrap break-all"
+                >
+                  {sqlSnippet(entry.sql)}
+                </div>
+              </button>
+            ))}
         </div>
 
         {/* Footer */}
         {entries.length > 0 && (
-          <div style={{
-            padding: '8px 16px',
-            borderTop: `1px solid ${T.border}`,
-            fontSize: 10,
-            color: T.textDim,
-            textAlign: 'center',
-            flexShrink: 0,
-          }}>
-            {entries.length} recent entr{entries.length === 1 ? 'y' : 'ies'} · click to load into editor
+          <div
+            style={{ borderTop: `1px solid ${T.border}`, color: T.textDim }}
+            className="px-4 py-2 text-center text-[10px] shrink-0"
+          >
+            {entries.length} recent entr{entries.length === 1 ? 'y' : 'ies'} · click to load into
+            editor
           </div>
         )}
       </div>
