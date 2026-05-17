@@ -25,23 +25,23 @@ func historyDir() (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(home, ".snowy", "history")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 	return dir, nil
 }
 
-func historyFile(dsId string) (string, error) {
+func historyFile(dsID string) (string, error) {
 	dir, err := historyDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, dsId+".jsonl"), nil
+	return filepath.Join(dir, dsID+".jsonl"), nil
 }
 
-// RecordHistory appends one entry to ~/.snowy/history/<dsId>.jsonl.
-func RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
-	path, err := historyFile(dsId)
+// RecordHistory appends one entry to ~/.snowy/history/<dsID>.jsonl.
+func RecordHistory(dsID, sql string, rowCount int, durationMs int64) error {
+	path, err := historyFile(dsID)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -66,8 +66,8 @@ func RecordHistory(dsId, sql string, rowCount int, durationMs int64) error {
 }
 
 // GetQueryHistory returns the last limit history entries, newest first.
-func GetQueryHistory(dsId string, limit int) ([]HistoryEntry, error) {
-	path, err := historyFile(dsId)
+func GetQueryHistory(dsID string, limit int) ([]HistoryEntry, error) {
+	path, err := historyFile(dsID)
 	if err != nil {
 		return nil, err
 	}

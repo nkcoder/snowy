@@ -11,10 +11,10 @@ func TestRecordAndGetHistory(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 
-	dsId := "test-ds-001"
+	dsID := "test-ds-001"
 
 	// Empty history returns empty slice, no error
-	entries, err := GetQueryHistory(dsId, 10)
+	entries, err := GetQueryHistory(dsID, 10)
 	if err != nil {
 		t.Fatalf("GetQueryHistory on empty: %v", err)
 	}
@@ -23,20 +23,20 @@ func TestRecordAndGetHistory(t *testing.T) {
 	}
 
 	// Record three entries
-	if err := RecordHistory(dsId, "SELECT 1", 1, 10); err != nil {
+	if err := RecordHistory(dsID, "SELECT 1", 1, 10); err != nil {
 		t.Fatalf("RecordHistory 1: %v", err)
 	}
 	time.Sleep(1 * time.Millisecond) // ensure distinct timestamps
-	if err := RecordHistory(dsId, "SELECT 2", 2, 20); err != nil {
+	if err := RecordHistory(dsID, "SELECT 2", 2, 20); err != nil {
 		t.Fatalf("RecordHistory 2: %v", err)
 	}
 	time.Sleep(1 * time.Millisecond)
-	if err := RecordHistory(dsId, "SELECT 3", 3, 30); err != nil {
+	if err := RecordHistory(dsID, "SELECT 3", 3, 30); err != nil {
 		t.Fatalf("RecordHistory 3: %v", err)
 	}
 
 	// Retrieve all — should be newest first
-	entries, err = GetQueryHistory(dsId, 100)
+	entries, err = GetQueryHistory(dsID, 100)
 	if err != nil {
 		t.Fatalf("GetQueryHistory: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestRecordAndGetHistory(t *testing.T) {
 	}
 
 	// Limit
-	entries, err = GetQueryHistory(dsId, 2)
+	entries, err = GetQueryHistory(dsID, 2)
 	if err != nil {
 		t.Fatalf("GetQueryHistory with limit: %v", err)
 	}

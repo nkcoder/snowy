@@ -11,7 +11,7 @@ import (
 //
 // The demo DB from docker/docker-compose-postgresql.yml satisfies this.
 
-func testDsId(t *testing.T) string {
+func testDSId(t *testing.T) string {
 	t.Helper()
 	dsURL := os.Getenv("TEST_DB_URL")
 	if dsURL == "" {
@@ -26,10 +26,10 @@ func testDsId(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("NewConfigManager: %v", err)
 	}
-	dsId := "test-ds"
+	dsID := "test-ds"
 	if err := cm.SaveConfig(Config{
 		Datasources: []Datasource{{
-			ID:       dsId,
+			ID:       dsID,
 			Name:     "test",
 			Host:     "localhost",
 			Port:     5432,
@@ -47,7 +47,7 @@ func testDsId(t *testing.T) string {
 	t.Cleanup(func() {})
 	// Store app on context so sub-tests can use it.
 	t.Setenv("_TEST_APP_READY", "1")
-	return dsId
+	return dsID
 }
 
 func newTestApp(t *testing.T) (*App, string) {
@@ -62,10 +62,10 @@ func newTestApp(t *testing.T) (*App, string) {
 	if err != nil {
 		t.Fatalf("NewConfigManager: %v", err)
 	}
-	dsId := "test-ds"
+	dsID := "test-ds"
 	if err := cm.SaveConfig(Config{
 		Datasources: []Datasource{{
-			ID:       dsId,
+			ID:       dsID,
 			Name:     "test",
 			Host:     "localhost",
 			Port:     5432,
@@ -79,13 +79,13 @@ func newTestApp(t *testing.T) (*App, string) {
 	}
 	app := &App{configManager: cm}
 	app.dbService = NewDbService(app)
-	return app, dsId
+	return app, dsID
 }
 
 func TestListTableKeys_Integration(t *testing.T) {
-	app, dsId := newTestApp(t)
+	app, dsID := newTestApp(t)
 
-	keys, err := app.ListTableKeys(dsId, "public", "users")
+	keys, err := app.ListTableKeys(dsID, "public", "users")
 	if err != nil {
 		t.Fatalf("ListTableKeys: %v", err)
 	}
@@ -104,10 +104,10 @@ func TestListTableKeys_Integration(t *testing.T) {
 }
 
 func TestListTableForeignKeys_Integration(t *testing.T) {
-	app, dsId := newTestApp(t)
+	app, dsID := newTestApp(t)
 
 	// accounts table has a FK to users
-	fks, err := app.ListTableForeignKeys(dsId, "public", "accounts")
+	fks, err := app.ListTableForeignKeys(dsID, "public", "accounts")
 	if err != nil {
 		t.Fatalf("ListTableForeignKeys: %v", err)
 	}
@@ -125,9 +125,9 @@ func TestListTableForeignKeys_Integration(t *testing.T) {
 }
 
 func TestListTableIndexes_Integration(t *testing.T) {
-	app, dsId := newTestApp(t)
+	app, dsID := newTestApp(t)
 
-	indexes, err := app.ListTableIndexes(dsId, "public", "users")
+	indexes, err := app.ListTableIndexes(dsID, "public", "users")
 	if err != nil {
 		t.Fatalf("ListTableIndexes: %v", err)
 	}
@@ -140,9 +140,9 @@ func TestListTableIndexes_Integration(t *testing.T) {
 }
 
 func TestListTableChecks_Integration(t *testing.T) {
-	app, dsId := newTestApp(t)
+	app, dsID := newTestApp(t)
 
-	checks, err := app.ListTableChecks(dsId, "public", "accounts")
+	checks, err := app.ListTableChecks(dsID, "public", "accounts")
 	if err != nil {
 		t.Fatalf("ListTableChecks: %v", err)
 	}
@@ -155,11 +155,11 @@ func TestListTableChecks_Integration(t *testing.T) {
 }
 
 func TestListTableKeys_EmptyTable(t *testing.T) {
-	app, dsId := newTestApp(t)
+	app, dsID := newTestApp(t)
 
 	// information_schema is excluded from normal schemas but querying a nonexistent table
 	// should return empty slice, not an error.
-	keys, err := app.ListTableKeys(dsId, "public", "nonexistent_table_xyz")
+	keys, err := app.ListTableKeys(dsID, "public", "nonexistent_table_xyz")
 	if err != nil {
 		t.Fatalf("ListTableKeys on nonexistent table: %v", err)
 	}

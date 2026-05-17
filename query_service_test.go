@@ -13,28 +13,28 @@ func setupQueriesDir(t *testing.T) (string, func()) {
 	t.Helper()
 	tmp := t.TempDir()
 	orig := os.Getenv("HOME")
-	os.Setenv("HOME", tmp)
-	return tmp, func() { os.Setenv("HOME", orig) }
+	_ = os.Setenv("HOME", tmp)
+	return tmp, func() { _ = os.Setenv("HOME", orig) }
 }
 
 func TestSaveAndLoadQuery(t *testing.T) {
 	tmp, cleanup := setupQueriesDir(t)
 	defer cleanup()
 
-	dsId := "ds-1"
+	dsID := "ds-1"
 	sql := "SELECT 1;"
 
-	if err := SaveQuery(dsId, "my_query", sql); err != nil {
+	if err := SaveQuery(dsID, "my_query", sql); err != nil {
 		t.Fatalf("SaveQuery: %v", err)
 	}
 
 	// File should exist with .sql extension
-	expectedPath := filepath.Join(tmp, ".snowy", "queries", dsId, "my_query.sql")
+	expectedPath := filepath.Join(tmp, ".snowy", "queries", dsID, "my_query.sql")
 	if _, err := os.Stat(expectedPath); err != nil {
 		t.Fatalf("expected file not found: %v", err)
 	}
 
-	got, err := LoadSavedQuery(dsId, "my_query.sql")
+	got, err := LoadSavedQuery(dsID, "my_query.sql")
 	if err != nil {
 		t.Fatalf("LoadSavedQuery: %v", err)
 	}
@@ -61,14 +61,14 @@ func TestListSavedQueries(t *testing.T) {
 	_, cleanup := setupQueriesDir(t)
 	defer cleanup()
 
-	dsId := "ds-list"
+	dsID := "ds-list"
 	for _, name := range []string{"alpha", "beta", "gamma"} {
-		if err := SaveQuery(dsId, name, "SELECT 1;"); err != nil {
+		if err := SaveQuery(dsID, name, "SELECT 1;"); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	queries, err := ListSavedQueries(dsId)
+	queries, err := ListSavedQueries(dsID)
 	if err != nil {
 		t.Fatalf("ListSavedQueries: %v", err)
 	}
@@ -99,16 +99,16 @@ func TestDeleteSavedQuery(t *testing.T) {
 	tmp, cleanup := setupQueriesDir(t)
 	defer cleanup()
 
-	dsId := "ds-del"
-	if err := SaveQuery(dsId, "to_delete", "SELECT 3;"); err != nil {
+	dsID := "ds-del"
+	if err := SaveQuery(dsID, "to_delete", "SELECT 3;"); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := DeleteSavedQuery(dsId, "to_delete.sql"); err != nil {
+	if err := DeleteSavedQuery(dsID, "to_delete.sql"); err != nil {
 		t.Fatalf("DeleteSavedQuery: %v", err)
 	}
 
-	path := filepath.Join(tmp, ".snowy", "queries", dsId, "to_delete.sql")
+	path := filepath.Join(tmp, ".snowy", "queries", dsID, "to_delete.sql")
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Error("file should be deleted")
 	}
@@ -118,20 +118,20 @@ func TestRenameQuery(t *testing.T) {
 	tmp, cleanup := setupQueriesDir(t)
 	defer cleanup()
 
-	dsId := "ds-ren"
-	if err := SaveQuery(dsId, "old_name", "SELECT 4;"); err != nil {
+	dsID := "ds-ren"
+	if err := SaveQuery(dsID, "old_name", "SELECT 4;"); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := RenameQuery(dsId, "old_name.sql", "new_name"); err != nil {
+	if err := RenameQuery(dsID, "old_name.sql", "new_name"); err != nil {
 		t.Fatalf("RenameQuery: %v", err)
 	}
 
-	newPath := filepath.Join(tmp, ".snowy", "queries", dsId, "new_name.sql")
+	newPath := filepath.Join(tmp, ".snowy", "queries", dsID, "new_name.sql")
 	if _, err := os.Stat(newPath); err != nil {
 		t.Errorf("renamed file not found: %v", err)
 	}
-	oldPath := filepath.Join(tmp, ".snowy", "queries", dsId, "old_name.sql")
+	oldPath := filepath.Join(tmp, ".snowy", "queries", dsID, "old_name.sql")
 	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
 		t.Error("old file should be gone")
 	}
