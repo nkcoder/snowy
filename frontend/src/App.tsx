@@ -114,7 +114,7 @@ function App() {
     handleNewTab,
   } = useTabManager();
 
-  const { sidebarWidth, bottomHeight, startSidebarDrag, startBottomDrag } = usePanelResize();
+  const { sidebarWidth, bottomHeight, servicesWidth, startSidebarDrag, startBottomDrag, startServicesDrag } = usePanelResize();
 
   const {
     queryLoading,
@@ -427,7 +427,7 @@ function App() {
               className="w-1 shrink-0 cursor-col-resize"
             />
 
-            <div className="flex-1 flex flex-col min-w-0" style={{ minHeight: 0, minWidth: 0 }}>
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ minHeight: 0, minWidth: 0 }}>
               {/* Editor area */}
               <div className="flex-1 flex flex-col min-h-0" style={{ minHeight: 0 }}>
                 <TabBar
@@ -437,7 +437,7 @@ function App() {
                   onClose={handleTabClose}
                   onNew={handleNewTab}
                 />
-                <div className="flex-1 min-h-0" style={{ minHeight: 0 }}>
+                <div className="flex-1 min-h-0 overflow-hidden" style={{ minHeight: 0 }}>
                   {activeTab ? (
                     <QueryEditor
                       sql={activeTab.sql}
@@ -461,8 +461,8 @@ function App() {
               {/* Bottom resize handle */}
               <div
                 onMouseDown={startBottomDrag}
-                style={{ borderTop: `1px solid ${T.borderStrong}` }}
-                className="h-1 shrink-0 cursor-row-resize"
+                style={{ borderTop: `1px solid ${T.borderStrong}`, zIndex: 10 }}
+                className="h-1 shrink-0 cursor-row-resize relative"
               />
 
               {/* Bottom panel */}
@@ -472,8 +472,9 @@ function App() {
                   style={{
                     background: T.sidebar,
                     borderRight: `0.5px solid ${T.border}`,
+                    width: servicesWidth,
                   }}
-                  className="w-[220px] flex flex-col shrink-0"
+                  className="flex flex-col shrink-0"
                 >
                   <div
                     style={{
@@ -534,6 +535,13 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Services/Results resize handle */}
+                <div
+                  onMouseDown={startServicesDrag}
+                  style={{ borderLeft: `1px solid ${T.border}` }}
+                  className="w-1 shrink-0 cursor-col-resize"
+                />
 
                 {/* Results panel */}
                 <div className="flex-1 min-w-0 overflow-hidden" style={{ minWidth: 0 }}>

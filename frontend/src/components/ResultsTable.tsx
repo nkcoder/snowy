@@ -1,5 +1,10 @@
 import { ChevronDown, Download, Filter, Hash, ListFilter, Pin, Type } from 'lucide-react';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { T } from '../lib/tokens';
+
+const DEFAULT_COL_WIDTH = 160;
+const MIN_COL_WIDTH = 40;
 
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
@@ -23,6 +28,41 @@ export function ResultsTable({
   activeTabId,
   onExport,
 }: ResultsTableProps) {
+  const [colWidths, setColWidths] = useState<number[]>([]);
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
+  // Refs to <th> elements for direct DOM updates during drag (no React re-render)
+  const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
+
+  useEffect(() => {
+    if (data?.columns) {
+      setColWidths(data.columns.map(() => DEFAULT_COL_WIDTH));
+    }
+  }, [data?.columns]);
+
+  const startColDrag = (colIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = colWidthsRef.current[colIndex] ?? DEFAULT_COL_WIDTH;
+    let latest = startW;
+    const onMove = (ev: MouseEvent) => {
+      latest = Math.max(MIN_COL_WIDTH, startW + ev.clientX - startX);
+      // Direct DOM update — bypasses React render for smooth 60fps drag
+      const th = thRefs.current[colIndex];
+      if (th) th.style.width = `${latest}px`;
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      // Commit to React state once drag ends
+      const next = [...colWidthsRef.current];
+      next[colIndex] = latest;
+      setColWidths(next);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   if (loading) {
     return (
       <div
@@ -132,7 +172,7 @@ export function ResultsTable({
 
       {/* Grid */}
       <div className="flex-1 overflow-auto" style={{ minWidth: 0 }}>
-        <table className="min-w-full border-collapse">
+        <table className="border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>
               <th
@@ -141,33 +181,47 @@ export function ResultsTable({
                   border: `1px solid ${T.border}`,
                   color: T.textDim,
                   fontFamily: T.mono,
+                  width: 40,
                 }}
-                className="p-1 text-center text-[10px] w-10"
+                className="p-1 text-center text-[10px]"
               >
                 #
               </th>
               {data.columns.map((col, i) => (
                 <th
                   key={i}
+                  ref={(el) => { thRefs.current[i] = el; }}
                   style={{
                     background: T.gridHeader,
                     border: `1px solid ${T.border}`,
                     color: T.textSec,
                     fontFamily: T.ui,
+                    width: colWidths[i] ?? DEFAULT_COL_WIDTH,
+                    padding: 0,
                   }}
-                  className="px-3 py-1 text-left text-xs font-semibold whitespace-nowrap"
+                  className="text-left text-xs font-semibold"
                 >
-                  <div className="flex items-center gap-2">
-                    {col.includes('id') || col.includes('price') || col.includes('at') ? (
-                      <Hash size={12} style={{ color: T.accent, opacity: 0.5 }} />
-                    ) : (
-                      <Type size={12} style={{ color: T.textDim }} />
-                    )}
-                    {col}
-                    <ChevronDown
-                      size={10}
-                      className="ml-auto opacity-0"
-                      style={{ color: T.textDim }}
+                  {/*
+                    Flex row: [content flex-1 overflow-hidden] [resize handle 5px shrink-0]
+                    Avoids position:absolute inside <th> — unreliable in border-collapse tables.
+                  */}
+                  <div className="flex items-stretch">
+                    <div className="flex items-center gap-2 px-3 py-1 overflow-hidden flex-1 min-w-0">
+                      {col.includes('id') || col.includes('price') || col.includes('at') ? (
+                        <Hash size={12} style={{ color: T.accent, opacity: 0.5 }} />
+                      ) : (
+                        <Type size={12} style={{ color: T.textDim }} />
+                      )}
+                      <span className="truncate">{col}</span>
+                      <ChevronDown
+                        size={10}
+                        className="ml-auto shrink-0 opacity-0"
+                        style={{ color: T.textDim }}
+                      />
+                    </div>
+                    <div
+                      onMouseDown={(e) => startColDrag(i, e)}
+                      className="w-[5px] shrink-0 cursor-col-resize"
                     />
                   </div>
                 </th>
@@ -209,7 +263,7 @@ export function ResultsTable({
                         borderRight: `1px solid ${T.divider}`,
                         color: T.text,
                       }}
-                      className="px-3 py-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[320px]"
+                      className="px-3 py-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
                     >
                       {cell === null ? (
                         <span style={{ color: T.textDim }} className="italic">

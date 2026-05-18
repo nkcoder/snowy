@@ -12,6 +12,11 @@ export function usePanelResize() {
     return v ? Math.max(120, Math.min(600, parseInt(v, 10))) : 320;
   });
 
+  const [servicesWidth, setServicesWidth] = useState(() => {
+    const v = localStorage.getItem('snowy.servicesPanelWidth');
+    return v ? Math.max(140, Math.min(400, parseInt(v, 10))) : 220;
+  });
+
   const startSidebarDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -49,5 +54,23 @@ export function usePanelResize() {
     document.addEventListener('mouseup', onUp);
   };
 
-  return { sidebarWidth, bottomHeight, startSidebarDrag, startBottomDrag };
+  const startServicesDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = servicesWidth;
+    let latest = startW;
+    const onMove = (ev: MouseEvent) => {
+      latest = Math.max(140, Math.min(400, startW + ev.clientX - startX));
+      setServicesWidth(latest);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      localStorage.setItem('snowy.servicesPanelWidth', String(latest));
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  return { sidebarWidth, bottomHeight, servicesWidth, startSidebarDrag, startBottomDrag, startServicesDrag };
 }
