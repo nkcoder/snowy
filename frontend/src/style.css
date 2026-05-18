@@ -48,8 +48,8 @@
   --t-vibrancy: rgba(37, 35, 32, 0.85);
 
   /* Typography */
-  --t-font-ui: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --t-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  --t-font-ui: "Monaco", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --t-font-mono: "Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 /* ── SnowyLight overrides ────────────────────────────────────────────────── */

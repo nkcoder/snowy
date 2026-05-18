@@ -577,7 +577,9 @@ function App() {
                     {activeDatasource?.host}:{activeDatasource?.port}
                   </span>
                 </div>
+                <span style={{ color: T.textDim }}>·</span>
                 <span>{activeDatasource?.database}</span>
+                <span style={{ color: T.textDim }}>·</span>
                 <span>utf-8</span>
                 <div className="flex-1" />
                 {durationMs > 0 && (

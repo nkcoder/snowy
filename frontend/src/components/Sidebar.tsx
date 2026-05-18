@@ -136,7 +136,7 @@ function ElephantIcon({ size = 14, color }: { size?: number; color: string }) {
 function ColIcon({ kind }: { kind?: 'pk' | 'fk' }) {
   if (kind === 'pk') {
     return (
-      <svg width="13" height="13" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+      <svg width="14" height="14" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
         <rect
           x="3"
           y="4"
@@ -153,7 +153,7 @@ function ColIcon({ kind }: { kind?: 'pk' | 'fk' }) {
   }
   if (kind === 'fk') {
     return (
-      <svg width="13" height="13" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+      <svg width="14" height="14" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
         <rect
           x="3"
           y="4"
@@ -169,7 +169,7 @@ function ColIcon({ kind }: { kind?: 'pk' | 'fk' }) {
     );
   }
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
+    <svg width="14" height="14" viewBox="0 0 16 16" style={{ flexShrink: 0 }}>
       <rect
         x="3"
         y="4"
@@ -228,31 +228,31 @@ function TreeRow({
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       style={{
-        height: small ? 20 : ROW_H,
+        height: small ? 22 : ROW_H,
         paddingLeft: pad,
         paddingRight: 8,
         background: selected ? T.selected : 'transparent',
         borderLeft: `2px solid ${selected ? T.selectedBorder : 'transparent'}`,
         color: dim ? T.textDim : T.text,
-        fontSize: small ? 10.5 : 12.5,
+        fontSize: small ? 11 : 13,
         fontWeight: bold ? 600 : selected ? 600 : 400,
         cursor: onClick ? 'pointer' : 'default',
       }}
-      className={`flex items-center gap-1 select-none relative shrink-0 snowy-row`}
+      className={`flex items-center gap-1.5 select-none relative shrink-0 snowy-row`}
     >
       {hasChildren ? (
-        <div className="flex items-center shrink-0" style={{ width: 12, color: T.textDim }}>
-          {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        <div className="flex items-center shrink-0" style={{ width: 14, color: T.textDim }}>
+          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
         </div>
       ) : (
-        <div className="shrink-0" style={{ width: 12 }} />
+        <div className="shrink-0" style={{ width: 14 }} />
       )}
       {icon && <div className="flex items-center shrink-0">{icon}</div>}
       <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{label}</div>
       {meta !== undefined && (
         <div
           className="shrink-0"
-          style={{ fontSize: 10.5, color: T.textDim, fontFamily: T.mono, marginLeft: 4 }}
+          style={{ fontSize: 11, color: T.textDim, fontFamily: T.mono, marginLeft: 4 }}
         >
           {meta}
         </div>
@@ -785,8 +785,8 @@ export function Sidebar({
               expanded={isActive}
               icon={
                 <svg
-                  width="13"
-                  height="13"
+                  width="14"
+                  height="14"
                   viewBox="0 0 16 16"
                   fill="none"
                   stroke={T.textSec}
@@ -821,8 +821,8 @@ export function Sidebar({
                         expanded={schema.expanded}
                         icon={
                           <svg
-                            width="12"
-                            height="12"
+                            width="14"
+                            height="14"
                             viewBox="0 0 16 16"
                             fill="none"
                             stroke={T.accent}
@@ -845,7 +845,7 @@ export function Sidebar({
                           <TreeRow
                             depth={3}
                             expanded={true}
-                            icon={<Folder size={11} color={T.accent} />}
+                            icon={<Folder size={13} color={T.accent} />}
                             label={<span style={{ color: T.textSec }}>tables</span>}
                             meta={
                               schema.tables.filter((t) => t.type === 'table').length || undefined
@@ -863,12 +863,8 @@ export function Sidebar({
                                     data-testid={`table-row-${schema.name}-${table.name}`}
                                     depth={4}
                                     expanded={table.expanded}
-                                    icon={<Table2 size={11} color={T.textSec} />}
-                                    label={
-                                      <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>
-                                        {table.name}
-                                      </span>
-                                    }
+                                    icon={<Table2 size={13} color={T.textSec} />}
+                                    label={table.name}
                                     onClick={() => toggleTable(ds.id, realSi, realTi)}
                                     onDoubleClick={() => onTableSelect(schema.name, table.name)}
                                   />
@@ -879,7 +875,7 @@ export function Sidebar({
                                         data-testid={`subfolder-columns-${schema.name}-${table.name}`}
                                         depth={5}
                                         expanded={table.columns.open}
-                                        icon={<Columns size={11} color={T.accent} />}
+                                        icon={<Columns size={13} color={T.accent} />}
                                         label={<span style={{ color: T.textSec }}>columns</span>}
                                         meta={
                                           table.columns.loaded
@@ -901,13 +897,13 @@ export function Sidebar({
                                             }
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 11 }}>
+                                                <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 600, color: T.text }}>
                                                   {col.name}
                                                 </span>
                                                 <span
                                                   style={{
                                                     fontFamily: T.mono,
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                     color: T.textDim,
                                                     marginLeft: 8,
                                                   }}
@@ -928,8 +924,8 @@ export function Sidebar({
                                         expanded={table.keys.open}
                                         icon={
                                           <svg
-                                            width="11"
-                                            height="11"
+                                            width="13"
+                                            height="13"
                                             viewBox="0 0 16 16"
                                             fill="none"
                                             style={{ flexShrink: 0 }}
@@ -968,13 +964,13 @@ export function Sidebar({
                                             icon={<ColIcon kind="pk" />}
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 11 }}>
+                                                <span style={{ fontFamily: T.mono, fontSize: 12 }}>
                                                   {k.name}
                                                 </span>
                                                 <span
                                                   style={{
                                                     fontFamily: T.mono,
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                     color: T.textDim,
                                                     marginLeft: 8,
                                                   }}
@@ -1040,8 +1036,8 @@ export function Sidebar({
                                         expanded={table.indexes.open}
                                         icon={
                                           <svg
-                                            width="11"
-                                            height="11"
+                                            width="13"
+                                            height="13"
                                             viewBox="0 0 16 16"
                                             fill="none"
                                             style={{ flexShrink: 0 }}
@@ -1072,8 +1068,8 @@ export function Sidebar({
                                             hasChildren={false}
                                             icon={
                                               <svg
-                                                width="11"
-                                                height="11"
+                                                width="13"
+                                                height="13"
                                                 viewBox="0 0 16 16"
                                                 fill="none"
                                                 style={{ flexShrink: 0 }}
@@ -1088,7 +1084,7 @@ export function Sidebar({
                                             }
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 11 }}>
+                                                <span style={{ fontFamily: T.mono, fontSize: 12 }}>
                                                   {idx.name}
                                                 </span>
                                                 {idx.isUnique && (
@@ -1106,7 +1102,7 @@ export function Sidebar({
                                                 <span
                                                   style={{
                                                     fontFamily: T.mono,
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                     color: T.textDim,
                                                     marginLeft: 8,
                                                   }}
@@ -1126,8 +1122,8 @@ export function Sidebar({
                                         expanded={table.checks.open}
                                         icon={
                                           <svg
-                                            width="11"
-                                            height="11"
+                                            width="13"
+                                            height="13"
                                             viewBox="0 0 16 16"
                                             fill="none"
                                             style={{ flexShrink: 0 }}
@@ -1168,8 +1164,8 @@ export function Sidebar({
                                             hasChildren={false}
                                             icon={
                                               <svg
-                                                width="11"
-                                                height="11"
+                                                width="13"
+                                                height="13"
                                                 viewBox="0 0 16 16"
                                                 fill="none"
                                                 style={{ flexShrink: 0 }}
@@ -1243,12 +1239,8 @@ export function Sidebar({
                                         data-testid={`table-row-${schema.name}-${view.name}`}
                                         depth={4}
                                         expanded={view.expanded}
-                                        icon={<Eye size={11} color={T.textDim} />}
-                                        label={
-                                          <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>
-                                            {view.name}
-                                          </span>
-                                        }
+                                        icon={<Eye size={13} color={T.textDim} />}
+                                        label={view.name}
                                         onClick={() => toggleTable(ds.id, realSi, realVi)}
                                         onDoubleClick={() => onTableSelect(schema.name, view.name)}
                                       />
@@ -1259,16 +1251,16 @@ export function Sidebar({
                                             key={col.name}
                                             depth={5}
                                             hasChildren={false}
-                                            icon={<Eye size={10} color={T.textDim} />}
+                                            icon={<Eye size={13} color={T.textDim} />}
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 11 }}>
+                                                <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 600, color: T.text }}>
                                                   {col.name}
                                                 </span>
                                                 <span
                                                   style={{
                                                     fontFamily: T.mono,
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                     color: T.textDim,
                                                     marginLeft: 8,
                                                   }}
