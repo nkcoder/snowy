@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { T } from '../lib/tokens';
 
 interface BaseProps {
@@ -20,13 +21,24 @@ interface ConfirmDialogProps extends BaseProps {
 }
 
 function Backdrop({ children }: { children: React.ReactNode }) {
-  return (
+  return createPortal(
     <div
-      style={{ background: 'rgba(0,0,0,0.5)' }}
-      className="fixed inset-0 z-[2000] flex items-center justify-center"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 2000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,0.5)',
+      }}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -65,7 +77,11 @@ export function InputDialog({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    const dotIdx = input.value.lastIndexOf('.');
+    input.setSelectionRange(0, dotIdx > 0 ? dotIdx : input.value.length);
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

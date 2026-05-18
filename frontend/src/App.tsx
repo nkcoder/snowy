@@ -79,7 +79,7 @@ function ElephantGlyph({ color }: { color: string }) {
 type AppView = 'connections' | 'workspace';
 
 type DialogState =
-  | { type: 'save-query' }
+  | { type: 'save-query'; suggestedName: string }
   | { type: 'confirm-close'; tabId: string; tabLabel: string };
 
 // ── App ───────────────────────────────────────────────────────────────────────
@@ -284,7 +284,8 @@ function App() {
   const handleSaveQuery = () => {
     if (!activeDatasourceId || !activeTab) return;
     if (!activeTab.filename) {
-      setDialog({ type: 'save-query' });
+      const base = activeTab.label.replace(/\.sql$/i, '');
+      setDialog({ type: 'save-query', suggestedName: `${base}.sql` });
       return;
     }
     doSaveQuery(activeTab.filename);
@@ -606,7 +607,8 @@ function App() {
           {dialog?.type === 'save-query' && (
             <InputDialog
               title="Save query"
-              placeholder="filename (without .sql)"
+              placeholder="filename.sql"
+              defaultValue={dialog.suggestedName}
               confirmLabel="Save"
               onConfirm={(name) => {
                 setDialog(null);
