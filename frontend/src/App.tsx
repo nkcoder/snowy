@@ -1,4 +1,3 @@
-import { ChevronRight, Folder, Terminal } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
 import type { main } from '../wailsjs/go/models';
@@ -61,21 +60,6 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
   }
 }
 
-// ── Elephant glyph ────────────────────────────────────────────────────────────
-function ElephantGlyph({ color }: { color: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="shrink-0">
-      <path
-        d="M3.5 7.5c0-2.5 2-4.2 4.6-4.2 2.7 0 4.6 1.7 4.6 4 0 1.8-1 3-1 3.8l.6 1.6h-1.7l-.5-1.2c-.4.3-1 .4-1.6.4l.3 1.2H7.2l-.5-1.4c-1.1-.2-1.9-.6-2.4-1.1-.3.4-.7.6-1.1.6"
-        stroke={color}
-        strokeWidth="1.2"
-        fill={`${color}22`}
-      />
-      <circle cx="10.4" cy="6.2" r=".6" fill={color} />
-    </svg>
-  );
-}
-
 type AppView = 'connections' | 'workspace';
 
 type DialogState =
@@ -114,7 +98,7 @@ function App() {
     handleNewTab,
   } = useTabManager();
 
-  const { sidebarWidth, bottomHeight, servicesWidth, startSidebarDrag, startBottomDrag, startServicesDrag } = usePanelResize();
+  const { sidebarWidth, bottomHeight, startSidebarDrag, startBottomDrag } = usePanelResize();
 
   const {
     queryLoading,
@@ -149,7 +133,7 @@ function App() {
     loadConfig();
     GoApp.GetAppVersion()
       .then((v) => setAppVersion({ version: v.version ?? '0.0.1', buildDate: v.buildDate ?? '' }))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -204,7 +188,7 @@ function App() {
     setView('workspace');
     GoApp.ListSavedQueries(dsId)
       .then((data) => setSavedQueries(data ?? []))
-      .catch(() => {});
+      .catch(() => { });
     GoApp.GetCompletions(dsId)
       .then((data) => setCompletions((data?.entries ?? []) as CompletionEntry[]))
       .catch((err) => console.warn('GetCompletions failed', err));
@@ -214,7 +198,7 @@ function App() {
           setMetadataByDs((prev) => ({ ...prev, [dsId]: cached }));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     refreshMetadata(dsId);
   };
 
@@ -338,7 +322,7 @@ function App() {
               // @ts-expect-error Wails drag region
               '--wails-draggable': 'drag',
             }}
-            className="flex items-center shrink-0 gap-3.5 px-3.5"
+            className="flex items-center shrink-0 gap-3.5 px-4"
             data-wails-drag
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -468,82 +452,6 @@ function App() {
 
               {/* Bottom panel */}
               <div style={{ height: bottomHeight }} className="flex min-h-0 shrink-0">
-                {/* Services tree */}
-                <div
-                  style={{
-                    background: T.sidebar,
-                    borderRight: `0.5px solid ${T.border}`,
-                    width: servicesWidth,
-                  }}
-                  className="flex flex-col shrink-0"
-                >
-                  <div
-                    style={{
-                      background: T.chrome,
-                      borderBottom: `0.5px solid ${T.border}`,
-                      color: T.text,
-                    }}
-                    className="h-6 flex items-center px-2.5 text-[11.5px] font-semibold shrink-0"
-                  >
-                    Services
-                  </div>
-                  <div className="flex-1 overflow-hidden py-1 text-xs">
-                    <div
-                      style={{ color: T.text, borderLeft: '2px solid transparent' }}
-                      className="h-[22px] flex items-center pl-1.5 pr-2 gap-1"
-                    >
-                      <ChevronRight
-                        size={9}
-                        color={T.textDim}
-                        style={{ transform: 'rotate(90deg)' }}
-                      />
-                      <Folder size={12} color={T.accent} />
-                      <span>Database</span>
-                    </div>
-                    <div
-                      style={{ color: T.text, borderLeft: '2px solid transparent' }}
-                      className="h-[22px] flex items-center pl-5 pr-2 gap-1"
-                    >
-                      <ChevronRight
-                        size={9}
-                        color={T.textDim}
-                        style={{ transform: 'rotate(90deg)' }}
-                      />
-                      <ElephantGlyph color={T.accent} />
-                      <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {activeDatasource?.name ?? 'connection'}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        color: T.text,
-                        background: T.hover,
-                        borderLeft: `2px solid ${T.accent}`,
-                      }}
-                      className="h-[22px] flex items-center pl-[34px] pr-2 gap-1"
-                    >
-                      <div className="w-[9px]" />
-                      <Terminal size={12} color={T.accent} />
-                      <span className="flex-1">console</span>
-                      {durationMs > 0 && (
-                        <span
-                          style={{ color: T.textDim, fontFamily: T.mono }}
-                          className="text-[10.5px]"
-                        >
-                          {durationMs} ms
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Services/Results resize handle */}
-                <div
-                  onMouseDown={startServicesDrag}
-                  style={{ borderLeft: `1px solid ${T.border}` }}
-                  className="w-1 shrink-0 cursor-col-resize"
-                />
-
                 {/* Results panel */}
                 <div className="flex-1 min-w-0 overflow-hidden" style={{ minWidth: 0 }}>
                   <ResultsPanel
@@ -567,7 +475,7 @@ function App() {
                   color: T.textSec,
                   fontFamily: T.mono,
                 }}
-                className="h-[22px] flex items-center px-2.5 gap-3.5 text-[10.5px] shrink-0"
+                className="h-[22px] flex items-center px-3.5 gap-3.5 text-[10.5px] shrink-0"
               >
                 <div className="flex items-center gap-1">
                   <div

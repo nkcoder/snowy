@@ -1,6 +1,5 @@
 import { History, Pin, X } from 'lucide-react';
 import { T } from '../lib/tokens';
-import { fmtDuration } from '../lib/utils';
 import { ResultsTable } from './ResultsTable';
 
 export type ResultTab = {
@@ -113,14 +112,6 @@ export function ResultsPanel({
                 {tab.error !== null && (
                   <span style={{ color: T.err, fontFamily: T.mono }} className="text-[10px] ml-0.5">
                     error
-                  </span>
-                )}
-                {tab.data !== null && tab.error === null && (
-                  <span
-                    style={{ color: T.textDim, fontFamily: T.mono }}
-                    className="text-[10px] ml-0.5"
-                  >
-                    {tab.rowCount} rows · {fmtDuration(tab.durationMs)}
                   </span>
                 )}
                 {tab.pinned && (

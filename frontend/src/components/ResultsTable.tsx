@@ -105,15 +105,6 @@ export function ResultsTable({
         }}
         className="flex items-center h-8 px-2 gap-2 shrink-0"
       >
-        <div
-          style={{ color: T.textSec, borderRight: `1px solid ${T.border}` }}
-          className="flex items-center gap-1 text-[11px] pr-2"
-        >
-          <span style={{ color: T.text }} className="font-bold">
-            {data.rows.length}
-          </span>{' '}
-          rows
-        </div>
         <button
           type="button"
           style={{ color: T.textSec }}
@@ -281,7 +272,7 @@ export function ResultsTable({
                         borderRight: `1px solid ${T.divider}`,
                         color: T.text,
                       }}
-                      className="px-3 py-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                      className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
                     >
                       {cell === null ? (
                         <span style={{ color: T.textDim }} className="italic">
