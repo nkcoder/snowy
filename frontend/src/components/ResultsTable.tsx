@@ -10,6 +10,7 @@ interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
   data: { columns: string[]; rows: any[][] } | null;
   loading: boolean;
+  truncated?: boolean;
   activeTabPinned?: boolean;
   pinActive?: boolean;
   onPin?: () => void;
@@ -21,6 +22,7 @@ interface ResultsTableProps {
 export function ResultsTable({
   data,
   loading,
+  truncated = false,
   activeTabPinned,
   pinActive,
   onPin,
@@ -169,6 +171,22 @@ export function ResultsTable({
           Read-only
         </div>
       </div>
+
+      {/* Truncation notice */}
+      {truncated && (
+        <div
+          style={{
+            background: 'rgba(229,192,123,0.08)',
+            borderBottom: `1px solid rgba(229,192,123,0.25)`,
+            color: '#e5c07b',
+            fontFamily: T.ui,
+          }}
+          className="flex items-center gap-2 px-3 py-1.5 text-[11px] shrink-0"
+        >
+          <span className="font-semibold">Showing first 1,000 rows.</span>
+          <span style={{ color: T.textSec }}>Add a LIMIT clause to your query to see fewer results.</span>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="flex-1 overflow-auto" style={{ minWidth: 0 }}>

@@ -348,6 +348,7 @@ export namespace main {
 	    rows: any[][];
 	    durationMs: number;
 	    rowCount: number;
+	    truncated: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new QueryResult(source);
@@ -359,6 +360,7 @@ export namespace main {
 	        this.rows = source["rows"];
 	        this.durationMs = source["durationMs"];
 	        this.rowCount = source["rowCount"];
+	        this.truncated = source["truncated"] ?? false;
 	    }
 	}
 	export class SavedQuery {

@@ -444,8 +444,10 @@ func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {
 	return result, nil
 }
 
+const maxQueryRows = 1000
+
 func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	conn, ctx, cleanup, err := s.openConn(dsID, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -464,8 +466,13 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		columns[i] = fd.Name
 	}
 
-	results := make([][]interface{}, 0)
+	results := make([][]interface{}, 0, maxQueryRows)
+	truncated := false
 	for rows.Next() {
+		if len(results) >= maxQueryRows {
+			truncated = true
+			break
+		}
 		values, err := rows.Values()
 		if err != nil {
 			return nil, err
@@ -486,5 +493,6 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		Rows:       results,
 		DurationMs: time.Since(start).Milliseconds(),
 		RowCount:   len(results),
+		Truncated:  truncated,
 	}, nil
 }
