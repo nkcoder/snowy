@@ -1416,9 +1416,10 @@ export function Sidebar({
 
   return (
     <div
-      className="flex flex-col h-full shrink-0"
+      className="flex flex-col h-full shrink-0 overflow-hidden"
       style={{
         width,
+        minHeight: 0,
         background: T.sidebar,
         borderRight: `0.5px solid ${T.border}`,
         fontFamily: T.ui,
@@ -1577,7 +1578,7 @@ export function Sidebar({
       </div>
 
       {/* ── Tree ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto py-1" style={{ minHeight: 0 }}>
         {datasources.length === 0 ? (
           <div
             style={{ padding: '16px 12px', color: T.textDim, fontSize: 12, fontStyle: 'italic' }}

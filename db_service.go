@@ -470,6 +470,11 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		if err != nil {
 			return nil, err
 		}
+		for i, v := range values {
+			if b, ok := v.([16]byte); ok {
+				values[i] = fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+			}
+		}
 		results = append(results, values)
 	}
 	if err := rows.Err(); err != nil {

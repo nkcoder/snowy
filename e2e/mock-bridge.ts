@@ -22,29 +22,76 @@ export const mockConfig = {
   ],
 };
 
+// ── Column definitions — single source of truth ───────────────────────────────
+// Used to derive both mockCompletions entries and mockMetadata (RefreshMetadata /
+// ListColumns), so the two never drift apart.
+
+const USERS_COLS = [
+  { name: 'user_id',    dataType: 'integer',                  isNullable: 'NO',  keyType: 'pk' },
+  { name: 'first_name', dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
+  { name: 'last_name',  dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
+  { name: 'email',      dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
+  { name: 'created_at', dataType: 'timestamp with time zone', isNullable: 'NO',  keyType: '' },
+];
+
+const ACCOUNTS_COLS = [
+  { name: 'account_id', dataType: 'integer', isNullable: 'NO',  keyType: 'pk' },
+  { name: 'user_id',    dataType: 'integer', isNullable: 'NO',  keyType: 'fk' },
+  { name: 'balance',    dataType: 'numeric', isNullable: 'YES', keyType: '' },
+];
+
+const TRANSACTIONS_COLS = [
+  { name: 'transaction_id', dataType: 'integer',                  isNullable: 'NO', keyType: 'pk' },
+  { name: 'amount',         dataType: 'numeric',                  isNullable: 'NO', keyType: '' },
+  { name: 'created_at',     dataType: 'timestamp with time zone', isNullable: 'NO', keyType: '' },
+];
+
+// Full schema metadata — serialised into the injected script so RefreshMetadata
+// and ListColumns always reflect the same data as mockCompletions.
+const mockMetadata = {
+  schemas: [
+    {
+      name: 'public',
+      tables: [
+        {
+          name: 'users', type: 'BASE TABLE', columns: USERS_COLS,
+          keys: [{ name: 'users_pkey', columns: 'user_id' }],
+          foreignKeys: [],
+          indexes: [{ name: 'users_email_key', isUnique: true, columns: 'email' }],
+          checks: [],
+        },
+        {
+          name: 'accounts', type: 'BASE TABLE', columns: ACCOUNTS_COLS,
+          keys: [{ name: 'accounts_pkey', columns: 'account_id' }],
+          foreignKeys: [{ name: 'accounts_user_id_fkey', columns: 'user_id', refSchema: 'public', refTable: 'users', refColumns: 'user_id' }],
+          indexes: [],
+          checks: [{ name: 'accounts_balance_check', definition: 'balance >= 0' }],
+        },
+        {
+          name: 'transactions', type: 'BASE TABLE', columns: TRANSACTIONS_COLS,
+          keys: [{ name: 'transactions_pkey', columns: 'transaction_id' }],
+          foreignKeys: [], indexes: [], checks: [],
+        },
+        { name: 'audit_logs', type: 'BASE TABLE', columns: [], keys: [], foreignKeys: [], indexes: [], checks: [] },
+      ],
+    },
+  ],
+};
+
+function colEntries(table: string, cols: Array<{ name: string; dataType: string; keyType: string }>) {
+  return cols.map(c => ({ kind: 'column', schema: 'public', table, name: c.name, dataType: c.dataType, keyType: c.keyType }));
+}
+
 export const mockCompletions = {
   entries: [
-    // Schemas
-    { kind: 'schema', schema: '', table: '', name: 'public', dataType: '' },
-    // Tables
-    { kind: 'table', schema: 'public', table: '', name: 'users', dataType: '' },
-    { kind: 'table', schema: 'public', table: '', name: 'accounts', dataType: '' },
-    { kind: 'table', schema: 'public', table: '', name: 'transactions', dataType: '' },
-    { kind: 'table', schema: 'public', table: '', name: 'audit_logs', dataType: '' },
-    // users columns
-    { kind: 'column', schema: 'public', table: 'users', name: 'user_id', dataType: 'integer', keyType: 'pk' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'first_name', dataType: 'character varying', keyType: '' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'last_name', dataType: 'character varying', keyType: '' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'email', dataType: 'character varying', keyType: '' },
-    { kind: 'column', schema: 'public', table: 'users', name: 'created_at', dataType: 'timestamp with time zone', keyType: '' },
-    // accounts columns
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'account_id', dataType: 'integer', keyType: 'pk' },
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'user_id', dataType: 'integer', keyType: 'fk' },
-    { kind: 'column', schema: 'public', table: 'accounts', name: 'balance', dataType: 'numeric', keyType: '' },
-    // transactions columns
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'transaction_id', dataType: 'integer', keyType: 'pk' },
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'amount', dataType: 'numeric', keyType: '' },
-    { kind: 'column', schema: 'public', table: 'transactions', name: 'created_at', dataType: 'timestamp with time zone', keyType: '' },
+    { kind: 'schema', schema: '',       table: '', name: 'public',       dataType: '' },
+    { kind: 'table',  schema: 'public', table: '', name: 'users',        dataType: '' },
+    { kind: 'table',  schema: 'public', table: '', name: 'accounts',     dataType: '' },
+    { kind: 'table',  schema: 'public', table: '', name: 'transactions', dataType: '' },
+    { kind: 'table',  schema: 'public', table: '', name: 'audit_logs',   dataType: '' },
+    ...colEntries('users',        USERS_COLS),
+    ...colEntries('accounts',     ACCOUNTS_COLS),
+    ...colEntries('transactions', TRANSACTIONS_COLS),
   ],
 };
 
@@ -90,6 +137,7 @@ export function buildMockBridgeScript(
     const _completions = ${JSON.stringify(completions)};
     const _queryResult = ${JSON.stringify(queryResult)};
     const _historyEntries = ${JSON.stringify(historyEntries)};
+    const _metadata = ${JSON.stringify(mockMetadata)};
     const _savedQueries = [];
     const _savedQueryData = {};
     const _recordedHistory = [];
@@ -98,30 +146,24 @@ export function buildMockBridgeScript(
       main: {
         App: {
           GetConfig: () => Promise.resolve(_config),
+          GetAppVersion: () => Promise.resolve({ version: 'dev', buildDate: '' }),
+          GetCachedMetadata: () => Promise.resolve(null),
+          RefreshMetadata: () => Promise.resolve(_metadata),
           SaveConfig: () => Promise.resolve(),
           UpdateDatasource: () => Promise.resolve(),
           TestDatasource: () => Promise.resolve({ Success: true, Message: 'Connection successful' }),
           GetCompletions: () => Promise.resolve(_completions),
-          ListSchemas: () => Promise.resolve([{ name: 'public' }]),
-          ListTables: () => Promise.resolve([
-            { schema: 'public', name: 'users', type: 'BASE TABLE' },
-            { schema: 'public', name: 'accounts', type: 'BASE TABLE' },
-            { schema: 'public', name: 'transactions', type: 'BASE TABLE' },
-            { schema: 'public', name: 'audit_logs', type: 'BASE TABLE' },
-          ]),
+          ListSchemas: () => Promise.resolve(
+            _metadata.schemas.map(s => ({ name: s.name }))
+          ),
+          ListTables: (dsId, schema) => Promise.resolve(
+            (_metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0])
+              .tables.map(t => ({ schema, name: t.name, type: t.type }))
+          ),
           ListColumns: (dsId, schema, table) => {
-            const cols = {
-              users: [
-                { name: 'user_id', dataType: 'integer', isNullable: 'NO' },
-                { name: 'first_name', dataType: 'character varying', isNullable: 'NO' },
-                { name: 'email', dataType: 'character varying', isNullable: 'NO' },
-              ],
-              accounts: [
-                { name: 'account_id', dataType: 'integer', isNullable: 'NO' },
-                { name: 'balance', dataType: 'numeric', isNullable: 'YES' },
-              ],
-            };
-            return Promise.resolve(cols[table] || []);
+            const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
+            const t = s.tables.find(t => t.name === table);
+            return Promise.resolve(t ? t.columns : []);
           },
           ExecuteQuery: () => Promise.resolve(_queryResult),
           SaveQuery: (dsId, filename, sql) => {
@@ -156,29 +198,24 @@ export function buildMockBridgeScript(
             return Promise.resolve(_historyEntries.slice(0, limit));
           },
           ListTableKeys: (dsId, schema, table) => {
-            const keys = {
-              accounts: [{ name: 'accounts_pkey', columns: 'account_id' }],
-              users: [{ name: 'users_pkey', columns: 'user_id' }],
-            };
-            return Promise.resolve(keys[table] || []);
+            const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
+            const t = s.tables.find(t => t.name === table);
+            return Promise.resolve(t ? t.keys : []);
           },
           ListTableForeignKeys: (dsId, schema, table) => {
-            const fks = {
-              accounts: [{ name: 'accounts_user_id_fkey', columns: 'user_id', refSchema: 'public', refTable: 'users', refColumns: 'user_id' }],
-            };
-            return Promise.resolve(fks[table] || []);
+            const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
+            const t = s.tables.find(t => t.name === table);
+            return Promise.resolve(t ? t.foreignKeys : []);
           },
           ListTableIndexes: (dsId, schema, table) => {
-            const indexes = {
-              users: [{ name: 'users_email_key', isUnique: true, columns: 'email' }],
-            };
-            return Promise.resolve(indexes[table] || []);
+            const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
+            const t = s.tables.find(t => t.name === table);
+            return Promise.resolve(t ? t.indexes : []);
           },
           ListTableChecks: (dsId, schema, table) => {
-            const checks = {
-              accounts: [{ name: 'accounts_balance_check', definition: 'balance >= 0' }],
-            };
-            return Promise.resolve(checks[table] || []);
+            const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
+            const t = s.tables.find(t => t.name === table);
+            return Promise.resolve(t ? t.checks : []);
           },
         },
       },
