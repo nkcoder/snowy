@@ -6,8 +6,10 @@ import {
 } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
-import { EditorState } from '@codemirror/state';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { tags as t } from '@lezer/highlight';
 import {
   EditorView,
   highlightActiveLine,
@@ -37,13 +39,28 @@ interface QueryEditorProps {
   completions?: CompletionEntry[];
 }
 
+// DataGrip-inspired syntax colors — overrides oneDark via Prec.high.
+const snowySqlHighlight = HighlightStyle.define([
+  { tag: t.keyword,                   color: '#56B6C2' },           // teal — SELECT, FROM, WHERE …
+  { tag: t.name,                      color: '#D19A66' },           // orange — table / column names
+  { tag: t.variableName,              color: '#D19A66' },
+  { tag: t.propertyName,              color: '#D19A66' },
+  { tag: t.special(t.name),          color: '#E5C07B' },           // gold — function calls
+  { tag: t.string,                    color: '#98C379' },           // green — string literals
+  { tag: t.number,                    color: '#B5CEA8' },           // light green — numbers
+  { tag: t.operator,                  color: '#ABB2BF' },
+  { tag: t.punctuation,               color: '#ABB2BF' },
+  { tag: t.comment,                   color: '#6A9955', fontStyle: 'italic' },
+  { tag: t.typeName,                  color: '#56B6C2' },           // teal — INT, VARCHAR …
+]);
+
 // Static CodeMirror theme matched to SnowyDark tokens.
 // Theme-switching via CSS vars inside CodeMirror is unsupported — editor stays dark.
 const editorTheme = EditorView.theme(
   {
     '&': { height: '100%', fontSize: '13px', background: '#1f1d1b' },
     '.cm-content': {
-      fontFamily: '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
+      fontFamily: '"Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace',
       caretColor: '#ecebe8',
       padding: '8px 0',
     },
@@ -65,7 +82,7 @@ const editorTheme = EditorView.theme(
       borderRadius: '6px',
       boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
       overflow: 'hidden',
-      fontFamily: '"SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace',
+      fontFamily: '"Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace',
       fontSize: '12px',
     },
     '.cm-tooltip-autocomplete > ul': { maxHeight: '240px', fontFamily: 'inherit' },
@@ -413,6 +430,7 @@ export function QueryEditor({
         }),
         sql({ dialect: PostgreSQL }),
         oneDark,
+        Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
         keymap.of([
           { key: 'Mod-Enter', run: runCmd },
