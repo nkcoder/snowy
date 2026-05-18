@@ -10,6 +10,7 @@ function makeLiveResultTab(): ResultTab {
     error: null,
     rowCount: 0,
     durationMs: 0,
+    truncated: false,
     timestamp: new Date(),
     pinned: false,
     sql: '',
@@ -36,6 +37,7 @@ export function useQueryExecution(activeDatasourceId: string | null) {
       const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
       const rowCount = result.rowCount ?? result.rows?.length ?? 0;
       const durationMs = result.durationMs ?? 0;
+      const truncated = result.truncated ?? false;
       seqRef.current++;
       const label = `Result ${seqRef.current}`;
       setResultTabs((prev) =>
@@ -48,6 +50,7 @@ export function useQueryExecution(activeDatasourceId: string | null) {
                 error: null,
                 rowCount,
                 durationMs,
+                truncated,
                 sql,
                 timestamp: new Date(),
               }

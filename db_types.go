@@ -24,6 +24,7 @@ type QueryResult struct {
 	Rows       [][]interface{} `json:"rows"`
 	DurationMs int64           `json:"durationMs"`
 	RowCount   int             `json:"rowCount"`
+	Truncated  bool            `json:"truncated"`
 }
 
 // CompletionEntry represents a single autocomplete item (schema, table, view, or column).

@@ -11,6 +11,7 @@ export type ResultTab = {
   error: string | null;
   rowCount: number;
   durationMs: number;
+  truncated: boolean;
   timestamp: Date;
   pinned: boolean;
   sql: string;
@@ -170,6 +171,7 @@ export function ResultsPanel({
           <ResultsTable
             data={activeTab?.data ?? null}
             loading={loading}
+            truncated={activeTab?.truncated ?? false}
             activeTabPinned={activeTabPinned}
             pinActive={pinActive}
             onPin={onPin}
