@@ -98,6 +98,52 @@ export function buildMockBridgeScript(
       main: {
         App: {
           GetConfig: () => Promise.resolve(_config),
+          GetAppVersion: () => Promise.resolve({ version: 'dev', buildDate: '' }),
+          GetCachedMetadata: () => Promise.resolve(null),
+          RefreshMetadata: () => Promise.resolve({
+            schemas: [
+              {
+                name: 'public',
+                tables: [
+                  {
+                    name: 'users', type: 'BASE TABLE',
+                    columns: [
+                      { name: 'user_id', dataType: 'integer', isNullable: 'NO', keyType: 'pk' },
+                      { name: 'first_name', dataType: 'character varying', isNullable: 'NO', keyType: '' },
+                      { name: 'email', dataType: 'character varying', isNullable: 'NO', keyType: '' },
+                    ],
+                    keys: [{ name: 'users_pkey', columns: 'user_id' }],
+                    foreignKeys: [],
+                    indexes: [{ name: 'users_email_key', isUnique: true, columns: 'email' }],
+                    checks: [],
+                  },
+                  {
+                    name: 'accounts', type: 'BASE TABLE',
+                    columns: [
+                      { name: 'account_id', dataType: 'integer', isNullable: 'NO', keyType: 'pk' },
+                      { name: 'balance', dataType: 'numeric', isNullable: 'YES', keyType: '' },
+                    ],
+                    keys: [{ name: 'accounts_pkey', columns: 'account_id' }],
+                    foreignKeys: [{ name: 'accounts_user_id_fkey', columns: 'user_id', refSchema: 'public', refTable: 'users', refColumns: 'user_id' }],
+                    indexes: [],
+                    checks: [{ name: 'accounts_balance_check', definition: 'balance >= 0' }],
+                  },
+                  {
+                    name: 'transactions', type: 'BASE TABLE',
+                    columns: [
+                      { name: 'transaction_id', dataType: 'integer', isNullable: 'NO', keyType: 'pk' },
+                      { name: 'amount', dataType: 'numeric', isNullable: 'NO', keyType: '' },
+                      { name: 'created_at', dataType: 'timestamp with time zone', isNullable: 'NO', keyType: '' },
+                    ],
+                    keys: [{ name: 'transactions_pkey', columns: 'transaction_id' }],
+                    foreignKeys: [], indexes: [], checks: [],
+                  },
+                  { name: 'audit_logs', type: 'BASE TABLE', columns: [], keys: [], foreignKeys: [], indexes: [], checks: [] },
+                ],
+              },
+            ],
+            fetchedAt: new Date().toISOString(),
+          }),
           SaveConfig: () => Promise.resolve(),
           UpdateDatasource: () => Promise.resolve(),
           TestDatasource: () => Promise.resolve({ Success: true, Message: 'Connection successful' }),

@@ -131,7 +131,7 @@ export function ResultsTable({
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto min-w-0">
+      <div className="flex-1 overflow-auto" style={{ minWidth: 0 }}>
         <table className="min-w-full border-collapse">
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>

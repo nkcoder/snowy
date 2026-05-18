@@ -1,24 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
-import {
-  buildMockBridgeScript,
-  mockConfig,
-  mockCompletions,
-  mockQueryResult,
-  mockHistoryEntries,
-} from './mock-bridge';
-
-async function setupMock(page: Page) {
-  await page.addInitScript(
-    buildMockBridgeScript(mockConfig, mockCompletions, mockQueryResult, mockHistoryEntries),
-  );
-}
-
-async function connectToWorkspace(page: Page) {
-  await page.goto('/');
-  await page.waitForSelector('[data-testid="ds-item-ds-1"]', { timeout: 10000 });
-  await page.dblclick('[data-testid="ds-item-ds-1"]');
-  await page.waitForSelector('[data-testid="sidebar-search"]', { timeout: 10000 });
-}
+import { test, expect } from '@playwright/test';
+import { setupMock, connectToWorkspace } from './helpers';
 
 test.describe('Sprint 9 — Datasource context menu', () => {
   test.beforeEach(async ({ page }) => {

@@ -34,6 +34,7 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
     <>
       {/* Backdrop */}
       <div
+        data-testid="history-backdrop"
         onClick={onClose}
         style={{ background: 'rgba(0,0,0,0.35)' }}
         className="fixed inset-0 z-[99]"
