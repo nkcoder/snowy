@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { setupMock, connectToWorkspace } from './helpers';
 
-test.describe('Sprint 9 — Datasource context menu', () => {
+test.describe('Datasource context menu', () => {
   test.beforeEach(async ({ page }) => {
     await setupMock(page);
   });

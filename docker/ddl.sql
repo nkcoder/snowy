@@ -70,7 +70,7 @@ INSERT INTO transactions (from_account_id, amount, transaction_type, description
 (3, 40.00, 'withdrawal', 'Cash out at Merchant');
 
 -- 5. Products Table: A wide catalog table with UUID PK
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- gen_random_uuid() is built-in since PostgreSQL 13; no extension needed.
 
 CREATE TABLE products (
     product_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

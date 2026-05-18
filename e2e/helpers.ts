@@ -47,13 +47,17 @@ export async function getTooltipItems(page: Page): Promise<string[]> {
   return page.locator('.cm-tooltip-autocomplete li').allTextContents();
 }
 
-export async function runQuery(page: Page) {
+export async function runQuery(
+  page: Page,
+  sql = 'SELECT * FROM users LIMIT 10;',
+  waitText = 'user_id',
+) {
   const editor = page.locator('.cm-content');
   await editor.click();
   await page.keyboard.press('Control+a');
-  await page.keyboard.type('SELECT * FROM users LIMIT 10;');
+  await page.keyboard.type(sql);
   await page.locator('[data-testid="run-button"]').click();
-  await page.locator('text=user_id').first().waitFor({ timeout: 5_000 });
+  await page.locator(`text=${waitText}`).first().waitFor({ timeout: 5_000 });
 }
 
 export async function expandToTable(page: Page, tableName: string) {

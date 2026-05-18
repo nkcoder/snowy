@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { buildMockBridgeScript, mockConfig } from './mock-bridge';
 import { setupMock, connectToWorkspace, expandToTable } from './helpers';
 
 // ── 30-column mock for sidebar scroll tests ──────────────────────────────────
@@ -11,85 +12,52 @@ const PRODUCTS_COLUMNS = Array.from({ length: 30 }, (_, i) => ({
 
 // ── 18-column mock query result — each cell is a UUID so columns are wide ────
 const WIDE_COLUMNS = Array.from({ length: 18 }, (_, i) => `column_name_${i + 1}`);
-// All cells are UUID strings (36 chars each) → table is ~800px+ wider than any grid
 const WIDE_ROW = Array.from({ length: 18 }, (_, i) =>
   `a1b2c3d4-e5f6-7890-abcd-${String(i).padStart(12, '0')}`
 );
 
-function buildScript() {
-  return `
-    const _cols30 = ${JSON.stringify(PRODUCTS_COLUMNS)};
-    const _wideCols = ${JSON.stringify(WIDE_COLUMNS)};
-    const _wideRow  = ${JSON.stringify(WIDE_ROW)};
-    const _metadata = {
-      schemas: [{
-        name: 'public',
-        tables: [{
-          name: 'products',
-          type: 'BASE TABLE',
-          columns: _cols30,
-          keys: [], foreignKeys: [], indexes: [], checks: [],
-        }],
-      }],
-    };
+const PRODUCTS_METADATA = {
+  schemas: [{
+    name: 'public',
+    tables: [{
+      name: 'products', type: 'BASE TABLE',
+      columns: PRODUCTS_COLUMNS,
+      keys: [], foreignKeys: [], indexes: [], checks: [],
+    }],
+  }],
+};
 
-    window.go = {
-      main: {
-        App: {
-          GetConfig: () => Promise.resolve({
-            projects: [{ id: 'p1', name: 'Test' }],
-            datasources: [{
-              id: 'ds-1', name: 'Demo DB', host: 'localhost', port: 5432,
-              database: 'mydatabase', username: 'myuser', password: '',
-              projectId: 'p1', env: 'local', sslMode: 'disable',
-            }],
-          }),
-          SaveConfig: () => Promise.resolve(),
-          UpdateDatasource: () => Promise.resolve(),
-          TestDatasource: () => Promise.resolve({ Success: true, Message: 'ok' }),
-          GetCompletions: () => Promise.resolve({ entries: [] }),
-          GetCachedMetadata: () => Promise.resolve(_metadata),
-          RefreshMetadata: () => Promise.resolve(_metadata),
-          ListSchemas: () => Promise.resolve([{ name: 'public' }]),
-          ListTables: () => Promise.resolve([
-            { schema: 'public', name: 'products', type: 'BASE TABLE' },
-          ]),
-          ListColumns: () => Promise.resolve(_cols30),
-          ListTableKeys: () => Promise.resolve([]),
-          ListTableForeignKeys: () => Promise.resolve([]),
-          ListTableIndexes: () => Promise.resolve([]),
-          ListTableChecks: () => Promise.resolve([]),
-          ExecuteQuery: () => Promise.resolve({
-            columns: _wideCols,
-            rows: [_wideRow, _wideRow],
-            durationMs: 10,
-            rowCount: 2,
-          }),
-          ListSavedQueries: () => Promise.resolve([]),
-          LoadSavedQuery: () => Promise.resolve(''),
-          SaveQuery: () => Promise.resolve(),
-          DeleteSavedQuery: () => Promise.resolve(),
-          RenameQuery: () => Promise.resolve(),
-          RecordHistory: () => Promise.resolve(),
-          GetQueryHistory: () => Promise.resolve([]),
-          GetAppVersion: () => Promise.resolve({ version: '0.0.1', buildDate: '' }),
-        },
-      },
-    };
-    console.log('[mock-bridge] installed');
-  `;
-}
+const WIDE_QUERY_RESULT = {
+  columns: WIDE_COLUMNS,
+  rows: [WIDE_ROW, WIDE_ROW],
+  durationMs: 10,
+  rowCount: 2,
+};
 
 async function setupWorkspace30Col(page: Page) {
-  await page.addInitScript(buildScript());
+  // Install the shared mock so all App.tsx methods are covered; only override
+  // the parts that differ for the 30-column products scenario.
+  await page.addInitScript(
+    buildMockBridgeScript(mockConfig, { entries: [] }, WIDE_QUERY_RESULT, []),
+  );
+  await page.addInitScript(`
+    (function() {
+      const _m = ${JSON.stringify(PRODUCTS_METADATA)};
+      window.go.main.App.GetCachedMetadata = () => Promise.resolve(_m);
+      window.go.main.App.RefreshMetadata   = () => Promise.resolve(_m);
+      window.go.main.App.ListTables = (dsId, schema) =>
+        Promise.resolve([{ schema: 'public', name: 'products', type: 'BASE TABLE' }]);
+      window.go.main.App.ListColumns = (dsId, schema, table) => {
+        const t = _m.schemas[0].tables.find(t => t.name === table);
+        return Promise.resolve(t ? t.columns : []);
+      };
+    })();
+  `);
   await page.goto('/');
-  // Wait for datasource item and double-click to connect
-  await page.waitForSelector('[data-testid="ds-item-ds-1"]', { timeout: 10000 });
+  await page.waitForSelector('[data-testid="ds-item-ds-1"]', { timeout: 10_000 });
   await page.dblclick('[data-testid="ds-item-ds-1"]');
-  // Workspace is ready when sidebar search is visible
-  await page.waitForSelector('[data-testid="sidebar-search"]', { timeout: 10000 });
-  // Wait for schema to appear (metadata arrives from GetCachedMetadata/RefreshMetadata)
-  await page.waitForSelector('[data-testid="schema-row-public"]', { timeout: 8000 });
+  await page.waitForSelector('[data-testid="sidebar-search"]', { timeout: 10_000 });
+  await page.waitForSelector('[data-testid="schema-row-public"]', { timeout: 8_000 });
 }
 
 // ── Sidebar tree drill-in ────────────────────────────────────────────────────
