@@ -60,7 +60,6 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
   }
 }
 
-
 type AppView = 'connections' | 'workspace';
 
 type DialogState =
@@ -497,7 +496,7 @@ function App() {
                     {rowCount} rows · {durationMs} ms
                   </span>
                 )}
-                <span style={{ color: T.textDim }} >UTC</span>
+                <span style={{ color: T.textDim }}>UTC</span>
               </div>
             </div>
 
