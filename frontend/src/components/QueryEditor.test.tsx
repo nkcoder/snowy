@@ -5,6 +5,7 @@ import {
   applyPrefixBoost,
   buildCompletionOptions,
   detectSqlContext,
+  extractAliasMap,
   extractFromTables,
   isInsideString,
   makeKeyTypeBadge,
@@ -235,9 +236,78 @@ describe('detectSqlContext', () => {
     if (ctx.kind === 'column') expect(ctx.isSelectList).toBe(true);
   });
 
+  it('resolves FROM tables when cursor is in SELECT list before FROM clause', () => {
+    // Cursor is after "sku," — FROM clause appears later in the statement
+    const beforeWord = 'SELECT product_id, sku,\n';
+    const stmtFull = 'SELECT product_id, sku,\nFROM products\nORDER BY created_at\nLIMIT 10';
+    const ctx = detectSqlContext(beforeWord, stmtFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toEqual(['products']);
+      expect(ctx.isSelectList).toBe(true);
+    }
+  });
+
   it('returns keyword context after fr (partial keyword)', () => {
     // "fr" is the partial word — beforeWord is empty
     expect(detectSqlContext('', 'fr')).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns column context for alias.col pattern', () => {
+    const stmtFull = 'SELECT p. FROM products p ORDER BY created_at LIMIT 10';
+    const ctx = detectSqlContext('SELECT p.', stmtFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toEqual(['products']);
+      expect(ctx.isSelectList).toBe(false);
+    }
+  });
+
+  it('resolves alias to table name in qualified column reference', () => {
+    const stmtFull = 'SELECT o.amount FROM orders o WHERE o.';
+    const ctx = detectSqlContext('SELECT o.amount FROM orders o WHERE o.', stmtFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toEqual(['orders']);
+  });
+
+  it('does not treat FROM schema. as a qualified column context', () => {
+    const ctx = detectSqlContext('SELECT * FROM public.', 'SELECT * FROM public.');
+    expect(ctx.kind).toBe('table');
+  });
+});
+
+describe('extractAliasMap', () => {
+  it('maps table name to itself when no alias', () => {
+    const m = extractAliasMap('SELECT * FROM products ORDER BY id');
+    expect(m.get('products')).toBe('products');
+  });
+
+  it('maps alias to table name', () => {
+    const m = extractAliasMap('SELECT p.id FROM products p ORDER BY p.id');
+    expect(m.get('p')).toBe('products');
+    expect(m.get('products')).toBe('products');
+  });
+
+  it('handles AS keyword in alias', () => {
+    const m = extractAliasMap('SELECT p.id FROM products AS p');
+    expect(m.get('p')).toBe('products');
+  });
+
+  it('handles multiple tables with aliases', () => {
+    const m = extractAliasMap('SELECT p.id, o.amount FROM products p, orders o');
+    expect(m.get('p')).toBe('products');
+    expect(m.get('o')).toBe('orders');
+  });
+
+  it('handles JOIN aliases', () => {
+    const m = extractAliasMap('SELECT p.id FROM products p JOIN orders o ON p.id = o.product_id');
+    expect(m.get('p')).toBe('products');
+    expect(m.get('o')).toBe('orders');
+  });
+
+  it('does not map ON as an alias', () => {
+    const m = extractAliasMap('SELECT * FROM orders JOIN products ON orders.product_id = products.id');
+    expect(m.has('on')).toBe(false);
   });
 });
 

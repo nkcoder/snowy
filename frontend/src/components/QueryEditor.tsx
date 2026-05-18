@@ -265,12 +265,60 @@ export function extractFromTables(stmtText: string): string[] {
   return [...new Set(tables)];
 }
 
+const ALIAS_RESERVED = new Set([
+  'on', 'where', 'set', 'order', 'group', 'having', 'limit', 'offset',
+  'inner', 'left', 'right', 'full', 'cross', 'join', 'and', 'or',
+  'returning', 'union', 'intersect', 'except',
+]);
+
+export function extractAliasMap(stmtText: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const addEntry = (tableName: string, alias?: string) => {
+    const t = tableName.toLowerCase();
+    map.set(t, t);
+    if (alias) {
+      const a = alias.toLowerCase();
+      if (!ALIAS_RESERVED.has(a)) map.set(a, t);
+    }
+  };
+  const fromMatch = stmtText.match(
+    /\bFROM\s+([\w\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
+  );
+  if (fromMatch) {
+    fromMatch[1].split(',').forEach((part) => {
+      const tokens = part.trim().split(/\s+/).filter(Boolean);
+      if (!tokens.length) return;
+      const aliasToken = tokens[1]?.toLowerCase() === 'as' ? tokens[2] : tokens[1];
+      addEntry(tokens[0], aliasToken);
+    });
+  }
+  const joinRe = /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/gi;
+  for (const m of stmtText.matchAll(joinRe)) {
+    addEntry(m[1], m[2]);
+  }
+  const updateMatch = stmtText.match(/\bUPDATE\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/i);
+  if (updateMatch) addEntry(updateMatch[1], updateMatch[2]);
+  return map;
+}
+
 type SqlContext =
   | { kind: 'keyword' }
   | { kind: 'table' }
   | { kind: 'column'; fromTables: string[]; isSelectList: boolean };
 
 export function detectSqlContext(beforeWord: string, stmtFull: string): SqlContext {
+  // Qualified reference: alias.col or schema.table — dispatch on position
+  const qualifiedMatch = beforeWord.match(/(\w+)\.\s*$/i);
+  if (qualifiedMatch) {
+    const upperBefore = beforeWord.slice(0, beforeWord.length - qualifiedMatch[0].length).toUpperCase();
+    if (/\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upperBefore) || /\bUPDATE\s*$/.test(upperBefore)) {
+      return { kind: 'table' };
+    }
+    const qualifier = qualifiedMatch[1].toLowerCase();
+    const resolved = extractAliasMap(stmtFull).get(qualifier) ?? qualifier;
+    return { kind: 'column', fromTables: [resolved], isSelectList: false };
+  }
+
   const upper = beforeWord.toUpperCase();
   if (/\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upper) || /\bUPDATE\s*$/.test(upper)) {
     return { kind: 'table' };
@@ -397,10 +445,11 @@ export function QueryEditor({
       if (!word) return null;
       const fullText = context.state.doc.toString();
       const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
-      const stmtBeforeCursor = fullText.slice(stmtStart, context.pos);
+      const stmtEndIdx = fullText.indexOf(';', context.pos);
+      const stmtFull = fullText.slice(stmtStart, stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1);
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord)) return null;
-      const ctx = detectSqlContext(beforeWord, stmtBeforeCursor);
+      const ctx = detectSqlContext(beforeWord, stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
       const options = applyPrefixBoost(buildCompletionOptions(entriesRef.current, ctx), word.text);
       return options.length > 0 ? { from: word.from, options, validFor: /^\w*$/ } : null;
