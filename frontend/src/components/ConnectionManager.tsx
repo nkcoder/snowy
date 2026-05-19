@@ -386,18 +386,45 @@ export function ConnectionForm({
         display: 'flex',
         flexDirection: 'column',
         minWidth: 0,
-        background: T.panel,
+        background: isNew ? `color-mix(in srgb, ${T.panel} 92%, var(--t-accent))` : T.panel,
         overflow: 'hidden',
-        borderLeft: isNew ? `3px solid ${T.accent}` : 'none',
+        borderTop: isNew ? `2px solid ${T.accent}` : `2px solid transparent`,
       }}
     >
+      {/* New / Edit header strip */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '6px 24px',
+          gap: 8,
+          borderBottom: `0.5px solid ${T.divider}`,
+          background: isNew
+            ? `color-mix(in srgb, ${T.panel} 80%, var(--t-accent))`
+            : T.panelAlt,
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: isNew ? 700 : 400,
+            letterSpacing: isNew ? 0.6 : 0.2,
+            textTransform: isNew ? ('uppercase' as const) : ('none' as const),
+            color: isNew ? T.accent : T.textSec,
+          }}
+        >
+          {isNew ? 'New Data Source' : form.name || 'Untitled'}
+        </span>
+      </div>
+
       {/* Tabs */}
       <div
         style={{
           display: 'flex',
           padding: '0 24px',
           borderBottom: `0.5px solid ${T.divider}`,
-          background: T.panel,
+          background: 'transparent',
           flexShrink: 0,
         }}
       >
@@ -448,24 +475,6 @@ export function ConnectionForm({
                   data-testid="field-name"
                 />
               </div>
-              {isNew && (
-                <div
-                  style={{
-                    padding: '1px 7px',
-                    borderRadius: 3,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    background: `${T.accent}33`,
-                    color: T.accent,
-                    letterSpacing: 0.4,
-                    textTransform: 'uppercase' as const,
-                    border: `0.5px solid ${T.accent}55`,
-                    flexShrink: 0,
-                  }}
-                >
-                  Unsaved
-                </div>
-              )}
               <span style={{ fontSize: 11, color: T.textSec, flexShrink: 0 }}>Environment:</span>
               <div style={{ width: 130, flexShrink: 0 }}>
                 <SelectInput
