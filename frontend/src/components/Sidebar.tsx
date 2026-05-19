@@ -561,13 +561,13 @@ export function Sidebar({
             i !== idx
               ? s
               : {
-                  ...s,
-                  expanded: true,
-                  loaded: true,
-                  tables: tables.map((t) =>
-                    makeTableNode(t.name, t.type === 'VIEW' ? 'view' : 'table')
-                  ),
-                }
+                ...s,
+                expanded: true,
+                loaded: true,
+                tables: tables.map((t) =>
+                  makeTableNode(t.name, t.type === 'VIEW' ? 'view' : 'table')
+                ),
+              }
           ),
         }));
       } catch (err) {
@@ -593,9 +593,9 @@ export function Sidebar({
         si !== schemaIdx
           ? s
           : {
-              ...s,
-              tables: s.tables.map((t, ti) => (ti !== tableIdx ? t : { ...t, ...patch })),
-            }
+            ...s,
+            tables: s.tables.map((t, ti) => (ti !== tableIdx ? t : { ...t, ...patch })),
+          }
       ),
     }));
   };
@@ -617,25 +617,25 @@ export function Sidebar({
               si !== schemaIdx
                 ? s
                 : {
-                    ...s,
-                    tables: s.tables.map((t, ti) =>
-                      ti !== tableIdx
-                        ? t
-                        : {
-                            ...t,
-                            columns: {
-                              open: true,
-                              loaded: true,
-                              items: (cols ?? []).map((c) => ({
-                                name: c.name,
-                                dataType: c.dataType,
-                                isNullable: c.isNullable,
-                                keyType: c.keyType ?? '',
-                              })),
-                            },
-                          }
-                    ),
-                  }
+                  ...s,
+                  tables: s.tables.map((t, ti) =>
+                    ti !== tableIdx
+                      ? t
+                      : {
+                        ...t,
+                        columns: {
+                          open: true,
+                          loaded: true,
+                          items: (cols ?? []).map((c) => ({
+                            name: c.name,
+                            dataType: c.dataType,
+                            isNullable: c.isNullable,
+                            keyType: c.keyType ?? '',
+                          })),
+                        },
+                      }
+                  ),
+                }
             ),
           }));
         } catch (err) {
@@ -708,12 +708,12 @@ export function Sidebar({
     // Filter schemas by search
     const filteredSchemas = search.trim()
       ? schemas
-          .map((s) => ({
-            ...s,
-            expanded: true,
-            tables: s.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
-          }))
-          .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.tables.length > 0)
+        .map((s) => ({
+          ...s,
+          expanded: true,
+          tables: s.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
+        }))
+        .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.tables.length > 0)
       : schemas;
 
     return (
@@ -1427,23 +1427,6 @@ export function Sidebar({
       >
         <ToolBtn icon={<Plus size={13} />} title="New connection" onClick={onAddConnection} />
         <ToolBtn
-          icon={
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <ellipse cx="8" cy="4" rx="5" ry="1.8" />
-              <path d="M3 4v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4" />
-              <path d="M3 8v4c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V8" />
-            </svg>
-          }
-          title="Data source properties"
-        />
-        <ToolBtn
           icon={<RefreshCw size={12} className={loadingDs.size > 0 ? 'animate-spin' : ''} />}
           title="Synchronize"
           onClick={() => activeDatasourceId && handleRefreshClick(activeDatasourceId)}
@@ -1468,62 +1451,6 @@ export function Sidebar({
           onClick={onNewConsole}
           disabled={!activeDatasourceId}
         />
-        <ToolBtn
-          icon={
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <rect x="2" y="3" width="12" height="10" rx="1" />
-              <path d="M2 6.5h12M2 10h12M6 3v10M10 3v10" />
-            </svg>
-          }
-          title="Jump to table"
-        />
-        <ToolBtn
-          icon={
-            <span style={{ fontFamily: T.mono, fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>
-              DDL
-            </span>
-          }
-          title="Show DDL"
-        />
-        <ToolBtn
-          icon={
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <rect x="2" y="3" width="12" height="10" rx="1" />
-              <path d="M8 3v10" />
-            </svg>
-          }
-          title="Diagram"
-        />
-        <ToolBtn
-          icon={
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="8" cy="8" r="2.2" />
-              <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z" />
-            </svg>
-          }
-          title="Preview"
-        />
       </div>
 
       {/* ── Search bar ───────────────────────────────────────────── */}
@@ -1543,6 +1470,9 @@ export function Sidebar({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter objects…"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             style={{
               flex: 1,
               background: 'none',
