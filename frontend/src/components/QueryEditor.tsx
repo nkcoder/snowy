@@ -4,6 +4,7 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete';
+import Fuse from 'fuse.js';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -142,6 +143,11 @@ const editorTheme = EditorView.theme(
       color: '#6e6a62',
       border: '1px solid rgba(255,255,255,0.08)',
     },
+    '.cm-completionMatchedText': {
+      color: '#e5c07b',
+      fontWeight: '600',
+      textDecoration: 'none',
+    },
   },
   { dark: true }
 );
@@ -236,6 +242,7 @@ const keywordOptions: Completion[] = SQL_KEYWORDS.map((kw) => ({
 }));
 
 const starOption: Completion = { label: '*', detail: 'all columns', type: 'keyword', boost: 30 };
+const distinctOption: Completion = { label: 'DISTINCT', type: 'keyword', boost: 28 };
 
 export function makeKeyTypeBadge(keyType: 'pk' | 'fk' | ''): HTMLElement {
   const badge = document.createElement('span');
@@ -360,12 +367,30 @@ export function isInsideString(text: string): boolean {
   return inSingle || inDouble;
 }
 
-export function applyPrefixBoost(options: Completion[], prefix: string): Completion[] {
+type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
+
+export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
   if (!prefix) return options;
-  const lower = prefix.toLowerCase();
-  return options.map((o) =>
-    o.label.toLowerCase().startsWith(lower) ? { ...o, boost: (o.boost ?? 0) + 50 } : o
-  );
+  const fuse = new Fuse(options, {
+    keys: ['label'],
+    threshold: 0.4,
+    includeScore: true,
+    includeMatches: true,
+    minMatchCharLength: 1,
+  });
+  return fuse.search(prefix).map(({ item, score, matches }) => {
+    const matchRanges: number[] = [];
+    for (const match of matches ?? []) {
+      for (const [s, e] of match.indices) {
+        matchRanges.push(s, e + 1);
+      }
+    }
+    return {
+      ...item,
+      boost: (item.boost ?? 0) + Math.round((1 - (score ?? 0)) * 100),
+      matchRanges: matchRanges.length > 0 ? matchRanges : undefined,
+    };
+  });
 }
 
 export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlContext): Completion[] {
@@ -396,7 +421,7 @@ export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlConte
             keyType: e.keyType,
           }) as Completion & { keyType: string }
       );
-    return ctx.isSelectList ? [starOption, ...cols] : cols;
+    return ctx.isSelectList ? [starOption, distinctOption, ...cols] : cols;
   }
   return keywordOptions;
 }
@@ -451,8 +476,14 @@ export function QueryEditor({
       if (isInsideString(beforeWord)) return null;
       const ctx = detectSqlContext(beforeWord, stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
-      const options = applyPrefixBoost(buildCompletionOptions(entriesRef.current, ctx), word.text);
-      return options.length > 0 ? { from: word.from, options, validFor: /^\w*$/ } : null;
+      const options = applyFuzzyMatch(buildCompletionOptions(entriesRef.current, ctx), word.text);
+      if (options.length === 0) return null;
+      return {
+        from: word.from,
+        options,
+        filter: false,
+        getMatch: (c) => (c as FuzzyCompletion).matchRanges ?? [],
+      };
     };
 
     const state = EditorState.create({
@@ -463,7 +494,6 @@ export function QueryEditor({
         highlightActiveLine(),
         highlightActiveLineGutter(),
         autocompletion({
-          filterStrict: true,
           activateOnTyping: true,
           override: [completionSource],
           addToOptions: [
