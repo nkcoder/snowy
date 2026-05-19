@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompletionEntry } from './QueryEditor';
 import {
-  applyPrefixBoost,
+  applyFuzzyMatch,
   buildCompletionOptions,
   detectSqlContext,
   extractAliasMap,
@@ -394,44 +394,59 @@ describe('buildCompletionOptions — ranking', () => {
   });
 });
 
-describe('applyPrefixBoost', () => {
+describe('applyFuzzyMatch', () => {
   const base = [
     { label: 'accounts', boost: 20 },
     { label: 'active_users', boost: 15 },
     { label: 'users', boost: 20 },
   ];
 
-  it('adds +50 to labels that start with the prefix', () => {
-    const result = applyPrefixBoost(base, 'acc');
-    expect(result.find((o) => o.label === 'accounts')?.boost).toBe(70);
-    expect(result.find((o) => o.label === 'users')?.boost).toBe(20);
-  });
-
-  it('is case-insensitive', () => {
-    const result = applyPrefixBoost(base, 'ACC');
-    expect(result.find((o) => o.label === 'accounts')?.boost).toBe(70);
-  });
-
-  it('does not boost a substring-only match', () => {
-    const result = applyPrefixBoost(base, 'ctive');
-    expect(result.find((o) => o.label === 'active_users')?.boost).toBe(15);
-  });
-
   it('returns options unchanged when prefix is empty', () => {
-    const result = applyPrefixBoost(base, '');
+    const result = applyFuzzyMatch(base, '');
     expect(result).toEqual(base);
   });
 
-  it('prefix match outranks substring match of same base boost', () => {
+  it('includes prefix matches and boosts them', () => {
+    const result = applyFuzzyMatch(base, 'acc');
+    const match = result.find((o) => o.label === 'accounts');
+    expect(match).toBeDefined();
+    expect(match!.boost).toBeGreaterThan(20);
+  });
+
+  it('is case-insensitive', () => {
+    const result = applyFuzzyMatch(base, 'ACC');
+    expect(result.find((o) => o.label === 'accounts')).toBeDefined();
+  });
+
+  it('finds mid-string fuzzy matches (contains)', () => {
+    const opts = [{ label: 'account_id', boost: 10 }];
+    const result = applyFuzzyMatch(opts, 'coun');
+    expect(result.find((o) => o.label === 'account_id')).toBeDefined();
+  });
+
+  it('excludes options with no fuzzy match', () => {
+    const result = applyFuzzyMatch(base, 'xyz');
+    expect(result).toHaveLength(0);
+  });
+
+  it('prefix match scores higher than mid-string match', () => {
     const opts = [
-      { label: 'email_address', boost: 10 },
-      { label: 'em_id', boost: 10 },
+      { label: 'account_id', boost: 10 },
+      { label: 'count', boost: 10 },
     ];
-    const result = applyPrefixBoost(opts, 'em');
-    const emId = result.find((o) => o.label === 'em_id')!;
-    const emailAddr = result.find((o) => o.label === 'email_address')!;
-    expect(emId.boost).toBe(60);
-    expect(emailAddr.boost).toBe(60);
+    const result = applyFuzzyMatch(opts, 'coun');
+    const countMatch = result.find((o) => o.label === 'count');
+    const accountMatch = result.find((o) => o.label === 'account_id');
+    expect(countMatch).toBeDefined();
+    expect(accountMatch).toBeDefined();
+    expect(countMatch!.boost).toBeGreaterThan(accountMatch!.boost!);
+  });
+
+  it('attaches matchRanges for matched results', () => {
+    const opts = [{ label: 'account_id', boost: 10 }];
+    const result = applyFuzzyMatch(opts, 'coun');
+    expect(result[0].matchRanges).toBeDefined();
+    expect(result[0].matchRanges!.length).toBeGreaterThan(0);
   });
 });
 
