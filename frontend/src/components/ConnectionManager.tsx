@@ -396,7 +396,7 @@ export function ConnectionForm({
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '7px 24px',
+          padding: '6px 24px',
           gap: 8,
           borderBottom: `0.5px solid ${T.divider}`,
           background: isNew
@@ -405,39 +405,17 @@ export function ConnectionForm({
           flexShrink: 0,
         }}
       >
-        {isNew ? (
-          <>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 0.8,
-                textTransform: 'uppercase' as const,
-                color: T.accent,
-              }}
-            >
-              New Data Source
-            </span>
-            <span
-              style={{
-                fontSize: 10,
-                color: T.textSec,
-              }}
-            >
-              — unsaved
-            </span>
-          </>
-        ) : (
-          <span
-            style={{
-              fontSize: 11,
-              color: T.textSec,
-              letterSpacing: 0.2,
-            }}
-          >
-            {form.name || 'Untitled'}
-          </span>
-        )}
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: isNew ? 700 : 400,
+            letterSpacing: isNew ? 0.6 : 0.2,
+            textTransform: isNew ? ('uppercase' as const) : ('none' as const),
+            color: isNew ? T.accent : T.textSec,
+          }}
+        >
+          {isNew ? 'New Data Source' : form.name || 'Untitled'}
+        </span>
       </div>
 
       {/* Tabs */}
