@@ -5,7 +5,7 @@ import {
   type CompletionResult,
 } from '@codemirror/autocomplete';
 import Fuse from 'fuse.js';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorState, Prec } from '@codemirror/state';
@@ -511,6 +511,9 @@ export function QueryEditor({
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
+        Prec.high(keymap.of([
+          { key: 'Enter', run: insertNewline },
+        ])),
         keymap.of([
           { key: 'Mod-Enter', run: runCmd },
           { key: 'Ctrl-Enter', run: runCmd },
