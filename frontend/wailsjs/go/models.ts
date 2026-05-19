@@ -360,7 +360,7 @@ export namespace main {
 	        this.rows = source["rows"];
 	        this.durationMs = source["durationMs"];
 	        this.rowCount = source["rowCount"];
-	        this.truncated = source["truncated"] ?? false;
+	        this.truncated = source["truncated"];
 	    }
 	}
 	export class SavedQuery {
