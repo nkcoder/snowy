@@ -41,6 +41,9 @@ vi.mock('@codemirror/state', () => ({
     of = () => ({});
     reconfigure = () => ({});
   },
+  Prec: {
+    high: (ext: unknown) => ext,
+  },
 }));
 
 vi.mock('@codemirror/autocomplete', () => ({ autocompletion: () => ({}) }));
@@ -50,6 +53,12 @@ vi.mock('@codemirror/commands', () => ({
   defaultKeymap: [],
   history: () => ({}),
   historyKeymap: [],
+  insertNewline: () => false,
+}));
+
+vi.mock('@codemirror/language', () => ({
+  HighlightStyle: { define: () => ({}) },
+  syntaxHighlighting: () => ({}),
 }));
 
 describe('QueryEditor', () => {

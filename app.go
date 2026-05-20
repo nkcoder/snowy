@@ -57,9 +57,19 @@ func (a *App) SaveConfig(config Config) error {
 	return a.configManager.SaveConfig(config)
 }
 
-// UpdateDatasource updates an existing datasource by ID
+// UpdateDatasource updates an existing datasource by ID and closes its pool
+// so the next call picks up the new credentials.
 func (a *App) UpdateDatasource(ds Datasource) error {
-	return a.configManager.UpdateDatasource(ds)
+	if err := a.configManager.UpdateDatasource(ds); err != nil {
+		return err
+	}
+	a.dbService.closePool(ds.ID)
+	return nil
+}
+
+// ClosePool shuts down the connection pool for dsID. Call this on disconnect.
+func (a *App) ClosePool(dsID string) {
+	a.dbService.closePool(dsID)
 }
 
 // ListSchemas returns schemas for a datasource

@@ -211,6 +211,9 @@ function App() {
   };
 
   const handleDisconnect = () => {
+    if (activeDatasourceId) {
+      GoApp.ClosePool(activeDatasourceId).catch(() => {});
+    }
     setActiveDatasourceId(null);
     setView('connections');
   };
