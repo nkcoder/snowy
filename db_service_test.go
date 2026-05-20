@@ -79,6 +79,7 @@ func newTestApp(t *testing.T) (*App, string) {
 	}
 	app := &App{configManager: cm}
 	app.dbService = NewDbService(app)
+	t.Cleanup(func() { app.dbService.closePool(dsID) })
 	return app, dsID
 }
 

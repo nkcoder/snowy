@@ -6,27 +6,39 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DbService struct {
 	app             *App
-	completionCache sync.Map // dsID → *CompletionSet
+	completionCache sync.Map  // dsID → *CompletionSet
+	pools           sync.Map  // dsID → *pgxpool.Pool
+	poolMu          sync.Mutex
 }
 
 func NewDbService(app *App) *DbService {
 	return &DbService{app: app}
 }
 
-// openConn dials a fresh connection for dsID with the given timeout.
-// The returned cleanup func closes the connection then cancels the context;
-// callers must defer it immediately after a nil-error check.
-func (s *DbService) openConn(dsID string, timeout time.Duration) (*pgx.Conn, context.Context, func(), error) {
-	config, err := s.app.configManager.LoadConfig()
-	if err != nil {
-		return nil, nil, nil, err
+// getPool returns the existing pool for dsID, creating one on first call.
+// Pool creation is serialised by poolMu; subsequent calls return from cache.
+func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
+	if v, ok := s.pools.Load(dsID); ok {
+		return v.(*pgxpool.Pool), nil
 	}
 
+	s.poolMu.Lock()
+	defer s.poolMu.Unlock()
+
+	// Re-check after acquiring lock — another goroutine may have created it.
+	if v, ok := s.pools.Load(dsID); ok {
+		return v.(*pgxpool.Pool), nil
+	}
+
+	config, err := s.app.configManager.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
 	var ds *Datasource
 	for _, d := range config.Datasources {
 		if d.ID == dsID {
@@ -35,40 +47,60 @@ func (s *DbService) openConn(dsID string, timeout time.Duration) (*pgx.Conn, con
 		}
 	}
 	if ds == nil {
-		return nil, nil, nil, fmt.Errorf("datasource %s not found", dsID)
+		return nil, fmt.Errorf("datasource %s not found", dsID)
 	}
 
 	sslMode := ds.SSLMode
 	if sslMode == "" {
 		sslMode = "disable"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	connConfig, err := pgx.ParseConfig(fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
-		ds.Host, ds.Port, ds.Database, ds.Username, sslMode))
-	if err != nil {
-		cancel()
-		return nil, nil, nil, err
-	}
-	connConfig.Password = ds.Password
-	conn, err := pgx.ConnectConfig(ctx, connConfig)
-	if err != nil {
-		cancel()
-		return nil, nil, nil, err
-	}
-	// Close before cancel so conn.Close receives a live context.
-	cleanup := func() {
-		_ = conn.Close(ctx)
-		cancel()
-	}
-	return conn, ctx, cleanup, nil
-}
-
-func (s *DbService) ListSchemas(dsID string) ([]SchemaItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
+		ds.Host, ds.Port, ds.Database, ds.Username, sslMode)
+	poolCfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	poolCfg.ConnConfig.Password = ds.Password
+	poolCfg.MaxConns = 5
+	poolCfg.MinConns = 0
+	poolCfg.MaxConnIdleTime = 5 * time.Minute
+	poolCfg.MaxConnLifetime = 30 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	if err != nil {
+		return nil, err
+	}
+	s.pools.Store(dsID, pool)
+	return pool, nil
+}
+
+// acquire borrows a connection from the pool for dsID.
+// Callers must defer conn.Release() immediately after a nil-error check.
+func (s *DbService) acquire(ctx context.Context, dsID string) (*pgxpool.Conn, error) {
+	pool, err := s.getPool(dsID)
+	if err != nil {
+		return nil, err
+	}
+	return pool.Acquire(ctx)
+}
+
+// closePool shuts down the pool for dsID and evicts its completion cache entry.
+// Call on disconnect or when datasource credentials change.
+func (s *DbService) closePool(dsID string) {
+	if v, ok := s.pools.LoadAndDelete(dsID); ok {
+		v.(*pgxpool.Pool).Close()
+	}
+	s.completionCache.Delete(dsID)
+}
+
+func (s *DbService) ListSchemas(dsID string) ([]SchemaItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
 
 	rows, err := conn.Query(ctx,
 		`SELECT schema_name FROM information_schema.schemata
@@ -93,11 +125,13 @@ func (s *DbService) ListSchemas(dsID string) ([]SchemaItem, error) {
 }
 
 func (s *DbService) ListTables(dsID string, schema string) ([]TableItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	rows, err := conn.Query(ctx,
 		`SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = $1`,
@@ -122,11 +156,13 @@ func (s *DbService) ListTables(dsID string, schema string) ([]TableItem, error) 
 }
 
 func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	const colSQL = `
 		SELECT
@@ -175,11 +211,13 @@ func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem
 }
 
 func (s *DbService) ListTableKeys(dsID, schema, table string) ([]TableKeyItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	const q = `
 		SELECT tc.constraint_name,
@@ -213,11 +251,13 @@ func (s *DbService) ListTableKeys(dsID, schema, table string) ([]TableKeyItem, e
 }
 
 func (s *DbService) ListTableForeignKeys(dsID, schema, table string) ([]ForeignKeyItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	const q = `
 		SELECT tc.constraint_name,
@@ -257,11 +297,13 @@ func (s *DbService) ListTableForeignKeys(dsID, schema, table string) ([]ForeignK
 }
 
 func (s *DbService) ListTableIndexes(dsID, schema, table string) ([]IndexItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	const q = `
 		SELECT i.relname,
@@ -299,11 +341,13 @@ func (s *DbService) ListTableIndexes(dsID, schema, table string) ([]IndexItem, e
 }
 
 func (s *DbService) ListTableChecks(dsID, schema, table string) ([]CheckItem, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	const q = `
 		SELECT cc.constraint_name, cc.check_clause
@@ -365,21 +409,23 @@ func (s *DbService) cacheCompletionsFromMetadata(dsID string, meta DatabaseMetad
 }
 
 // GetCompletions returns all schemas, tables, views, and columns for a datasource.
-// Results are cached in-memory per dsID (cache is invalidated on process restart).
+// Results are cached in-memory per dsID (cache is invalidated when the pool is closed).
 func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {
 	if cached, ok := s.completionCache.Load(dsID); ok {
 		return cached.(*CompletionSet), nil
 	}
 
-	conn, ctx, cleanup, err := s.openConn(dsID, 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	var entries []CompletionEntry
 
-	// Schemas — must close before next query on the same connection.
+	// Schemas
 	schemaRows, err := conn.Query(ctx,
 		`SELECT schema_name FROM information_schema.schemata
 		 WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
@@ -475,11 +521,13 @@ func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {
 const maxQueryRows = 1000
 
 func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return nil, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	start := time.Now()
 	rows, err := conn.Query(ctx, sql)

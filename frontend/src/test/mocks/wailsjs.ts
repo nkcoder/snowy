@@ -19,6 +19,7 @@ export const ListSavedQueries = vi.fn().mockResolvedValue([]);
 export const LoadSavedQuery = vi.fn().mockResolvedValue('SELECT 1;');
 export const DeleteSavedQuery = vi.fn().mockResolvedValue(undefined);
 export const RenameQuery = vi.fn().mockResolvedValue(undefined);
+export const ClosePool = vi.fn().mockResolvedValue(undefined);
 export const GetCompletions = vi.fn().mockResolvedValue({ entries: [] });
 export const GetCachedMetadata = vi.fn().mockResolvedValue({ schemas: [] });
 export const RefreshMetadata = vi.fn().mockResolvedValue({ schemas: [] });

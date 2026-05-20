@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -56,14 +57,16 @@ func (s *DbService) SaveMetadataCache(dsID string, meta DatabaseMetadata) error 
 	return os.WriteFile(path, data, 0644)
 }
 
-// FetchDatabaseMetadata opens a single connection and fetches schemas, tables,
-// columns, keys, foreign keys, indexes, and checks in 7 sequential queries.
+// FetchDatabaseMetadata fetches schemas, tables, columns, keys, foreign keys,
+// indexes, and checks in 7 sequential queries using a pooled connection.
 func (s *DbService) FetchDatabaseMetadata(dsID string) (DatabaseMetadata, error) {
-	conn, ctx, cleanup, err := s.openConn(dsID, 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
 		return DatabaseMetadata{}, err
 	}
-	defer cleanup()
+	defer conn.Release()
 
 	type tableKey struct{ schema, table string }
 	tableMap := make(map[tableKey]*TableMetadata)
