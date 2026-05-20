@@ -154,6 +154,127 @@ func TestListTableChecks_Integration(t *testing.T) {
 	}
 }
 
+// TestCacheCompletionsFromMetadata verifies that cacheCompletionsFromMetadata
+// builds the correct CompletionSet entries and that GetCompletions returns
+// them from cache (no DB call).
+func TestCacheCompletionsFromMetadata(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	cm, err := NewConfigManager()
+	if err != nil {
+		t.Fatalf("NewConfigManager: %v", err)
+	}
+	app := &App{configManager: cm}
+	svc := NewDbService(app)
+
+	meta := DatabaseMetadata{
+		Schemas: []SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []TableMetadata{
+					{
+						Name: "users",
+						Type: "BASE TABLE",
+						Columns: []ColumnItem{
+							{Name: "id", DataType: "integer", KeyType: "pk"},
+							{Name: "email", DataType: "text", KeyType: ""},
+						},
+					},
+					{
+						Name: "v_active",
+						Type: "VIEW",
+						Columns: []ColumnItem{
+							{Name: "user_id", DataType: "integer", KeyType: ""},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	const dsID = "completion-test-ds"
+	svc.cacheCompletionsFromMetadata(dsID, meta)
+
+	raw, ok := svc.completionCache.Load(dsID)
+	if !ok {
+		t.Fatal("completionCache should have an entry after cacheCompletionsFromMetadata")
+	}
+	cs := raw.(*CompletionSet)
+
+	// 1 schema + 1 table + 1 view + 3 columns = 6 entries
+	if len(cs.Entries) != 6 {
+		t.Errorf("expected 6 entries, got %d: %+v", len(cs.Entries), cs.Entries)
+	}
+
+	kinds := map[string]int{}
+	for _, e := range cs.Entries {
+		kinds[e.Kind]++
+	}
+	if kinds["schema"] != 1 {
+		t.Errorf("schema count: want 1, got %d", kinds["schema"])
+	}
+	if kinds["table"] != 1 {
+		t.Errorf("table count: want 1, got %d", kinds["table"])
+	}
+	if kinds["view"] != 1 {
+		t.Errorf("view count: want 1, got %d", kinds["view"])
+	}
+	if kinds["column"] != 3 {
+		t.Errorf("column count: want 3, got %d", kinds["column"])
+	}
+
+	// GetCompletions must return the cached result without opening a DB connection.
+	result, err := svc.GetCompletions(dsID)
+	if err != nil {
+		t.Fatalf("GetCompletions after cacheCompletionsFromMetadata: %v", err)
+	}
+	if len(result.Entries) != 6 {
+		t.Errorf("GetCompletions: expected 6 entries, got %d", len(result.Entries))
+	}
+}
+
+// TestCacheCompletionsFromMetadata_Overwrite verifies that a second call
+// replaces the previous cache entry (stale data is not retained).
+func TestCacheCompletionsFromMetadata_Overwrite(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	cm, err := NewConfigManager()
+	if err != nil {
+		t.Fatalf("NewConfigManager: %v", err)
+	}
+	app := &App{configManager: cm}
+	svc := NewDbService(app)
+
+	const dsID = "overwrite-test-ds"
+
+	first := DatabaseMetadata{
+		Schemas: []SchemaMetadata{{Name: "public", Tables: []TableMetadata{{Name: "old_table", Type: "BASE TABLE"}}}},
+	}
+	svc.cacheCompletionsFromMetadata(dsID, first)
+
+	second := DatabaseMetadata{
+		Schemas: []SchemaMetadata{{Name: "public", Tables: []TableMetadata{
+			{Name: "new_table", Type: "BASE TABLE"},
+			{Name: "another_table", Type: "BASE TABLE"},
+		}}},
+	}
+	svc.cacheCompletionsFromMetadata(dsID, second)
+
+	result, err := svc.GetCompletions(dsID)
+	if err != nil {
+		t.Fatalf("GetCompletions: %v", err)
+	}
+	// 1 schema + 2 tables = 3 entries (stale old_table must be gone)
+	if len(result.Entries) != 3 {
+		t.Errorf("expected 3 entries after overwrite, got %d", len(result.Entries))
+	}
+	for _, e := range result.Entries {
+		if e.Name == "old_table" {
+			t.Error("stale 'old_table' entry still present after cache overwrite")
+		}
+	}
+}
+
 func TestListTableKeys_EmptyTable(t *testing.T) {
 	app, dsID := newTestApp(t)
 
