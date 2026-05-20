@@ -464,6 +464,25 @@ export function ConnectionForm({
             gap: 4,
           }}
         >
+          {/* Keychain migration banner */}
+          {initial.needsKeychainMigration && (
+            <div
+              data-testid="keychain-migration-banner"
+              style={{
+                margin: '0 24px 8px',
+                padding: '8px 12px',
+                background: `${T.warn}18`,
+                border: `0.5px solid ${T.warn}66`,
+                borderRadius: 5,
+                fontSize: 11.5,
+                color: T.warn,
+                lineHeight: 1.5,
+              }}
+            >
+              Password stored insecurely — please re-enter and save to migrate to the macOS Keychain.
+            </div>
+          )}
+
           {/* Name + Environment */}
           <FormRow label="Name">
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

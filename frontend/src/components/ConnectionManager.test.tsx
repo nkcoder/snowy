@@ -320,6 +320,22 @@ describe('ConnectionForm', () => {
     await userEvent.type(screen.getByTestId('field-host'), 'myserver');
     expect(screen.getByText(/myserver/)).toBeInTheDocument();
   });
+
+  it('shows keychain migration banner when needsKeychainMigration is true', () => {
+    render(<ConnectionForm {...defaultProps} initial={{ needsKeychainMigration: true }} />);
+    expect(screen.getByTestId('keychain-migration-banner')).toBeInTheDocument();
+    expect(screen.getByText(/re-enter and save/)).toBeInTheDocument();
+  });
+
+  it('does not show keychain migration banner when needsKeychainMigration is false', () => {
+    render(<ConnectionForm {...defaultProps} initial={{ needsKeychainMigration: false }} />);
+    expect(screen.queryByTestId('keychain-migration-banner')).not.toBeInTheDocument();
+  });
+
+  it('does not show keychain migration banner for new connections', () => {
+    render(<ConnectionForm {...defaultProps} initial={{}} />);
+    expect(screen.queryByTestId('keychain-migration-banner')).not.toBeInTheDocument();
+  });
 });
 
 // ── ConnectionManager ──────────────────────────────────────────────────────────

@@ -95,6 +95,7 @@ export namespace main {
 	    projectId: string;
 	    env: string;
 	    sslMode: string;
+	    needsKeychainMigration?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Datasource(source);
@@ -112,6 +113,7 @@ export namespace main {
 	        this.projectId = source["projectId"];
 	        this.env = source["env"];
 	        this.sslMode = source["sslMode"];
+	        this.needsKeychainMigration = source["needsKeychainMigration"];
 	    }
 	}
 	export class Project {

@@ -60,7 +60,8 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	poolCfg.ConnConfig.Password = ds.Password
+	password, _ := s.app.configManager.GetDatasourcePassword(dsID)
+	poolCfg.ConnConfig.Password = password
 	poolCfg.MaxConns = 5
 	poolCfg.MinConns = 0
 	poolCfg.MaxConnIdleTime = 5 * time.Minute
