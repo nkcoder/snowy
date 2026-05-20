@@ -174,6 +174,9 @@ func TestUpdateDatasource_HappyPath(t *testing.T) {
 		t.Fatalf("UpdateDatasource: %v", err)
 	}
 	cfg, _ := cm.LoadConfig()
+	if len(cfg.Datasources) != 1 {
+		t.Fatalf("datasource count changed: %d", len(cfg.Datasources))
+	}
 	d := cfg.Datasources[0]
 	if d.Name != "new-name" || d.Host != "new-host" || d.Port != 5433 || d.Env != "prod" || d.SSLMode != "require" {
 		t.Errorf("datasource not updated: %+v", d)
@@ -229,7 +232,9 @@ func TestUpdateDatasource_OnlyMatchingIDChanged(t *testing.T) {
 		},
 	})
 
-	_ = cm.UpdateDatasource(Datasource{ID: "d1", Name: "updated", Host: "h1-new", Port: 5432, Database: "db1", ProjectID: "p1", Env: "stg", SSLMode: "require"})
+	if err := cm.UpdateDatasource(Datasource{ID: "d1", Name: "updated", Host: "h1-new", Port: 5432, Database: "db1", ProjectID: "p1", Env: "stg", SSLMode: "require"}); err != nil {
+		t.Fatalf("UpdateDatasource: %v", err)
+	}
 
 	cfg, _ := cm.LoadConfig()
 	var d1, d2 Datasource

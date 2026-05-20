@@ -12,7 +12,7 @@ export interface Datasource {
   port: number;
   database: string;
   username: string;
-  password: string;
+  password?: string;
   projectId: string;
   env: string; // local | dev | stg | prod
   sslMode: string; // disable | require | verify-ca | verify-full
