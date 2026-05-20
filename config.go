@@ -265,3 +265,15 @@ func (cm *ConfigManager) UpdateDatasource(ds Datasource) error {
 func (cm *ConfigManager) GetDatasourcePassword(dsID string) (string, error) {
 	return cm.keyring.Get(keychainService, dsID)
 }
+
+// GetEffectivePassword returns the best available password for dsID:
+// the Keychain entry if one exists, otherwise the legacy plaintext held in
+// memory for unmigrated datasources.
+func (cm *ConfigManager) GetEffectivePassword(dsID string) string {
+	if pw, err := cm.keyring.Get(keychainService, dsID); err == nil {
+		return pw
+	}
+	cm.legacyMu.Lock()
+	defer cm.legacyMu.Unlock()
+	return cm.legacyPasswords[dsID]
+}

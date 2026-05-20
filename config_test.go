@@ -534,6 +534,34 @@ func TestGetDatasourcePassword(t *testing.T) {
 	}
 }
 
+func TestGetEffectivePassword_PrefersKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	_ = kr.Set(keychainService, "ds-1", "keychain-pw")
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cm.legacyPasswords["ds-1"] = "legacy-pw"
+
+	if got := cm.GetEffectivePassword("ds-1"); got != "keychain-pw" {
+		t.Errorf("got %q, want keychain-pw", got)
+	}
+}
+
+func TestGetEffectivePassword_FallsBackToLegacy(t *testing.T) {
+	kr := newMockKeyring() // no keychain entry
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cm.legacyPasswords["ds-1"] = "legacy-pw"
+
+	if got := cm.GetEffectivePassword("ds-1"); got != "legacy-pw" {
+		t.Errorf("got %q, want legacy-pw", got)
+	}
+}
+
+func TestGetEffectivePassword_EmptyWhenNeitherExists(t *testing.T) {
+	cm := newTestConfigManager(t)
+	if got := cm.GetEffectivePassword("ds-unknown"); got != "" {
+		t.Errorf("got %q, want empty string", got)
+	}
+}
+
 // Cycle 7: SaveConfig deletes keychain entry when datasource is removed
 func TestSaveConfig_DeletesKeychainEntryForRemovedDatasource(t *testing.T) {
 	kr := newMockKeyring()
