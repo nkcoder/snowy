@@ -16,5 +16,4 @@ export interface Datasource {
   projectId: string;
   env: string; // local | dev | stg | prod
   sslMode: string; // disable | require | verify-ca | verify-full
-  needsKeychainMigration?: boolean; // true when a legacy plaintext password exists in config.json
 }
