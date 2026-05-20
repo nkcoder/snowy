@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -99,6 +100,9 @@ func TestSaveAndLoadConfig_RoundTrip(t *testing.T) {
 	if len(got.Projects) != 2 {
 		t.Errorf("projects: got %d, want 2", len(got.Projects))
 	}
+	if len(got.Datasources) != 1 {
+		t.Fatalf("datasources: got %d, want 1", len(got.Datasources))
+	}
 	d := got.Datasources[0]
 	if d.Host != "localhost" || d.Port != 5432 || d.SSLMode != "disable" || d.Env != "local" {
 		t.Errorf("datasource fields wrong: %+v", d)
@@ -131,7 +135,7 @@ func TestSaveConfig_PasswordNeverWrittenToDisk(t *testing.T) {
 		t.Fatalf("SaveConfig: %v", err)
 	}
 	raw, _ := os.ReadFile(cm.configPath)
-	if containsStr(string(raw), "secret") {
+	if strings.Contains(string(raw), "secret") {
 		t.Error("plaintext password must not appear in config.json")
 	}
 }
@@ -352,11 +356,3 @@ func TestConcurrentUpdateDatasource(t *testing.T) {
 	}
 }
 
-func containsStr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

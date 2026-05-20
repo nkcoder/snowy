@@ -15,7 +15,7 @@ type Datasource struct {
 	Port      int    `json:"port"`
 	Database  string `json:"database"`
 	Username  string `json:"username"`
-	Password  string `json:"password"` // transient: sent by frontend when saving; never written to disk
+	Password  string `json:"password,omitempty"` // transient: sent by frontend when saving; never written to disk
 	ProjectID string `json:"projectId"`
 	Env       string `json:"env"`     // local | dev | stg | prod
 	SSLMode   string `json:"sslMode"` // disable | require | verify-ca | verify-full
