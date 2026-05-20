@@ -301,9 +301,9 @@ describe('ConnectionForm', () => {
     expect(screen.getByTestId('field-name')).toHaveValue('existing');
   });
 
-  it('shows Unsaved badge for new datasource', () => {
+  it('shows New Data Source heading for new datasource', () => {
     render(<ConnectionForm {...defaultProps} initial={{}} />);
-    expect(screen.getByText('Unsaved')).toBeInTheDocument();
+    expect(screen.getByText('New Data Source')).toBeInTheDocument();
   });
 
   it('Options tab shows placeholder; SSL tab shows ssl field', async () => {
@@ -365,7 +365,7 @@ describe('ConnectionManager', () => {
     renderManager({ datasources: [ds] });
     await userEvent.click(screen.getByTestId('btn-add-connection'));
     expect(screen.getByTestId('connection-form')).toBeInTheDocument();
-    expect(screen.getByText('Unsaved')).toBeInTheDocument();
+    expect(screen.getByText('New Data Source')).toBeInTheDocument();
   });
 
   it('Duplicate button copies selected datasource', async () => {
@@ -442,10 +442,10 @@ describe('ConnectionManager', () => {
     const ds = makeDs();
     renderManager({ datasources: [ds] });
     await userEvent.click(screen.getByTestId('btn-add-connection'));
-    expect(screen.getByText('Unsaved')).toBeInTheDocument();
+    expect(screen.getByText('New Data Source')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('btn-cancel'));
     // After cancel with existing ds, form closes
-    expect(screen.queryByText('Unsaved')).not.toBeInTheDocument();
+    expect(screen.queryByText('New Data Source')).not.toBeInTheDocument();
   });
 
   it('Test connection calls GoApp.TestDatasource with sslMode', async () => {
