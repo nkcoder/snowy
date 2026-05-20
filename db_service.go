@@ -336,6 +336,34 @@ func (s *DbService) ListTableChecks(dsID, schema, table string) ([]CheckItem, er
 	return items, nil
 }
 
+// cacheCompletionsFromMetadata builds a CompletionSet from already-fetched
+// DatabaseMetadata and stores it in completionCache, replacing any stale entry.
+// Called by RefreshMetadata so completions stay in sync with no extra DB call.
+func (s *DbService) cacheCompletionsFromMetadata(dsID string, meta DatabaseMetadata) {
+	entries := make([]CompletionEntry, 0)
+	for _, schema := range meta.Schemas {
+		entries = append(entries, CompletionEntry{Kind: "schema", Name: schema.Name})
+		for _, table := range schema.Tables {
+			kind := "table"
+			if table.Type == "VIEW" {
+				kind = "view"
+			}
+			entries = append(entries, CompletionEntry{Kind: kind, Schema: schema.Name, Name: table.Name})
+			for _, col := range table.Columns {
+				entries = append(entries, CompletionEntry{
+					Kind:     "column",
+					Schema:   schema.Name,
+					Table:    table.Name,
+					Name:     col.Name,
+					DataType: col.DataType,
+					KeyType:  col.KeyType,
+				})
+			}
+		}
+	}
+	s.completionCache.Store(dsID, &CompletionSet{Entries: entries})
+}
+
 // GetCompletions returns all schemas, tables, views, and columns for a datasource.
 // Results are cached in-memory per dsID (cache is invalidated on process restart).
 func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {

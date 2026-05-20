@@ -141,12 +141,15 @@ func (a *App) GetCachedMetadata(dsID string) (DatabaseMetadata, error) {
 
 // RefreshMetadata fetches fresh DatabaseMetadata from the DB, saves it to the
 // local cache at ~/.snowy/cache/<dsID>.json, and returns it.
+// It also rebuilds the in-memory completion cache from the fresh metadata so
+// that GetCompletions returns up-to-date results without an extra DB call.
 func (a *App) RefreshMetadata(dsID string) (DatabaseMetadata, error) {
 	meta, err := a.dbService.FetchDatabaseMetadata(dsID)
 	if err != nil {
 		return DatabaseMetadata{}, err
 	}
 	_ = a.dbService.SaveMetadataCache(dsID, meta)
+	a.dbService.cacheCompletionsFromMetadata(dsID, meta)
 	return meta, nil
 }
 

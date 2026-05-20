@@ -174,6 +174,14 @@ function App() {
       setMetadataByDs((prev) => ({ ...prev, [dsId]: fresh }));
     } catch (err) {
       console.warn('RefreshMetadata failed', err);
+      return;
+    }
+    // RefreshMetadata rebuilt the backend completion cache; fetch it to sync the editor.
+    try {
+      const data = await GoApp.GetCompletions(dsId);
+      setCompletions((data?.entries ?? []) as CompletionEntry[]);
+    } catch (err) {
+      console.warn('GetCompletions refresh failed', err);
     }
   };
 
