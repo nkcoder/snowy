@@ -472,4 +472,3 @@ func TestConcurrentUpdateDatasource(t *testing.T) {
 		t.Errorf("unexpected state after concurrent updates: err=%v, ds=%d", err, len(cfg.Datasources))
 	}
 }
-
