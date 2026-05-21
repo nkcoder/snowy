@@ -395,9 +395,7 @@ export function ConnectionForm({
           padding: '6px 24px',
           gap: 8,
           borderBottom: `0.5px solid ${T.divider}`,
-          background: isNew
-            ? `color-mix(in srgb, ${T.panel} 80%, var(--t-accent))`
-            : T.panelAlt,
+          background: isNew ? `color-mix(in srgb, ${T.panel} 80%, var(--t-accent))` : T.panelAlt,
           flexShrink: 0,
         }}
       >

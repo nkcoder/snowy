@@ -561,13 +561,13 @@ export function Sidebar({
             i !== idx
               ? s
               : {
-                ...s,
-                expanded: true,
-                loaded: true,
-                tables: tables.map((t) =>
-                  makeTableNode(t.name, t.type === 'VIEW' ? 'view' : 'table')
-                ),
-              }
+                  ...s,
+                  expanded: true,
+                  loaded: true,
+                  tables: tables.map((t) =>
+                    makeTableNode(t.name, t.type === 'VIEW' ? 'view' : 'table')
+                  ),
+                }
           ),
         }));
       } catch (err) {
@@ -593,9 +593,9 @@ export function Sidebar({
         si !== schemaIdx
           ? s
           : {
-            ...s,
-            tables: s.tables.map((t, ti) => (ti !== tableIdx ? t : { ...t, ...patch })),
-          }
+              ...s,
+              tables: s.tables.map((t, ti) => (ti !== tableIdx ? t : { ...t, ...patch })),
+            }
       ),
     }));
   };
@@ -617,25 +617,25 @@ export function Sidebar({
               si !== schemaIdx
                 ? s
                 : {
-                  ...s,
-                  tables: s.tables.map((t, ti) =>
-                    ti !== tableIdx
-                      ? t
-                      : {
-                        ...t,
-                        columns: {
-                          open: true,
-                          loaded: true,
-                          items: (cols ?? []).map((c) => ({
-                            name: c.name,
-                            dataType: c.dataType,
-                            isNullable: c.isNullable,
-                            keyType: c.keyType ?? '',
-                          })),
-                        },
-                      }
-                  ),
-                }
+                    ...s,
+                    tables: s.tables.map((t, ti) =>
+                      ti !== tableIdx
+                        ? t
+                        : {
+                            ...t,
+                            columns: {
+                              open: true,
+                              loaded: true,
+                              items: (cols ?? []).map((c) => ({
+                                name: c.name,
+                                dataType: c.dataType,
+                                isNullable: c.isNullable,
+                                keyType: c.keyType ?? '',
+                              })),
+                            },
+                          }
+                    ),
+                  }
             ),
           }));
         } catch (err) {
@@ -708,12 +708,12 @@ export function Sidebar({
     // Filter schemas by search
     const filteredSchemas = search.trim()
       ? schemas
-        .map((s) => ({
-          ...s,
-          expanded: true,
-          tables: s.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
-        }))
-        .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.tables.length > 0)
+          .map((s) => ({
+            ...s,
+            expanded: true,
+            tables: s.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
+          }))
+          .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.tables.length > 0)
       : schemas;
 
     return (
@@ -897,7 +897,14 @@ export function Sidebar({
                                             }
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 600, color: T.text }}>
+                                                <span
+                                                  style={{
+                                                    fontFamily: T.mono,
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    color: T.text,
+                                                  }}
+                                                >
                                                   {col.name}
                                                 </span>
                                                 <span
@@ -1254,7 +1261,14 @@ export function Sidebar({
                                             icon={<Eye size={13} color={T.textDim} />}
                                             label={
                                               <span>
-                                                <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 600, color: T.text }}>
+                                                <span
+                                                  style={{
+                                                    fontFamily: T.mono,
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    color: T.text,
+                                                  }}
+                                                >
                                                   {col.name}
                                                 </span>
                                                 <span

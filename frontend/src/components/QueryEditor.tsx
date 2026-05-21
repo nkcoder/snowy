@@ -4,13 +4,11 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete';
-import Fuse from 'fuse.js';
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { tags as t } from '@lezer/highlight';
 import {
   EditorView,
   highlightActiveLine,
@@ -18,6 +16,8 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view';
+import { tags as t } from '@lezer/highlight';
+import Fuse from 'fuse.js';
 import { Clock, Play, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { T } from '../lib/tokens';
@@ -42,17 +42,17 @@ interface QueryEditorProps {
 
 // DataGrip-inspired syntax colors — overrides oneDark via Prec.high.
 const snowySqlHighlight = HighlightStyle.define([
-  { tag: t.keyword,                   color: '#56B6C2' },           // teal — SELECT, FROM, WHERE …
-  { tag: t.name,                      color: '#D19A66' },           // orange — table / column names
-  { tag: t.variableName,              color: '#D19A66' },
-  { tag: t.propertyName,              color: '#D19A66' },
-  { tag: t.special(t.name),          color: '#E5C07B' },           // gold — function calls
-  { tag: t.string,                    color: '#98C379' },           // green — string literals
-  { tag: t.number,                    color: '#B5CEA8' },           // light green — numbers
-  { tag: t.operator,                  color: '#ABB2BF' },
-  { tag: t.punctuation,               color: '#ABB2BF' },
-  { tag: t.comment,                   color: '#6A9955', fontStyle: 'italic' },
-  { tag: t.typeName,                  color: '#56B6C2' },           // teal — INT, VARCHAR …
+  { tag: t.keyword, color: '#56B6C2' }, // teal — SELECT, FROM, WHERE …
+  { tag: t.name, color: '#D19A66' }, // orange — table / column names
+  { tag: t.variableName, color: '#D19A66' },
+  { tag: t.propertyName, color: '#D19A66' },
+  { tag: t.special(t.name), color: '#E5C07B' }, // gold — function calls
+  { tag: t.string, color: '#98C379' }, // green — string literals
+  { tag: t.number, color: '#B5CEA8' }, // light green — numbers
+  { tag: t.operator, color: '#ABB2BF' },
+  { tag: t.punctuation, color: '#ABB2BF' },
+  { tag: t.comment, color: '#6A9955', fontStyle: 'italic' },
+  { tag: t.typeName, color: '#56B6C2' }, // teal — INT, VARCHAR …
 ]);
 
 // Static CodeMirror theme matched to SnowyDark tokens.
@@ -273,9 +273,26 @@ export function extractFromTables(stmtText: string): string[] {
 }
 
 const ALIAS_RESERVED = new Set([
-  'on', 'where', 'set', 'order', 'group', 'having', 'limit', 'offset',
-  'inner', 'left', 'right', 'full', 'cross', 'join', 'and', 'or',
-  'returning', 'union', 'intersect', 'except',
+  'on',
+  'where',
+  'set',
+  'order',
+  'group',
+  'having',
+  'limit',
+  'offset',
+  'inner',
+  'left',
+  'right',
+  'full',
+  'cross',
+  'join',
+  'and',
+  'or',
+  'returning',
+  'union',
+  'intersect',
+  'except',
 ]);
 
 export function extractAliasMap(stmtText: string): Map<string, string> {
@@ -299,7 +316,8 @@ export function extractAliasMap(stmtText: string): Map<string, string> {
       addEntry(tokens[0], aliasToken);
     });
   }
-  const joinRe = /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/gi;
+  const joinRe =
+    /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/gi;
   for (const m of stmtText.matchAll(joinRe)) {
     addEntry(m[1], m[2]);
   }
@@ -317,8 +335,13 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   // Qualified reference: alias.col or schema.table — dispatch on position
   const qualifiedMatch = beforeWord.match(/(\w+)\.\s*$/i);
   if (qualifiedMatch) {
-    const upperBefore = beforeWord.slice(0, beforeWord.length - qualifiedMatch[0].length).toUpperCase();
-    if (/\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upperBefore) || /\bUPDATE\s*$/.test(upperBefore)) {
+    const upperBefore = beforeWord
+      .slice(0, beforeWord.length - qualifiedMatch[0].length)
+      .toUpperCase();
+    if (
+      /\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upperBefore) ||
+      /\bUPDATE\s*$/.test(upperBefore)
+    ) {
       return { kind: 'table' };
     }
     const qualifier = qualifiedMatch[1].toLowerCase();
@@ -471,7 +494,10 @@ export function QueryEditor({
       const fullText = context.state.doc.toString();
       const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
       const stmtEndIdx = fullText.indexOf(';', context.pos);
-      const stmtFull = fullText.slice(stmtStart, stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1);
+      const stmtFull = fullText.slice(
+        stmtStart,
+        stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1
+      );
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord)) return null;
       const ctx = detectSqlContext(beforeWord, stmtFull);
@@ -511,9 +537,7 @@ export function QueryEditor({
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
-        Prec.high(keymap.of([
-          { key: 'Enter', run: insertNewline },
-        ])),
+        Prec.high(keymap.of([{ key: 'Enter', run: insertNewline }])),
         keymap.of([
           { key: 'Mod-Enter', run: runCmd },
           { key: 'Ctrl-Enter', run: runCmd },

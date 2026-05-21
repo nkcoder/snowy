@@ -11,8 +11,8 @@ import (
 
 type DbService struct {
 	app             *App
-	completionCache sync.Map  // dsID → *CompletionSet
-	pools           sync.Map  // dsID → *pgxpool.Pool
+	completionCache sync.Map // dsID → *CompletionSet
+	pools           sync.Map // dsID → *pgxpool.Pool
 	poolMu          sync.Mutex
 }
 
