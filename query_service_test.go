@@ -137,6 +137,36 @@ func TestRenameQuery(t *testing.T) {
 	}
 }
 
+func TestLoadSavedQuery_FileNotFound(t *testing.T) {
+	_, cleanup := setupQueriesDir(t)
+	defer cleanup()
+
+	_, err := LoadSavedQuery("ds-1", "nonexistent.sql")
+	if err == nil {
+		t.Error("expected error loading nonexistent query file")
+	}
+}
+
+func TestDeleteSavedQuery_FileNotFound(t *testing.T) {
+	_, cleanup := setupQueriesDir(t)
+	defer cleanup()
+
+	err := DeleteSavedQuery("ds-1", "nonexistent.sql")
+	if err == nil {
+		t.Error("expected error deleting nonexistent query file")
+	}
+}
+
+func TestRenameQuery_SourceNotFound(t *testing.T) {
+	_, cleanup := setupQueriesDir(t)
+	defer cleanup()
+
+	err := RenameQuery("ds-1", "ghost.sql", "new.sql")
+	if err == nil {
+		t.Error("expected error renaming nonexistent query file")
+	}
+}
+
 func TestSaveQuery_RejectsPathTraversal(t *testing.T) {
 	_, cleanup := setupQueriesDir(t)
 	defer cleanup()

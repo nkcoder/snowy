@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
@@ -46,5 +46,10 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
 
-      - name: Backend tests
-        run: go test ./...
+      - name: Backend tests with coverage
+        run: go test -coverprofile=coverage.out .
+
+      - name: Backend coverage gate (≥80%)
+        run: |
+          go tool cover -func=coverage.out | \
+          awk '/^total:/ { sub(/%/,""); if ($3+0 < 80) { print "FAIL: Go coverage "$3"% < 80%"; exit 1 } }'

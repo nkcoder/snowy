@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -11,28 +14,49 @@ import (
 //
 // The demo DB from docker/docker-compose-postgresql.yml satisfies this.
 
+// parseDSN extracts connection parameters from a Postgres URL like
+// postgres://user:pass@host:port/dbname?sslmode=disable
+func parseDSN(t *testing.T, rawURL string) (host string, port int, user, pass, dbname string) {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse TEST_DB_URL %q: %v", rawURL, err)
+	}
+	host = u.Hostname()
+	port = 5432
+	if p := u.Port(); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			port = n
+		}
+	}
+	user = u.User.Username()
+	pass, _ = u.User.Password()
+	dbname = strings.TrimPrefix(u.Path, "/")
+	return
+}
+
 func newTestApp(t *testing.T) (*App, string) {
 	t.Helper()
-	if os.Getenv("TEST_DB_URL") == "" {
+	dbURL := os.Getenv("TEST_DB_URL")
+	if dbURL == "" {
 		t.Skip("TEST_DB_URL not set — skipping DB integration test")
 	}
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
+	t.Setenv("HOME", t.TempDir())
 
-	cm, err := NewConfigManager()
-	if err != nil {
-		t.Fatalf("NewConfigManager: %v", err)
-	}
+	host, port, user, pass, dbname := parseDSN(t, dbURL)
+
+	// Use mockKeyring to avoid real macOS Keychain / Linux secretservice dialogs.
+	cm := newTestConfigManagerWithKeyring(t, newMockKeyring())
 	dsID := "test-ds"
 	if err := cm.SaveConfig(Config{
 		Datasources: []Datasource{{
 			ID:       dsID,
 			Name:     "test",
-			Host:     "localhost",
-			Port:     5432,
-			Database: "mydatabase",
-			Username: "myuser",
-			Password: "mypassword",
+			Host:     host,
+			Port:     port,
+			Database: dbname,
+			Username: user,
+			Password: pass,
 			SSLMode:  "disable",
 		}},
 	}); err != nil {
