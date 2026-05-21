@@ -20,6 +20,14 @@ export default defineConfig({
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
+      // Thresholds established in issue #51. Start at achieved baseline;
+      // raise incrementally as ConnectionManager/Sidebar/QueryEditor tests are added.
+      thresholds: {
+        lines: 89,
+        functions: 86,
+        branches: 80,
+        statements: 87,
+      },
     },
   },
 });

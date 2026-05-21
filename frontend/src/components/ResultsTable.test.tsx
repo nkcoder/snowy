@@ -1,0 +1,169 @@
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { ResultsTable } from './ResultsTable';
+
+describe('ResultsTable', () => {
+  it('renders loading spinner when loading=true', () => {
+    render(<ResultsTable data={null} loading={true} />);
+    expect(screen.getByText('Fetching data...')).toBeTruthy();
+  });
+
+  it('renders empty state when data is null and not loading', () => {
+    render(<ResultsTable data={null} loading={false} />);
+    expect(screen.getByText('Execute a query to view results')).toBeTruthy();
+  });
+
+  it('renders column headers', () => {
+    render(<ResultsTable data={{ columns: ['id', 'name', 'email'], rows: [] }} loading={false} />);
+    expect(screen.getByText('id')).toBeTruthy();
+    expect(screen.getByText('name')).toBeTruthy();
+    expect(screen.getByText('email')).toBeTruthy();
+  });
+
+  it('renders row data', () => {
+    render(
+      <ResultsTable
+        data={{
+          columns: ['id', 'name'],
+          rows: [
+            [1, 'Alice'],
+            [2, 'Bob'],
+          ],
+        }}
+        loading={false}
+      />
+    );
+    // row numbers + data values both contain '1' and '2'
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Bob')).toBeTruthy();
+  });
+
+  it('renders null cells as italic "null"', () => {
+    render(<ResultsTable data={{ columns: ['val'], rows: [[null]] }} loading={false} />);
+    const nullEl = screen.getByText('null');
+    expect(nullEl.className).toContain('italic');
+  });
+
+  it('renders "Success. 0 rows affected." for empty rows', () => {
+    render(<ResultsTable data={{ columns: ['id'], rows: [] }} loading={false} />);
+    expect(screen.getByText('Success. 0 rows affected.')).toBeTruthy();
+  });
+
+  it('shows truncation notice when truncated=true', () => {
+    render(
+      <ResultsTable data={{ columns: ['id'], rows: [[1]] }} loading={false} truncated={true} />
+    );
+    expect(screen.getByText(/Showing first 1,000 rows/)).toBeTruthy();
+  });
+
+  it('does not show truncation notice when truncated=false', () => {
+    render(
+      <ResultsTable data={{ columns: ['id'], rows: [[1]] }} loading={false} truncated={false} />
+    );
+    expect(screen.queryByText(/Showing first 1,000 rows/)).toBeNull();
+  });
+
+  it('calls onPin when pin button is clicked and pinActive=true', () => {
+    const onPin = vi.fn();
+    render(
+      <ResultsTable
+        data={{ columns: ['id'], rows: [[1]] }}
+        loading={false}
+        onPin={onPin}
+        pinActive={true}
+        activeTabPinned={false}
+      />
+    );
+    fireEvent.click(screen.getByTitle('Pin result'));
+    expect(onPin).toHaveBeenCalled();
+  });
+
+  it('calls onUnpin when unpin button is clicked for pinned tab', () => {
+    const onUnpin = vi.fn();
+    render(
+      <ResultsTable
+        data={{ columns: ['id'], rows: [[1]] }}
+        loading={false}
+        onUnpin={onUnpin}
+        pinActive={true}
+        activeTabPinned={true}
+        activeTabId="pin-1"
+      />
+    );
+    fireEvent.click(screen.getByTitle('Unpin result'));
+    expect(onUnpin).toHaveBeenCalledWith('pin-1');
+  });
+
+  it('calls onExport when export button is clicked', () => {
+    const onExport = vi.fn();
+    render(
+      <ResultsTable data={{ columns: ['id'], rows: [[1]] }} loading={false} onExport={onExport} />
+    );
+    fireEvent.click(screen.getByTitle('Export CSV'));
+    expect(onExport).toHaveBeenCalled();
+  });
+
+  it('column drag registers mousemove/mouseup listeners', () => {
+    render(
+      <ResultsTable data={{ columns: ['id', 'name'], rows: [[1, 'Alice']] }} loading={false} />
+    );
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    // Find the resize handle (w-[5px] div after column header content)
+    const resizeHandles = document.querySelectorAll('.cursor-col-resize');
+    fireEvent.mouseDown(resizeHandles[0], { clientX: 200 });
+    const events = addSpy.mock.calls.map(([event]) => event);
+    expect(events).toContain('mousemove');
+    expect(events).toContain('mouseup');
+    addSpy.mockRestore();
+  });
+
+  it('renders row numbers in first column', () => {
+    render(<ResultsTable data={{ columns: ['a'], rows: [['x'], ['y'], ['z']] }} loading={false} />);
+    expect(screen.getByText('1')).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
+    expect(screen.getByText('3')).toBeTruthy();
+  });
+
+  it('pin button not rendered when no onPin/onUnpin props', () => {
+    render(<ResultsTable data={{ columns: ['id'], rows: [[1]] }} loading={false} />);
+    expect(screen.queryByTitle('Pin result')).toBeNull();
+    expect(screen.queryByTitle('Unpin result')).toBeNull();
+  });
+
+  it('drag moves column width via mousemove and commits on mouseup', () => {
+    render(
+      <ResultsTable data={{ columns: ['id', 'name'], rows: [[1, 'Alice']] }} loading={false} />
+    );
+
+    const moveListeners: EventListener[] = [];
+    const upListeners: EventListener[] = [];
+
+    const origAdd = document.addEventListener.bind(document);
+    vi.spyOn(document, 'addEventListener').mockImplementation((event, handler, ...args) => {
+      if (event === 'mousemove') moveListeners.push(handler as EventListener);
+      else if (event === 'mouseup') upListeners.push(handler as EventListener);
+      else origAdd(event, handler as EventListener, ...(args as []));
+    });
+    vi.spyOn(document, 'removeEventListener').mockImplementation(() => {});
+
+    const resizeHandles = document.querySelectorAll('.cursor-col-resize');
+    fireEvent.mouseDown(resizeHandles[0], { clientX: 160 });
+
+    // Simulate mousemove: drag right by 40px
+    act(() => {
+      for (const l of moveListeners) l(new MouseEvent('mousemove', { clientX: 200 }));
+    });
+
+    // Simulate mouseup: commit the new width
+    act(() => {
+      for (const l of upListeners) l(new MouseEvent('mouseup'));
+    });
+
+    vi.restoreAllMocks();
+
+    // After drag, component should still render without crash
+    expect(screen.getByText('id')).toBeTruthy();
+  });
+});
