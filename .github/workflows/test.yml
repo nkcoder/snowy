@@ -33,6 +33,10 @@ jobs:
         run: npm run test:coverage
         working-directory: frontend
 
+      - name: Build frontend (required for go:embed)
+        run: npm run build
+        working-directory: frontend
+
       - name: Go fmt check
         run: test -z "$(gofmt -l .)"
 
