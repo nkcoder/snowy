@@ -55,6 +55,16 @@ type ConfigManager struct {
 	configPath string
 	mu         sync.RWMutex
 	keyring    KeyringStore
+	// notify, if set, surfaces non-fatal warnings to the user (e.g. a failed
+	// Keychain cleanup that does not block the primary operation).
+	// level is "warning" or "error".
+	notify func(level, message string)
+}
+
+func (cm *ConfigManager) warn(format string, args ...any) {
+	if cm.notify != nil {
+		cm.notify("warning", fmt.Sprintf(format, args...))
+	}
 }
 
 func NewConfigManager() (*ConfigManager, error) {
@@ -115,11 +125,20 @@ func (cm *ConfigManager) LoadConfig() (Config, error) {
 	return Config{Projects: raw.Projects, Datasources: datasources, Theme: raw.Theme}, nil
 }
 
+// SaveConfig writes the full config and syncs the Keychain.
+//
+// Ordering: file is written first. If the file write fails, no Keychain change
+// is made (consistent state). If the file write succeeds but a Keychain write
+// fails, the connection exists in the file but its password is missing — the
+// user sees a clear error and can recover by re-saving from the editor.
+//
+// Keychain cleanup of removed datasources is non-fatal: an orphaned Keychain
+// entry is harmless. Cleanup failures are surfaced via the notify callback.
 func (cm *ConfigManager) SaveConfig(config Config) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	// Delete keychain entries for removed datasources.
+	// Snapshot the previous file so we can diff for removed datasources later.
 	var existing configFile
 	if data, err := os.ReadFile(cm.configPath); err == nil {
 		_ = json.Unmarshal(data, &existing)
@@ -128,17 +147,10 @@ func (cm *ConfigManager) SaveConfig(config Config) error {
 	for _, ds := range config.Datasources {
 		incoming[ds.ID] = true
 	}
-	for _, rec := range existing.Datasources {
-		if !incoming[rec.ID] {
-			_ = cm.keyring.Delete(keychainService, rec.ID)
-		}
-	}
 
+	// Build on-disk records (passwords stripped).
 	records := make([]datasourceRecord, len(config.Datasources))
 	for i, ds := range config.Datasources {
-		if ds.Password != "" {
-			_ = cm.keyring.Set(keychainService, ds.ID, ds.Password)
-		}
 		records[i] = datasourceRecord{
 			ID: ds.ID, Name: ds.Name, Host: ds.Host, Port: ds.Port,
 			Database: ds.Database, Username: ds.Username, ProjectID: ds.ProjectID,
@@ -146,12 +158,36 @@ func (cm *ConfigManager) SaveConfig(config Config) error {
 		}
 	}
 
+	// 1. Write the file. If this fails the Keychain remains untouched.
 	out := configFile{Projects: config.Projects, Datasources: records, Theme: config.Theme}
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("encode config: %w", err)
 	}
-	return os.WriteFile(cm.configPath, data, 0644)
+	if err := os.WriteFile(cm.configPath, data, 0644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+
+	// 2. Store any non-empty passwords in the Keychain (fatal — these are the
+	// credentials needed to connect).
+	for _, ds := range config.Datasources {
+		if ds.Password == "" {
+			continue
+		}
+		if err := cm.keyring.Set(keychainService, ds.ID, ds.Password); err != nil {
+			return fmt.Errorf("connection %q saved but password could not be stored in macOS Keychain: %w", ds.Name, err)
+		}
+	}
+
+	// 3. Clean up Keychain entries for removed datasources (non-fatal).
+	for _, rec := range existing.Datasources {
+		if !incoming[rec.ID] {
+			if err := cm.keyring.Delete(keychainService, rec.ID); err != nil {
+				cm.warn("Could not remove Keychain entry for deleted connection %q: %v", rec.Name, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (cm *ConfigManager) GetConfigPath() string {
@@ -159,24 +195,20 @@ func (cm *ConfigManager) GetConfigPath() string {
 }
 
 // UpdateDatasource replaces the datasource with matching ID in config.
-// If ds.Password is non-empty it is stored in the Keychain.
+// File write happens first; the Keychain write follows. If the Keychain write
+// fails after the file write succeeds, the user sees a clear error and can
+// recover by re-saving from the editor.
 func (cm *ConfigManager) UpdateDatasource(ds Datasource) error {
-	if ds.Password != "" {
-		if err := cm.keyring.Set(keychainService, ds.ID, ds.Password); err != nil {
-			return fmt.Errorf("keychain write: %w", err)
-		}
-	}
-
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
 	data, err := os.ReadFile(cm.configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config file: %w", err)
 	}
 	var raw configFile
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
+		return fmt.Errorf("parse config file: %w", err)
 	}
 
 	found := false
@@ -197,9 +229,18 @@ func (cm *ConfigManager) UpdateDatasource(ds Datasource) error {
 
 	out, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("encode config: %w", err)
 	}
-	return os.WriteFile(cm.configPath, out, 0644)
+	if err := os.WriteFile(cm.configPath, out, 0644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+
+	if ds.Password != "" {
+		if err := cm.keyring.Set(keychainService, ds.ID, ds.Password); err != nil {
+			return fmt.Errorf("connection saved but password could not be stored in macOS Keychain: %w", err)
+		}
+	}
+	return nil
 }
 
 // GetDatasourcePassword retrieves the password for dsID from the Keychain.

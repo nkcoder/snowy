@@ -2,12 +2,33 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 )
+
+// failingKeyring is a KeyringStore that returns configured errors —
+// used to test error propagation paths.
+type failingKeyring struct {
+	setErr    error
+	getErr    error
+	deleteErr error
+}
+
+func (f *failingKeyring) Set(service, account, password string) error {
+	return f.setErr
+}
+
+func (f *failingKeyring) Get(service, account string) (string, error) {
+	return "", f.getErr
+}
+
+func (f *failingKeyring) Delete(service, account string) error {
+	return f.deleteErr
+}
 
 func newTestConfigManager(t *testing.T) *ConfigManager {
 	t.Helper()
@@ -138,6 +159,81 @@ func TestSaveConfig_WritesPasswordToKeychain(t *testing.T) {
 	pw, err := kr.Get(keychainService, "ds-1")
 	if err != nil || pw != "newpass" {
 		t.Errorf("keychain: got %q, err %v", pw, err)
+	}
+}
+
+func TestSaveConfig_EmptyPassword_DoesNotTouchKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	_ = kr.Set(keychainService, "ds-1", "existing-pw") // simulate previously stored
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	}
+	if err := cm.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	pw, err := kr.Get(keychainService, "ds-1")
+	if err != nil {
+		t.Fatalf("existing keychain entry should remain: %v", err)
+	}
+	if pw != "existing-pw" {
+		t.Errorf("existing entry should not be overwritten; got %q", pw)
+	}
+}
+
+func TestSaveConfig_KeychainWriteFailure_ReturnsError(t *testing.T) {
+	kr := &failingKeyring{setErr: fmt.Errorf("user denied keychain access")}
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "MyDB", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "secret"}},
+	}
+	err := cm.SaveConfig(cfg)
+	if err == nil {
+		t.Fatal("expected error when Keychain write fails")
+	}
+	if !strings.Contains(err.Error(), "MyDB") || !strings.Contains(err.Error(), "Keychain") {
+		t.Errorf("error should mention connection name and Keychain; got: %v", err)
+	}
+}
+
+func TestSaveConfig_KeychainDeleteFailure_SurfacedAsWarning(t *testing.T) {
+	kr := &failingKeyring{deleteErr: fmt.Errorf("entry locked")}
+	var warnings []string
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cm.notify = func(level, msg string) {
+		if level == "warning" {
+			warnings = append(warnings, msg)
+		}
+	}
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-old", Name: "Old", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+
+	// Save with ds-old removed — Keychain delete will fail but SaveConfig should succeed
+	if err := cm.SaveConfig(Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}}); err != nil {
+		t.Fatalf("SaveConfig should succeed despite cleanup failure: %v", err)
+	}
+	if len(warnings) == 0 {
+		t.Error("expected warning notification for failed Keychain cleanup")
+	}
+}
+
+func TestUpdateDatasource_KeychainWriteFailure_ReturnsError(t *testing.T) {
+	kr := &failingKeyring{setErr: fmt.Errorf("user denied keychain access")}
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+	err := cm.UpdateDatasource(Datasource{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "secret"})
+	if err == nil {
+		t.Fatal("expected error when Keychain write fails")
+	}
+	if !strings.Contains(err.Error(), "Keychain") {
+		t.Errorf("error should mention Keychain; got: %v", err)
 	}
 }
 

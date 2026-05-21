@@ -554,7 +554,7 @@ export function ConnectionForm({
                 autoCapitalize="off"
                 spellCheck={false}
                 onChange={(e) => set('password', e.target.value)}
-                placeholder="<hidden>"
+                placeholder={initial.id ? 'stored in macOS Keychain — type to change' : 'enter password'}
                 style={{
                   background: T.panelAlt,
                   border: `0.5px solid ${T.border}`,

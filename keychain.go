@@ -9,7 +9,9 @@ type KeyringStore interface {
 	Delete(service, account string) error
 }
 
-const keychainService = "snowy"
+// keychainService namespaces our entries in the macOS Keychain. Reverse-DNS
+// style avoids collisions with any other tool that happens to use "snowy".
+const keychainService = "app.snowy.connections"
 
 // systemKeyring delegates to the real macOS Keychain via go-keyring.
 type systemKeyring struct{}
