@@ -29,9 +29,9 @@ type QueryResult struct {
 
 // CompletionEntry represents a single autocomplete item (schema, table, view, or column).
 type CompletionEntry struct {
-	Kind     string `json:"kind"`     // "schema" | "table" | "view" | "column"
+	Kind     string `json:"kind"` // "schema" | "table" | "view" | "column"
 	Schema   string `json:"schema"`
-	Table    string `json:"table"`    // empty for schema-kind entries
+	Table    string `json:"table"` // empty for schema-kind entries
 	Name     string `json:"name"`
 	DataType string `json:"dataType"` // non-empty for column-kind entries
 	KeyType  string `json:"keyType"`  // "pk" | "fk" | "" — only for column-kind entries

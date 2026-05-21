@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "prepare": "lefthook install",
     "test": "playwright test",
     "test:e2e": "playwright test"
   },
@@ -21,6 +22,7 @@
   "homepage": "https://github.com/nkcoder/snowy#readme",
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "@types/node": "^25.8.0"
+    "@types/node": "^25.8.0",
+    "lefthook": "^2.1.8"
   }
 }

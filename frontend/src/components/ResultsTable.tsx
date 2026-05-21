@@ -175,13 +175,18 @@ export function ResultsTable({
           className="flex items-center gap-2 px-3 py-1.5 text-[11px] shrink-0"
         >
           <span className="font-semibold">Showing first 1,000 rows.</span>
-          <span style={{ color: T.textSec }}>Add a LIMIT clause to your query to see fewer results.</span>
+          <span style={{ color: T.textSec }}>
+            Add a LIMIT clause to your query to see fewer results.
+          </span>
         </div>
       )}
 
       {/* Grid */}
       <div className="flex-1 overflow-auto" style={{ minWidth: 0 }}>
-        <table className="border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+        <table
+          className="border-collapse"
+          style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
+        >
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>
               <th
@@ -199,7 +204,9 @@ export function ResultsTable({
               {data.columns.map((col, i) => (
                 <th
                   key={i}
-                  ref={(el) => { thRefs.current[i] = el; }}
+                  ref={(el) => {
+                    thRefs.current[i] = el;
+                  }}
                   style={{
                     background: T.gridHeader,
                     border: `1px solid ${T.border}`,

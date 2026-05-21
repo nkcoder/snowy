@@ -320,7 +320,6 @@ describe('ConnectionForm', () => {
     await userEvent.type(screen.getByTestId('field-host'), 'myserver');
     expect(screen.getByText(/myserver/)).toBeInTheDocument();
   });
-
 });
 
 // ── ConnectionManager ──────────────────────────────────────────────────────────

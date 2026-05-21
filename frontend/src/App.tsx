@@ -134,7 +134,7 @@ function App() {
     loadConfig();
     GoApp.GetAppVersion()
       .then((v) => setAppVersion({ version: v.version ?? '0.0.1', buildDate: v.buildDate ?? '' }))
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ function App() {
     setView('workspace');
     GoApp.ListSavedQueries(dsId)
       .then((data) => setSavedQueries(data ?? []))
-      .catch(() => { });
+      .catch(() => {});
     GoApp.GetCompletions(dsId)
       .then((data) => setCompletions((data?.entries ?? []) as CompletionEntry[]))
       .catch((err) => console.warn('GetCompletions failed', err));
@@ -207,7 +207,7 @@ function App() {
           setMetadataByDs((prev) => ({ ...prev, [dsId]: cached }));
         }
       })
-      .catch(() => { });
+      .catch(() => {});
     refreshMetadata(dsId);
   };
 
@@ -425,7 +425,10 @@ function App() {
               className="w-1 shrink-0 cursor-col-resize"
             />
 
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ minHeight: 0, minWidth: 0 }}>
+            <div
+              className="flex-1 flex flex-col min-w-0 overflow-hidden"
+              style={{ minHeight: 0, minWidth: 0 }}
+            >
               {/* Editor area */}
               <div className="flex-1 flex flex-col min-h-0" style={{ minHeight: 0 }}>
                 <TabBar

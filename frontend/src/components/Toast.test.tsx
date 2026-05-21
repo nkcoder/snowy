@@ -7,7 +7,8 @@ vi.mock('../../wailsjs/runtime/runtime', () => {
   const handlers: Record<string, Handler[]> = {};
   return {
     EventsOn: vi.fn((event: string, cb: Handler) => {
-      (handlers[event] ||= []).push(cb);
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(cb);
       return () => {
         delete handlers[event];
       };
@@ -16,7 +17,7 @@ vi.mock('../../wailsjs/runtime/runtime', () => {
       delete handlers[event];
     }),
     EventsEmit: vi.fn((event: string, payload: unknown) => {
-      (handlers[event] ?? []).forEach((cb) => cb(payload));
+      for (const cb of handlers[event] ?? []) cb(payload);
     }),
     __handlers: handlers,
   };
@@ -26,9 +27,10 @@ import * as runtime from '../../wailsjs/runtime/runtime';
 import { Toast } from './Toast';
 
 const emit = (payload: unknown) => {
-  const handlers = (runtime as unknown as { __handlers: Record<string, Array<(p: unknown) => void>> })
-    .__handlers;
-  (handlers['snowy:notification'] ?? []).forEach((cb) => cb(payload));
+  const handlers = (
+    runtime as unknown as { __handlers: Record<string, Array<(p: unknown) => void>> }
+  ).__handlers;
+  for (const cb of handlers['snowy:notification'] ?? []) cb(payload);
 };
 
 afterEach(() => {

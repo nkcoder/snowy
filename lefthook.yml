@@ -1,0 +1,21 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: frontend-biome
+      root: frontend/
+      run: npm run check
+    - name: backend-gofmt
+      run: test -z "$(gofmt -l .)"
+    - name: backend-govet
+      run: go vet ./...
+    - name: backend-golangci
+      run: golangci-lint run
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: frontend-tests
+      root: frontend/
+      run: npm run test:coverage
+    - name: backend-tests
+      run: go test ./...

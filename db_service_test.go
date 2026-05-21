@@ -11,45 +11,6 @@ import (
 //
 // The demo DB from docker/docker-compose-postgresql.yml satisfies this.
 
-func testDSId(t *testing.T) string {
-	t.Helper()
-	dsURL := os.Getenv("TEST_DB_URL")
-	if dsURL == "" {
-		t.Skip("TEST_DB_URL not set — skipping DB integration test")
-	}
-	// Inject a fake datasource directly into config so DbService.getConnection can find it.
-	// We abuse the configManager by writing a temporary config.
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-
-	cm, err := NewConfigManager()
-	if err != nil {
-		t.Fatalf("NewConfigManager: %v", err)
-	}
-	dsID := "test-ds"
-	if err := cm.SaveConfig(Config{
-		Datasources: []Datasource{{
-			ID:       dsID,
-			Name:     "test",
-			Host:     "localhost",
-			Port:     5432,
-			Database: "mydatabase",
-			Username: "myuser",
-			Password: "mypassword",
-			SSLMode:  "disable",
-		}},
-	}); err != nil {
-		t.Fatalf("SaveConfig: %v", err)
-	}
-
-	app := &App{configManager: cm}
-	app.dbService = NewDbService(app)
-	t.Cleanup(func() {})
-	// Store app on context so sub-tests can use it.
-	t.Setenv("_TEST_APP_READY", "1")
-	return dsID
-}
-
 func newTestApp(t *testing.T) (*App, string) {
 	t.Helper()
 	if os.Getenv("TEST_DB_URL") == "" {

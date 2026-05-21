@@ -38,7 +38,7 @@ function Backdrop({ children }: { children: React.ReactNode }) {
     >
       {children}
     </div>,
-    document.body,
+    document.body
   );
 }
 

@@ -315,7 +315,9 @@ describe('extractAliasMap', () => {
   });
 
   it('does not map ON as an alias', () => {
-    const m = extractAliasMap('SELECT * FROM orders JOIN products ON orders.product_id = products.id');
+    const m = extractAliasMap(
+      'SELECT * FROM orders JOIN products ON orders.product_id = products.id'
+    );
     expect(m.has('on')).toBe(false);
   });
 });
