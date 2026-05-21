@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Version and BuildDate are set at build time via -ldflags.
@@ -40,6 +41,13 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// Surface non-fatal config/Keychain warnings to the frontend as toasts.
+	a.configManager.notify = func(level, message string) {
+		wruntime.EventsEmit(ctx, "snowy:notification", map[string]string{
+			"level":   level,
+			"message": message,
+		})
+	}
 }
 
 // GetAppVersion returns the app version and build date.

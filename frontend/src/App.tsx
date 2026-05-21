@@ -9,6 +9,7 @@ import { QueryEditor } from './components/QueryEditor';
 import { ResultsPanel } from './components/ResultsPanel';
 import { Sidebar } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
+import { Toast } from './components/Toast';
 import { usePanelResize } from './hooks/usePanelResize';
 import { useQueryExecution } from './hooks/useQueryExecution';
 import { useTabManager } from './hooks/useTabManager';
@@ -320,6 +321,7 @@ function App() {
   if (view === 'workspace') {
     return (
       <WorkspaceErrorBoundary>
+        <Toast />
         <div
           style={{ background: T.bg, color: T.text, fontFamily: T.ui }}
           className="flex flex-col h-screen overflow-hidden"
@@ -554,18 +556,21 @@ function App() {
 
   // ── Connection manager view ───────────────────────────────────────────────
   return (
-    <ConnectionManager
-      projects={projects}
-      datasources={datasources}
-      activeDatasourceId={activeDatasourceId}
-      onConnect={handleConnect}
-      onSaveAll={handleSaveAll}
-      onUpdateDs={handleUpdateDs}
-      startInAddMode={cmAddMode}
-      onAddModeConsumed={() => setCmAddMode(false)}
-      appVersion={appVersion.version}
-      appBuildDate={appVersion.buildDate}
-    />
+    <>
+      <Toast />
+      <ConnectionManager
+        projects={projects}
+        datasources={datasources}
+        activeDatasourceId={activeDatasourceId}
+        onConnect={handleConnect}
+        onSaveAll={handleSaveAll}
+        onUpdateDs={handleUpdateDs}
+        startInAddMode={cmAddMode}
+        onAddModeConsumed={() => setCmAddMode(false)}
+        appVersion={appVersion.version}
+        appBuildDate={appVersion.buildDate}
+      />
+    </>
   );
 }
 

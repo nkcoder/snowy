@@ -321,9 +321,6 @@ export function ConnectionForm({
     sslMode: initial.sslMode ?? 'require',
   });
   const [showPass, setShowPass] = useState(false);
-  const [saveMode, setSaveMode] = useState<'forever' | 'until_restart' | 'never'>(
-    initial.password ? 'forever' : 'never'
-  );
   const [activeTab, setActiveTab] = useState(0);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
@@ -339,7 +336,6 @@ export function ConnectionForm({
     id: initial.id ?? `${Date.now()}`,
     projectId,
     ...form,
-    password: saveMode === 'forever' ? form.password : '',
   });
 
   const handleTest = async () => {
@@ -546,67 +542,53 @@ export function ConnectionForm({
             />
           </FormRow>
 
-          {/* Password + Save dropdown */}
+          {/* Password */}
           <FormRow label="Password">
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={form.password}
-                  data-testid="field-password"
-                  autoComplete="new-password"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  onChange={(e) => set('password', e.target.value)}
-                  placeholder="<hidden>"
-                  style={{
-                    background: T.panelAlt,
-                    border: `0.5px solid ${T.border}`,
-                    borderRadius: 4,
-                    padding: '7px 30px 7px 10px',
-                    fontSize: 12,
-                    color: T.text,
-                    fontFamily: T.mono,
-                    outline: 'none',
-                    width: '100%',
-                    boxSizing: 'border-box' as const,
-                  }}
-                />
-                <button
-                  type="button"
-                  data-testid="toggle-password"
-                  onClick={() => setShowPass((s) => !s)}
-                  aria-label={showPass ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute',
-                    right: 7,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: T.textDim,
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
-                </button>
-              </div>
-              <span style={{ fontSize: 11, color: T.textSec, flexShrink: 0 }}>Save:</span>
-              <div style={{ width: 120, flexShrink: 0 }}>
-                <SelectInput
-                  value={saveMode}
-                  onChange={(v) => setSaveMode(v as typeof saveMode)}
-                  options={[
-                    { value: 'forever', label: 'Forever' },
-                    { value: 'until_restart', label: 'Until restart' },
-                    { value: 'never', label: 'Never' },
-                  ]}
-                />
-              </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={form.password}
+                data-testid="field-password"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                onChange={(e) => set('password', e.target.value)}
+                placeholder={initial.id ? 'stored in macOS Keychain — type to change' : 'enter password'}
+                style={{
+                  background: T.panelAlt,
+                  border: `0.5px solid ${T.border}`,
+                  borderRadius: 4,
+                  padding: '7px 30px 7px 10px',
+                  fontSize: 12,
+                  color: T.text,
+                  fontFamily: T.mono,
+                  outline: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box' as const,
+                }}
+              />
+              <button
+                type="button"
+                data-testid="toggle-password"
+                onClick={() => setShowPass((s) => !s)}
+                aria-label={showPass ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: 7,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: T.textDim,
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
             </div>
           </FormRow>
 

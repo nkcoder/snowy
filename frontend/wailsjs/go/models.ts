@@ -91,7 +91,7 @@ export namespace main {
 	    port: number;
 	    database: string;
 	    username: string;
-	    password: string;
+	    password?: string;
 	    projectId: string;
 	    env: string;
 	    sslMode: string;

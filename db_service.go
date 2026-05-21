@@ -60,7 +60,11 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	poolCfg.ConnConfig.Password = ds.Password
+	password, err := s.app.configManager.GetDatasourcePassword(dsID)
+	if err != nil {
+		return nil, fmt.Errorf("no password stored in macOS Keychain for connection %q — open Connection Manager, re-enter the password, and click OK", ds.Name)
+	}
+	poolCfg.ConnConfig.Password = password
 	poolCfg.MaxConns = 5
 	poolCfg.MinConns = 0
 	poolCfg.MaxConnIdleTime = 5 * time.Minute

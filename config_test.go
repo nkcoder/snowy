@@ -2,21 +2,49 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
 
-// newTestConfigManager creates a ConfigManager pointing to a temp dir.
-func newTestConfigManager(t *testing.T) *ConfigManager {
-	t.Helper()
-	dir := t.TempDir()
-	configPath := filepath.Join(dir, "config.json")
-	return &ConfigManager{configPath: configPath}
+// failingKeyring is a KeyringStore that returns configured errors —
+// used to test error propagation paths.
+type failingKeyring struct {
+	setErr    error
+	getErr    error
+	deleteErr error
 }
 
-// writeConfig writes a Config struct to the manager's config file directly.
+func (f *failingKeyring) Set(service, account, password string) error {
+	return f.setErr
+}
+
+func (f *failingKeyring) Get(service, account string) (string, error) {
+	return "", f.getErr
+}
+
+func (f *failingKeyring) Delete(service, account string) error {
+	return f.deleteErr
+}
+
+func newTestConfigManager(t *testing.T) *ConfigManager {
+	t.Helper()
+	return newTestConfigManagerWithKeyring(t, newMockKeyring())
+}
+
+func newTestConfigManagerWithKeyring(t *testing.T, kr KeyringStore) *ConfigManager {
+	t.Helper()
+	dir := t.TempDir()
+	return &ConfigManager{
+		configPath: filepath.Join(dir, "config.json"),
+		keyring:    kr,
+	}
+}
+
+// writeConfig writes a Config struct directly to the config file.
 func writeConfig(t *testing.T, cm *ConfigManager, cfg Config) {
 	t.Helper()
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -28,21 +56,20 @@ func writeConfig(t *testing.T, cm *ConfigManager, cfg Config) {
 	}
 }
 
-// ── NewConfigManager ─────────────────────────────────────────────────────────
+// ── NewConfigManager ──────────────────────────────────────────────────────────
 
 func TestNewConfigManager_CreatesDefaultConfig(t *testing.T) {
 	dir := t.TempDir()
-	// Temporarily override home to control config path
-	configPath := filepath.Join(dir, "config.json")
-	cm := &ConfigManager{configPath: configPath}
+	cm := &ConfigManager{
+		configPath: filepath.Join(dir, "config.json"),
+		keyring:    newMockKeyring(),
+	}
 
-	// Bootstrap the default config as NewConfigManager would
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		defaultConfig := Config{
+	if _, err := os.Stat(cm.configPath); os.IsNotExist(err) {
+		if err := cm.SaveConfig(Config{
 			Projects:    []Project{{ID: "default", Name: "Default Project"}},
 			Datasources: []Datasource{},
-		}
-		if err := cm.SaveConfig(defaultConfig); err != nil {
+		}); err != nil {
 			t.Fatalf("SaveConfig: %v", err)
 		}
 	}
@@ -61,13 +88,11 @@ func TestNewConfigManager_CreatesDefaultConfig(t *testing.T) {
 
 func TestNewConfigManager_ExistingConfigNotOverwritten(t *testing.T) {
 	cm := newTestConfigManager(t)
-	original := Config{
+	writeConfig(t, cm, Config{
 		Projects:    []Project{{ID: "p1", Name: "Existing"}},
 		Datasources: []Datasource{},
-	}
-	writeConfig(t, cm, original)
+	})
 
-	// If NewConfigManager checked the existing file, it should not overwrite
 	cfg, err := cm.LoadConfig()
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
@@ -77,29 +102,13 @@ func TestNewConfigManager_ExistingConfigNotOverwritten(t *testing.T) {
 	}
 }
 
-// ── SaveConfig / LoadConfig ──────────────────────────────────────────────────
+// ── SaveConfig / LoadConfig ───────────────────────────────────────────────────
 
 func TestSaveAndLoadConfig_RoundTrip(t *testing.T) {
 	cm := newTestConfigManager(t)
 	cfg := Config{
-		Projects: []Project{
-			{ID: "p1", Name: "Alpha"},
-			{ID: "p2", Name: "Beta"},
-		},
-		Datasources: []Datasource{
-			{
-				ID:        "d1",
-				Name:      "local-pg",
-				Host:      "localhost",
-				Port:      5432,
-				Database:  "testdb",
-				Username:  "postgres",
-				Password:  "secret",
-				ProjectID: "p1",
-				Env:       "local",
-				SSLMode:   "disable",
-			},
-		},
+		Projects:    []Project{{ID: "p1", Name: "Alpha"}, {ID: "p2", Name: "Beta"}},
+		Datasources: []Datasource{{ID: "d1", Name: "local-pg", Host: "localhost", Port: 5432, Database: "testdb", Username: "postgres", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
 	}
 
 	if err := cm.SaveConfig(cfg); err != nil {
@@ -109,12 +118,11 @@ func TestSaveAndLoadConfig_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
 	}
-
 	if len(got.Projects) != 2 {
 		t.Errorf("projects: got %d, want 2", len(got.Projects))
 	}
 	if len(got.Datasources) != 1 {
-		t.Errorf("datasources: got %d, want 1", len(got.Datasources))
+		t.Fatalf("datasources: got %d, want 1", len(got.Datasources))
 	}
 	d := got.Datasources[0]
 	if d.Host != "localhost" || d.Port != 5432 || d.SSLMode != "disable" || d.Env != "local" {
@@ -132,21 +140,122 @@ func TestLoadConfig_FileNotFound(t *testing.T) {
 
 func TestLoadConfig_InvalidJSON(t *testing.T) {
 	cm := newTestConfigManager(t)
-	if err := os.WriteFile(cm.configPath, []byte("{bad json"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	_, err := cm.LoadConfig()
-	if err == nil {
+	_ = os.WriteFile(cm.configPath, []byte("{bad json"), 0644)
+	if _, err := cm.LoadConfig(); err == nil {
 		t.Error("expected JSON parse error, got nil")
+	}
+}
+
+func TestSaveConfig_WritesPasswordToKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "newpass"}},
+	}
+	if err := cm.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	pw, err := kr.Get(keychainService, "ds-1")
+	if err != nil || pw != "newpass" {
+		t.Errorf("keychain: got %q, err %v", pw, err)
+	}
+}
+
+func TestSaveConfig_EmptyPassword_DoesNotTouchKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	_ = kr.Set(keychainService, "ds-1", "existing-pw") // simulate previously stored
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	}
+	if err := cm.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	pw, err := kr.Get(keychainService, "ds-1")
+	if err != nil {
+		t.Fatalf("existing keychain entry should remain: %v", err)
+	}
+	if pw != "existing-pw" {
+		t.Errorf("existing entry should not be overwritten; got %q", pw)
+	}
+}
+
+func TestSaveConfig_KeychainWriteFailure_ReturnsError(t *testing.T) {
+	kr := &failingKeyring{setErr: fmt.Errorf("user denied keychain access")}
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "MyDB", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "secret"}},
+	}
+	err := cm.SaveConfig(cfg)
+	if err == nil {
+		t.Fatal("expected error when Keychain write fails")
+	}
+	if !strings.Contains(err.Error(), "MyDB") || !strings.Contains(err.Error(), "Keychain") {
+		t.Errorf("error should mention connection name and Keychain; got: %v", err)
+	}
+}
+
+func TestSaveConfig_KeychainDeleteFailure_SurfacedAsWarning(t *testing.T) {
+	kr := &failingKeyring{deleteErr: fmt.Errorf("entry locked")}
+	var warnings []string
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cm.notify = func(level, msg string) {
+		if level == "warning" {
+			warnings = append(warnings, msg)
+		}
+	}
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-old", Name: "Old", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+
+	// Save with ds-old removed — Keychain delete will fail but SaveConfig should succeed
+	if err := cm.SaveConfig(Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}}); err != nil {
+		t.Fatalf("SaveConfig should succeed despite cleanup failure: %v", err)
+	}
+	if len(warnings) == 0 {
+		t.Error("expected warning notification for failed Keychain cleanup")
+	}
+}
+
+func TestUpdateDatasource_KeychainWriteFailure_ReturnsError(t *testing.T) {
+	kr := &failingKeyring{setErr: fmt.Errorf("user denied keychain access")}
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+	err := cm.UpdateDatasource(Datasource{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "secret"})
+	if err == nil {
+		t.Fatal("expected error when Keychain write fails")
+	}
+	if !strings.Contains(err.Error(), "Keychain") {
+		t.Errorf("error should mention Keychain; got: %v", err)
+	}
+}
+
+func TestSaveConfig_PasswordNeverWrittenToDisk(t *testing.T) {
+	cm := newTestConfigManager(t)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "d1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "secret"}},
+	}
+	if err := cm.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	raw, _ := os.ReadFile(cm.configPath)
+	if strings.Contains(string(raw), "secret") {
+		t.Error("plaintext password must not appear in config.json")
 	}
 }
 
 func TestSaveConfig_OverwritesPreviousData(t *testing.T) {
 	cm := newTestConfigManager(t)
 	writeConfig(t, cm, Config{Projects: []Project{{ID: "old", Name: "Old"}}})
-
-	newCfg := Config{Projects: []Project{{ID: "new", Name: "New"}}, Datasources: []Datasource{}}
-	if err := cm.SaveConfig(newCfg); err != nil {
+	if err := cm.SaveConfig(Config{Projects: []Project{{ID: "new", Name: "New"}}, Datasources: []Datasource{}}); err != nil {
 		t.Fatalf("SaveConfig: %v", err)
 	}
 	got, _ := cm.LoadConfig()
@@ -155,34 +264,27 @@ func TestSaveConfig_OverwritesPreviousData(t *testing.T) {
 	}
 }
 
-// ── GetConfigPath ────────────────────────────────────────────────────────────
+// ── GetConfigPath ─────────────────────────────────────────────────────────────
 
 func TestGetConfigPath(t *testing.T) {
 	cm := newTestConfigManager(t)
-	if cm.GetConfigPath() != cm.configPath {
-		t.Errorf("GetConfigPath() = %q, want %q", cm.GetConfigPath(), cm.configPath)
-	}
-	if cm.GetConfigPath() == "" {
-		t.Error("GetConfigPath should not be empty")
+	if cm.GetConfigPath() != cm.configPath || cm.GetConfigPath() == "" {
+		t.Errorf("GetConfigPath() = %q", cm.GetConfigPath())
 	}
 }
 
-// ── UpdateDatasource ─────────────────────────────────────────────────────────
+// ── UpdateDatasource ──────────────────────────────────────────────────────────
 
 func TestUpdateDatasource_HappyPath(t *testing.T) {
 	cm := newTestConfigManager(t)
 	writeConfig(t, cm, Config{
-		Projects: []Project{{ID: "p1", Name: "P"}},
-		Datasources: []Datasource{
-			{ID: "d1", Name: "old-name", Host: "old-host", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"},
-		},
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "d1", Name: "old-name", Host: "old-host", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
 	})
 
-	updated := Datasource{ID: "d1", Name: "new-name", Host: "new-host", Port: 5433, Database: "db2", ProjectID: "p1", Env: "prod", SSLMode: "require"}
-	if err := cm.UpdateDatasource(updated); err != nil {
+	if err := cm.UpdateDatasource(Datasource{ID: "d1", Name: "new-name", Host: "new-host", Port: 5433, Database: "db2", ProjectID: "p1", Env: "prod", SSLMode: "require"}); err != nil {
 		t.Fatalf("UpdateDatasource: %v", err)
 	}
-
 	cfg, _ := cm.LoadConfig()
 	if len(cfg.Datasources) != 1 {
 		t.Fatalf("datasource count changed: %d", len(cfg.Datasources))
@@ -193,15 +295,41 @@ func TestUpdateDatasource_HappyPath(t *testing.T) {
 	}
 }
 
-func TestUpdateDatasource_NotFound(t *testing.T) {
-	cm := newTestConfigManager(t)
+func TestUpdateDatasource_StoresPasswordInKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	cm := newTestConfigManagerWithKeyring(t, kr)
 	writeConfig(t, cm, Config{
 		Projects:    []Project{{ID: "p1", Name: "P"}},
-		Datasources: []Datasource{},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
 	})
 
-	err := cm.UpdateDatasource(Datasource{ID: "nonexistent"})
-	if err == nil {
+	if err := cm.UpdateDatasource(Datasource{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "newpassword"}); err != nil {
+		t.Fatalf("UpdateDatasource: %v", err)
+	}
+	pw, err := kr.Get(keychainService, "ds-1")
+	if err != nil || pw != "newpassword" {
+		t.Errorf("keychain: got %q, err %v", pw, err)
+	}
+}
+
+func TestUpdateDatasource_EmptyPassword_DoesNotWriteKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+
+	_ = cm.UpdateDatasource(Datasource{ID: "ds-1", Name: "renamed", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"})
+	if _, err := kr.Get(keychainService, "ds-1"); err == nil {
+		t.Error("keychain should have no entry when password was empty")
+	}
+}
+
+func TestUpdateDatasource_NotFound(t *testing.T) {
+	cm := newTestConfigManager(t)
+	writeConfig(t, cm, Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}})
+	if err := cm.UpdateDatasource(Datasource{ID: "nonexistent"}); err == nil {
 		t.Error("expected error for nonexistent datasource ID, got nil")
 	}
 }
@@ -216,8 +344,7 @@ func TestUpdateDatasource_OnlyMatchingIDChanged(t *testing.T) {
 		},
 	})
 
-	updated := Datasource{ID: "d1", Name: "updated", Host: "h1-new", Port: 5432, Database: "db1", ProjectID: "p1", Env: "stg", SSLMode: "require"}
-	if err := cm.UpdateDatasource(updated); err != nil {
+	if err := cm.UpdateDatasource(Datasource{ID: "d1", Name: "updated", Host: "h1-new", Port: 5432, Database: "db1", ProjectID: "p1", Env: "stg", SSLMode: "require"}); err != nil {
 		t.Fatalf("UpdateDatasource: %v", err)
 	}
 
@@ -226,8 +353,7 @@ func TestUpdateDatasource_OnlyMatchingIDChanged(t *testing.T) {
 	for _, d := range cfg.Datasources {
 		if d.ID == "d1" {
 			d1 = d
-		}
-		if d.ID == "d2" {
+		} else {
 			d2 = d
 		}
 	}
@@ -240,32 +366,67 @@ func TestUpdateDatasource_OnlyMatchingIDChanged(t *testing.T) {
 }
 
 func TestUpdateDatasource_FileNotFound(t *testing.T) {
-	cm := newTestConfigManager(t) // no config written
-	err := cm.UpdateDatasource(Datasource{ID: "d1"})
-	if err == nil {
+	cm := newTestConfigManager(t)
+	if err := cm.UpdateDatasource(Datasource{ID: "d1"}); err == nil {
 		t.Error("expected error when config file missing, got nil")
 	}
 }
 
-// ── Concurrent access ────────────────────────────────────────────────────────
+// ── GetDatasourcePassword ─────────────────────────────────────────────────────
+
+func TestGetDatasourcePassword(t *testing.T) {
+	kr := newMockKeyring()
+	_ = kr.Set(keychainService, "ds-1", "keychain-secret")
+	cm := newTestConfigManagerWithKeyring(t, kr)
+
+	pw, err := cm.GetDatasourcePassword("ds-1")
+	if err != nil || pw != "keychain-secret" {
+		t.Errorf("got %q, err %v", pw, err)
+	}
+}
+
+func TestGetDatasourcePassword_MissingEntry(t *testing.T) {
+	cm := newTestConfigManager(t)
+	pw, err := cm.GetDatasourcePassword("unknown")
+	if err == nil {
+		t.Error("expected error for missing entry")
+	}
+	if pw != "" {
+		t.Errorf("expected empty password, got %q", pw)
+	}
+}
+
+// ── SaveConfig removes keychain entry for deleted datasources ─────────────────
+
+func TestSaveConfig_DeletesKeychainEntryForRemovedDatasource(t *testing.T) {
+	kr := newMockKeyring()
+	_ = kr.Set(keychainService, "ds-1", "secret")
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	writeConfig(t, cm, Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
+	})
+
+	_ = cm.SaveConfig(Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}})
+
+	if _, err := kr.Get(keychainService, "ds-1"); err == nil {
+		t.Error("keychain entry should have been deleted with the datasource")
+	}
+}
+
+// ── Concurrent access ─────────────────────────────────────────────────────────
 
 func TestConcurrentSaveAndLoad(t *testing.T) {
 	cm := newTestConfigManager(t)
-	writeConfig(t, cm, Config{
-		Projects:    []Project{{ID: "p1", Name: "P"}},
-		Datasources: []Datasource{},
-	})
+	writeConfig(t, cm, Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}})
 
-	const goroutines = 20
 	var wg sync.WaitGroup
-	errs := make(chan error, goroutines*2)
-
-	for i := 0; i < goroutines; i++ {
+	errs := make(chan error, 40)
+	for i := 0; i < 20; i++ {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			cfg := Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}}
-			if err := cm.SaveConfig(cfg); err != nil {
+			if err := cm.SaveConfig(Config{Projects: []Project{{ID: "p1", Name: "P"}}, Datasources: []Datasource{}}); err != nil {
 				errs <- err
 			}
 		}()
@@ -276,7 +437,6 @@ func TestConcurrentSaveAndLoad(t *testing.T) {
 			}
 		}()
 	}
-
 	wg.Wait()
 	close(errs)
 	for err := range errs {
@@ -287,39 +447,29 @@ func TestConcurrentSaveAndLoad(t *testing.T) {
 func TestConcurrentUpdateDatasource(t *testing.T) {
 	cm := newTestConfigManager(t)
 	writeConfig(t, cm, Config{
-		Projects: []Project{{ID: "p1", Name: "P"}},
-		Datasources: []Datasource{
-			{ID: "d1", Name: "start", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"},
-		},
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "d1", Name: "start", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}},
 	})
 
-	const goroutines = 10
 	var wg sync.WaitGroup
-	errs := make(chan error, goroutines)
-
-	for i := 0; i < goroutines; i++ {
+	errs := make(chan error, 10)
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go func(n int) {
+		go func() {
 			defer wg.Done()
-			ds := Datasource{ID: "d1", Name: "updated", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}
-			if err := cm.UpdateDatasource(ds); err != nil {
+			if err := cm.UpdateDatasource(Datasource{ID: "d1", Name: "updated", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable"}); err != nil {
 				errs <- err
 			}
-		}(i)
+		}()
 	}
-
 	wg.Wait()
 	close(errs)
 	for err := range errs {
 		t.Errorf("concurrent update error: %v", err)
 	}
-
-	// Config should still be valid after concurrent writes
 	cfg, err := cm.LoadConfig()
-	if err != nil {
-		t.Fatalf("LoadConfig after concurrent updates: %v", err)
-	}
-	if len(cfg.Datasources) != 1 {
-		t.Errorf("expected 1 datasource, got %d", len(cfg.Datasources))
+	if err != nil || len(cfg.Datasources) != 1 {
+		t.Errorf("unexpected state after concurrent updates: err=%v, ds=%d", err, len(cfg.Datasources))
 	}
 }
+
