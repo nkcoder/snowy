@@ -136,6 +136,9 @@ func (cm *ConfigManager) SaveConfig(config Config) error {
 
 	records := make([]datasourceRecord, len(config.Datasources))
 	for i, ds := range config.Datasources {
+		if ds.Password != "" {
+			_ = cm.keyring.Set(keychainService, ds.ID, ds.Password)
+		}
 		records[i] = datasourceRecord{
 			ID: ds.ID, Name: ds.Name, Host: ds.Host, Port: ds.Port,
 			Database: ds.Database, Username: ds.Username, ProjectID: ds.ProjectID,

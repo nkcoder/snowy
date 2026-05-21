@@ -125,6 +125,22 @@ func TestLoadConfig_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestSaveConfig_WritesPasswordToKeychain(t *testing.T) {
+	kr := newMockKeyring()
+	cm := newTestConfigManagerWithKeyring(t, kr)
+	cfg := Config{
+		Projects:    []Project{{ID: "p1", Name: "P"}},
+		Datasources: []Datasource{{ID: "ds-1", Name: "db", Host: "h", Port: 5432, Database: "db", ProjectID: "p1", Env: "local", SSLMode: "disable", Password: "newpass"}},
+	}
+	if err := cm.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	pw, err := kr.Get(keychainService, "ds-1")
+	if err != nil || pw != "newpass" {
+		t.Errorf("keychain: got %q, err %v", pw, err)
+	}
+}
+
 func TestSaveConfig_PasswordNeverWrittenToDisk(t *testing.T) {
 	cm := newTestConfigManager(t)
 	cfg := Config{
