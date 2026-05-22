@@ -142,6 +142,13 @@ export function buildMockBridgeScript(
     const _savedQueryData = {};
     const _recordedHistory = [];
 
+    window.runtime = {
+      EventsOnMultiple: () => {},
+      EventsOff: () => {},
+      EventsOffAll: () => {},
+      EventsEmit: () => {},
+    };
+
     window.go = {
       main: {
         App: {
