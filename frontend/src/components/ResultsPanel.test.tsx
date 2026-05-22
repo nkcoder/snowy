@@ -51,7 +51,7 @@ describe('ResultsPanel', () => {
       makeLiveTab({ id: 'live', label: 'Result 2', pinned: false }),
       makePinnedTab({ id: 'pin-1', label: 'Result 1' }),
     ];
-    render(<ResultsPanel resultTabs={tabs} activeResultTabId="pin-1" {...defaultProps} />);
+    render(<ResultsPanel resultTabs={tabs} {...defaultProps} activeResultTabId="pin-1" />);
     expect(screen.getAllByText('Result 1').length).toBeGreaterThan(0);
     expect(screen.getByText('Result 2')).toBeTruthy();
   });
@@ -62,14 +62,7 @@ describe('ResultsPanel', () => {
       makeLiveTab({ id: 'live', label: 'Live' }),
       makePinnedTab({ id: 'pin-1', label: 'Pinned' }),
     ];
-    render(
-      <ResultsPanel
-        resultTabs={tabs}
-        activeResultTabId="live"
-        {...defaultProps}
-        onSelectTab={onSelectTab}
-      />
-    );
+    render(<ResultsPanel resultTabs={tabs} {...defaultProps} onSelectTab={onSelectTab} />);
     fireEvent.click(screen.getByText('Pinned'));
     expect(onSelectTab).toHaveBeenCalledWith('pin-1');
   });
@@ -85,19 +78,19 @@ describe('ResultsPanel', () => {
 
   it('shows error text in content area for error tab', () => {
     const tab = makeLiveTab({ error: 'syntax error near SELECT' });
-    render(<ResultsPanel resultTabs={[tab]} activeResultTabId="live" {...defaultProps} />);
+    render(<ResultsPanel resultTabs={[tab]} {...defaultProps} />);
     expect(screen.getByText('syntax error near SELECT')).toBeTruthy();
   });
 
   it('shows error badge in tab strip for error tab', () => {
     const tab = makeLiveTab({ error: 'something went wrong' });
-    render(<ResultsPanel resultTabs={[tab]} activeResultTabId="live" {...defaultProps} />);
+    render(<ResultsPanel resultTabs={[tab]} {...defaultProps} />);
     expect(screen.getByText('error')).toBeTruthy();
   });
 
   it('shows close button for pinned tab', () => {
     const tabs = [makeLiveTab({ id: 'live' }), makePinnedTab({ id: 'pin-1' })];
-    render(<ResultsPanel resultTabs={tabs} activeResultTabId="pin-1" {...defaultProps} />);
+    render(<ResultsPanel resultTabs={tabs} {...defaultProps} activeResultTabId="pin-1" />);
     // Pinned tab has a nested close button with leading-none class
     const closeBtn = document.querySelector('button.leading-none');
     expect(closeBtn).toBeTruthy();
@@ -109,8 +102,8 @@ describe('ResultsPanel', () => {
     render(
       <ResultsPanel
         resultTabs={tabs}
-        activeResultTabId="pin-1"
         {...defaultProps}
+        activeResultTabId="pin-1"
         onCloseTab={onCloseTab}
       />
     );
@@ -120,21 +113,12 @@ describe('ResultsPanel', () => {
   });
 
   it('renders ResultsTable for non-error active tab', () => {
-    render(
-      <ResultsPanel resultTabs={[makeLiveTab()]} activeResultTabId="live" {...defaultProps} />
-    );
+    render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} />);
     expect(screen.getByText('Execute a query to view results')).toBeTruthy();
   });
 
   it('renders loading state through ResultsTable', () => {
-    render(
-      <ResultsPanel
-        resultTabs={[makeLiveTab()]}
-        activeResultTabId="live"
-        {...defaultProps}
-        loading={true}
-      />
-    );
+    render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} loading={true} />);
     expect(screen.getByText('Fetching data...')).toBeTruthy();
   });
 
@@ -155,7 +139,7 @@ describe('ResultsPanel', () => {
       label: 'Result 1',
     });
 
-    render(<ResultsPanel resultTabs={[liveTab]} activeResultTabId="live" {...defaultProps} />);
+    render(<ResultsPanel resultTabs={[liveTab]} {...defaultProps} />);
 
     fireEvent.click(screen.getByTitle('Export CSV'));
 
@@ -170,13 +154,7 @@ describe('ResultsPanel', () => {
     const createObjectURL = vi.fn();
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
 
-    render(
-      <ResultsPanel
-        resultTabs={[makeLiveTab({ data: null })]}
-        activeResultTabId="live"
-        {...defaultProps}
-      />
-    );
+    render(<ResultsPanel resultTabs={[makeLiveTab({ data: null })]} {...defaultProps} />);
 
     // Export button should be disabled when no data (ResultsTable renders it disabled)
     expect(createObjectURL).not.toHaveBeenCalled();

@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { main } from '../../wailsjs/go/models';
 import { useQueryExecution } from './useQueryExecution';
 
 vi.mock('../../wailsjs/go/main/App');
@@ -69,9 +70,9 @@ describe('useQueryExecution', () => {
   });
 
   it('handleRunQuery sets queryLoading true during execution', async () => {
-    let resolveQuery!: (v: unknown) => void;
+    let resolveQuery!: (v: main.QueryResult | PromiseLike<main.QueryResult>) => void;
     vi.mocked(GoApp.ExecuteQuery).mockReturnValueOnce(
-      new Promise((res) => {
+      new Promise<main.QueryResult>((res) => {
         resolveQuery = res;
       })
     );

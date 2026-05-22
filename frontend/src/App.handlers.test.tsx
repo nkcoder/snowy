@@ -5,6 +5,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { main } from '../wailsjs/go/models';
 import App from './App';
 
 vi.mock('../wailsjs/go/main/App');
@@ -173,15 +174,21 @@ const DEMO_DS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(GoApp.GetConfig).mockResolvedValue({
-    projects: [{ id: 'default', name: 'Default' }],
-    datasources: [DEMO_DS],
-  });
+  vi.mocked(GoApp.GetConfig).mockResolvedValue(
+    main.Config.createFrom({
+      projects: [{ id: 'default', name: 'Default' }],
+      datasources: [DEMO_DS],
+    })
+  );
   vi.mocked(GoApp.GetAppVersion).mockResolvedValue({ version: '1.0.0', buildDate: '' });
   vi.mocked(GoApp.ListSavedQueries).mockResolvedValue([{ filename: 'q.sql' }]);
-  vi.mocked(GoApp.GetCompletions).mockResolvedValue({ entries: [] });
-  vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue({ schemas: [] });
-  vi.mocked(GoApp.RefreshMetadata).mockResolvedValue({ schemas: [] });
+  vi.mocked(GoApp.GetCompletions).mockResolvedValue(main.CompletionSet.createFrom({ entries: [] }));
+  vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue(
+    main.DatabaseMetadata.createFrom({ schemas: [] })
+  );
+  vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(
+    main.DatabaseMetadata.createFrom({ schemas: [] })
+  );
   vi.mocked(GoApp.ClosePool).mockResolvedValue(undefined);
   vi.mocked(GoApp.GetQueryHistory).mockResolvedValue([]);
   vi.mocked(GoApp.SaveConfig).mockResolvedValue(undefined);
@@ -424,9 +431,11 @@ describe('App handlers (mocked children)', () => {
   });
 
   it('caches metadata schemas when GetCachedMetadata returns schemas', async () => {
-    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue({
-      schemas: [{ name: 'public', tables: [] }],
-    });
+    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue(
+      main.DatabaseMetadata.createFrom({
+        schemas: [main.SchemaMetadata.createFrom({ name: 'public', tables: [] })],
+      })
+    );
     await connectToWorkspace();
     // verify app still renders (the cached metadata was applied)
     expect(screen.getByTestId('sidebar-stub')).toBeTruthy();

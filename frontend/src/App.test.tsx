@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Component, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { main } from '../wailsjs/go/models';
 import App from './App';
 
 vi.mock('../wailsjs/go/main/App');
@@ -67,15 +68,18 @@ const DEMO_DS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(GoApp.GetConfig).mockResolvedValue({
-    projects: [{ id: 'default', name: 'Default' }],
-    datasources: [],
-  });
+  vi.mocked(GoApp.GetConfig).mockResolvedValue(
+    main.Config.createFrom({ projects: [{ id: 'default', name: 'Default' }], datasources: [] })
+  );
   vi.mocked(GoApp.GetAppVersion).mockResolvedValue({ version: '1.0.0', buildDate: '' });
   vi.mocked(GoApp.ListSavedQueries).mockResolvedValue([]);
-  vi.mocked(GoApp.GetCompletions).mockResolvedValue({ entries: [] });
-  vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue({ schemas: [] });
-  vi.mocked(GoApp.RefreshMetadata).mockResolvedValue({ schemas: [] });
+  vi.mocked(GoApp.GetCompletions).mockResolvedValue(main.CompletionSet.createFrom({ entries: [] }));
+  vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue(
+    main.DatabaseMetadata.createFrom({ schemas: [] })
+  );
+  vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(
+    main.DatabaseMetadata.createFrom({ schemas: [] })
+  );
   vi.mocked(GoApp.ClosePool).mockResolvedValue(undefined);
   vi.mocked(GoApp.GetQueryHistory).mockResolvedValue([]);
 });
@@ -106,10 +110,12 @@ describe('App', () => {
   });
 
   it('transitions to workspace on datasource double-click', async () => {
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
 
     render(<App />);
 
@@ -126,10 +132,12 @@ describe('App', () => {
   });
 
   it('calls GoApp.ListSavedQueries and GetCompletions on connect', async () => {
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
 
     render(<App />);
 
@@ -146,10 +154,12 @@ describe('App', () => {
   });
 
   it('returns to connections view when Manage connections is clicked', async () => {
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
 
     render(<App />);
 
@@ -175,10 +185,12 @@ describe('App', () => {
 
 describe('App workspace interactions', () => {
   async function renderConnectedApp() {
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
     render(<App />);
     await waitFor(() => {
       expect(screen.getByTestId('ds-item-ds-1')).toBeTruthy();
@@ -348,10 +360,12 @@ describe('App workspace interactions', () => {
 describe('App WorkspaceErrorBoundary integration', () => {
   it('shows workspace error UI when a workspace component throws', async () => {
     // Make one of the workspace components throw to trigger the boundary
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
     // Make Sidebar throw during workspace render
     vi.mocked(GoApp.ListSchemas).mockRejectedValue(new Error('db error'));
 
@@ -401,10 +415,12 @@ class TestBoundary extends Component<{ children: ReactNode }, { hasError: boolea
 
 describe('WorkspaceErrorBoundary (via App render error)', () => {
   it('renders error UI when workspace throws', async () => {
-    vi.mocked(GoApp.GetConfig).mockResolvedValue({
-      projects: [{ id: 'default', name: 'Default' }],
-      datasources: [DEMO_DS],
-    });
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
 
     // Mock RefreshMetadata to throw synchronously during render via a component
     // Instead, use the fact that the ErrorBoundary wraps the workspace

@@ -90,7 +90,7 @@ describe('HistoryDrawer', () => {
   });
 
   it('truncates long sql in entry display', () => {
-    const longSql = 'SELECT ' + 'a, '.repeat(40) + 'b FROM table_name';
+    const longSql = `SELECT ${'a, '.repeat(40)}b FROM table_name`;
     render(
       <HistoryDrawer
         entries={[makeEntry({ sql: longSql })]}
@@ -100,9 +100,7 @@ describe('HistoryDrawer', () => {
       />
     );
     // Snippet is max 90 chars + ellipsis, but full sql is stored and passed to onSelect
-    const entry = screen
-      .getAllByRole('button')
-      .find((b) => b.textContent && b.textContent.includes('…'));
+    const entry = screen.getAllByRole('button').find((b) => b.textContent?.includes('…'));
     expect(entry).toBeTruthy();
   });
 
