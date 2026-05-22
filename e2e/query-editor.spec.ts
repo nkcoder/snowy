@@ -83,7 +83,7 @@ test.describe('Query Editor', () => {
     await page.locator('[data-testid="save-button"]').click();
 
     // Custom InputDialog appears — fill filename and confirm
-    const dialogInput = page.locator('input[placeholder="filename (without .sql)"]');
+    const dialogInput = page.locator('input[placeholder="filename.sql"]');
     await dialogInput.waitFor({ timeout: 3000 });
     await dialogInput.fill('test_query');
     await page.keyboard.press('Enter');

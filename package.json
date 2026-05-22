@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "prepare": "lefthook install",
-    "test": "playwright test",
+    "format": "cd frontend && npm run format",
+    "check": "cd frontend && npm run check",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "cd frontend && npm run test",
     "test:e2e": "playwright test"
   },
   "repository": {

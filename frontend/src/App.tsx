@@ -509,7 +509,7 @@ function App() {
                 <div className="flex-1" />
                 {durationMs > 0 && (
                   <span>
-                    {rowCount} rows · {durationMs} ms
+                    {rowCount} rows · {durationMs}ms
                   </span>
                 )}
                 <span style={{ color: T.textDim }}>UTC</span>
