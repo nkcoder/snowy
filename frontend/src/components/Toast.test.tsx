@@ -84,4 +84,14 @@ describe('Toast', () => {
     });
     expect(screen.getAllByText(/first|second/)).toHaveLength(2);
   });
+
+  it('auto-dismisses notification after timeout', () => {
+    vi.useFakeTimers();
+    render(<Toast />);
+    act(() => emit({ level: 'warning', message: 'auto-dismiss me' }));
+    expect(screen.getByTestId('toast-warning')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(8001));
+    expect(screen.queryByTestId('toast-warning')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
 });
