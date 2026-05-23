@@ -12,8 +12,14 @@ export function usePanelResize() {
     return v ? Math.max(120, Math.min(600, parseInt(v, 10))) : 320;
   });
 
+  const [isSidebarDragging, setIsSidebarDragging] = useState(false);
+  const [isBottomDragging, setIsBottomDragging] = useState(false);
+
   const startSidebarDrag = (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsSidebarDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
     const startX = e.clientX;
     const startW = sidebarWidth;
     let latest = startW;
@@ -24,6 +30,9 @@ export function usePanelResize() {
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsSidebarDragging(false);
       localStorage.setItem('snowy.sidebarWidth', String(latest));
     };
     document.addEventListener('mousemove', onMove);
@@ -32,6 +41,9 @@ export function usePanelResize() {
 
   const startBottomDrag = (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsBottomDragging(true);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
     const startY = e.clientY;
     const startH = bottomHeight;
     let latest = startH;
@@ -43,11 +55,21 @@ export function usePanelResize() {
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setIsBottomDragging(false);
       localStorage.setItem('snowy.bottomPanelHeight', String(latest));
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
 
-  return { sidebarWidth, bottomHeight, startSidebarDrag, startBottomDrag };
+  return {
+    sidebarWidth,
+    bottomHeight,
+    startSidebarDrag,
+    startBottomDrag,
+    isSidebarDragging,
+    isBottomDragging,
+  };
 }

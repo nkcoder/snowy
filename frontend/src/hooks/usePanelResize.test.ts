@@ -97,13 +97,13 @@ describe('usePanelResize', () => {
     });
 
     act(() => {
-      listeners['mousemove']?.(new MouseEvent('mousemove', { clientX: 320 }));
+      listeners.mousemove?.(new MouseEvent('mousemove', { clientX: 320 }));
     });
 
     expect(result.current.sidebarWidth).toBe(320);
 
     act(() => {
-      listeners['mouseup']?.(new MouseEvent('mouseup'));
+      listeners.mouseup?.(new MouseEvent('mouseup'));
     });
 
     expect(localStorage.getItem('snowy.sidebarWidth')).toBe('320');
@@ -125,14 +125,14 @@ describe('usePanelResize', () => {
     });
 
     act(() => {
-      listeners['mousemove']?.(new MouseEvent('mousemove', { clientY: 380 }));
+      listeners.mousemove?.(new MouseEvent('mousemove', { clientY: 380 }));
     });
 
     // height = max(120, min(maxH, 320 - (380 - 480))) = max(120, min(480, 420)) = 420
     expect(result.current.bottomHeight).toBe(420);
 
     act(() => {
-      listeners['mouseup']?.(new MouseEvent('mouseup'));
+      listeners.mouseup?.(new MouseEvent('mouseup'));
     });
 
     expect(localStorage.getItem('snowy.bottomPanelHeight')).toBe('420');

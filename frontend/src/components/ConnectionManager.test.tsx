@@ -320,6 +320,22 @@ describe('ConnectionForm', () => {
     await userEvent.type(screen.getByTestId('field-host'), 'myserver');
     expect(screen.getByText(/myserver/)).toBeInTheDocument();
   });
+
+  it('Apply button calls onApply with current form values', async () => {
+    const onApply = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={onApply}
+        initial={{ name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
+    const applied = onApply.mock.calls[0][0] as Datasource;
+    expect(applied.name).toBe('myconn');
+    expect(applied.database).toBe('mydb');
+  });
 });
 
 // ── ConnectionManager ──────────────────────────────────────────────────────────
@@ -477,5 +493,31 @@ describe('ConnectionManager', () => {
     await userEvent.click(item);
     // After click and form opens in edit mode — item is selected (selectedDsId = d1)
     expect(item).toBeInTheDocument();
+  });
+
+  it('Apply in edit form calls onUpdateDs without closing form', async () => {
+    const onUpdateDs = vi.fn().mockResolvedValue(undefined);
+    const ds = makeDs({ name: 'old-name' });
+    renderManager({ datasources: [ds], onUpdateDs });
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'applied-name');
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onUpdateDs).toHaveBeenCalledOnce());
+    const saved = onUpdateDs.mock.calls[0][0] as Datasource;
+    expect(saved.name).toBe('applied-name');
+    // form stays open (still in edit mode)
+    expect(screen.getByTestId('connection-form')).toBeInTheDocument();
+  });
+
+  it('Apply in new connection form saves and switches to edit mode', async () => {
+    const onSaveAll = vi.fn().mockResolvedValue(undefined);
+    renderManager({ datasources: [], onSaveAll });
+    await userEvent.type(screen.getByTestId('field-name'), 'applied-conn');
+    await userEvent.type(screen.getByTestId('field-database'), 'applieddb');
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onSaveAll).toHaveBeenCalledOnce());
+    const [, savedDs] = onSaveAll.mock.calls[0] as [Project[], Datasource[]];
+    expect(savedDs.find((d) => d.name === 'applied-conn')).toBeTruthy();
   });
 });

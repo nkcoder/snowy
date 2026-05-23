@@ -31,6 +31,8 @@ export function ResultsTable({
   onExport,
 }: ResultsTableProps) {
   const [colWidths, setColWidths] = useState<number[]>([]);
+  const [hoveredResizeCol, setHoveredResizeCol] = useState<number | null>(null);
+  const [draggingCol, setDraggingCol] = useState<number | null>(null);
   const colWidthsRef = useRef(colWidths);
   colWidthsRef.current = colWidths;
   // Refs to <th> elements for direct DOM updates during drag (no React re-render)
@@ -44,6 +46,9 @@ export function ResultsTable({
 
   const startColDrag = (colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
+    setDraggingCol(colIndex);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
     const startX = e.clientX;
     const startW = colWidthsRef.current[colIndex] ?? DEFAULT_COL_WIDTH;
     let latest = startW;
@@ -56,6 +61,9 @@ export function ResultsTable({
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setDraggingCol(null);
       // Commit to React state once drag ends
       const next = [...colWidthsRef.current];
       next[colIndex] = latest;
@@ -237,7 +245,13 @@ export function ResultsTable({
                     </div>
                     <div
                       onMouseDown={(e) => startColDrag(i, e)}
-                      className="w-[5px] shrink-0 cursor-col-resize"
+                      onMouseEnter={() => setHoveredResizeCol(i)}
+                      onMouseLeave={() => setHoveredResizeCol(null)}
+                      className="w-[10px] shrink-0 cursor-col-resize"
+                      style={{
+                        borderLeft: `${hoveredResizeCol === i || draggingCol === i ? 4 : 1}px solid ${hoveredResizeCol === i || draggingCol === i ? T.accent : 'transparent'}`,
+                        transition: draggingCol !== null ? 'none' : 'border 0.1s ease',
+                      }}
                     />
                   </div>
                 </th>
