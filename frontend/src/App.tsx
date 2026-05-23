@@ -80,6 +80,10 @@ function App() {
   const [cmAddMode, setCmAddMode] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
+  // ── Resize handle hover ───────────────────────────────────────────────────
+  const [sidebarHandleHovered, setSidebarHandleHovered] = useState(false);
+  const [bottomHandleHovered, setBottomHandleHovered] = useState(false);
+
   // ── History drawer ────────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<main.HistoryEntry[]>([]);
@@ -99,7 +103,14 @@ function App() {
     handleNewTab,
   } = useTabManager();
 
-  const { sidebarWidth, bottomHeight, startSidebarDrag, startBottomDrag } = usePanelResize();
+  const {
+    sidebarWidth,
+    bottomHeight,
+    startSidebarDrag,
+    startBottomDrag,
+    isSidebarDragging,
+    isBottomDragging,
+  } = usePanelResize();
 
   const {
     queryLoading,
@@ -421,8 +432,13 @@ function App() {
             {/* Sidebar resize handle */}
             <div
               onMouseDown={startSidebarDrag}
-              style={{ borderLeft: `1px solid ${T.border}` }}
-              className="w-1 shrink-0 cursor-col-resize"
+              onMouseEnter={() => setSidebarHandleHovered(true)}
+              onMouseLeave={() => setSidebarHandleHovered(false)}
+              className="w-2.5 shrink-0 cursor-col-resize"
+              style={{
+                borderLeft: `${sidebarHandleHovered || isSidebarDragging ? 4 : 1}px solid ${sidebarHandleHovered || isSidebarDragging ? T.accent : T.border}`,
+                transition: isSidebarDragging ? 'none' : 'border 0.1s ease',
+              }}
             />
 
             <div
@@ -462,8 +478,14 @@ function App() {
               {/* Bottom resize handle */}
               <div
                 onMouseDown={startBottomDrag}
-                style={{ borderTop: `1px solid ${T.borderStrong}`, zIndex: 10 }}
-                className="h-1 shrink-0 cursor-row-resize relative"
+                onMouseEnter={() => setBottomHandleHovered(true)}
+                onMouseLeave={() => setBottomHandleHovered(false)}
+                style={{
+                  borderTop: `${bottomHandleHovered || isBottomDragging ? 4 : 1}px solid ${bottomHandleHovered || isBottomDragging ? T.accent : T.border}`,
+                  zIndex: 10,
+                  transition: isBottomDragging ? 'none' : 'border 0.1s ease',
+                }}
+                className="h-2.5 shrink-0 cursor-row-resize"
               />
 
               {/* Bottom panel */}
