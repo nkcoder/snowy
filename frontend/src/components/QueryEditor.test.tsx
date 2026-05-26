@@ -326,6 +326,31 @@ describe('detectSqlContext', () => {
     const ctx = detectSqlContext('SELECT * FROM public.', 'SELECT * FROM public.');
     expect(ctx.kind).toBe('table');
   });
+
+  it('returns column context after WHERE with opening parenthesis', () => {
+    const stmt = 'SELECT * FROM users WHERE (';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('returns column context after WHERE (col = ', () => {
+    const stmt = 'SELECT * FROM users WHERE (id = ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('returns column context after WHERE (col IS NULL OR col = ', () => {
+    const stmt = 'SELECT * FROM users WHERE (id IS NULL OR id = ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('returns column context after WHERE with deeply nested parens', () => {
+    const stmt = 'SELECT * FROM users WHERE ((id = ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
 });
 
 describe('extractAliasMap', () => {
