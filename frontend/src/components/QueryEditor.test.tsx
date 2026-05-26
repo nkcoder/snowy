@@ -161,6 +161,49 @@ describe('extractFromTables', () => {
     expect(tables).toContain('users');
     expect(tables).not.toContain('u');
   });
+
+  it('strips schema prefix from single schema-qualified table', () => {
+    expect(extractFromTables('SELECT * FROM public.users WHERE id = 1')).toEqual(['users']);
+  });
+
+  it('strips schema prefix from comma-separated schema-qualified tables', () => {
+    const tables = extractFromTables('SELECT * FROM public.users, public.orders WHERE id = 1');
+    expect(tables).toContain('users');
+    expect(tables).toContain('orders');
+    expect(tables).not.toContain('public');
+  });
+
+  it('strips schema prefix from schema-qualified JOIN', () => {
+    const tables = extractFromTables(
+      'SELECT * FROM public.orders LEFT JOIN public.users ON orders.user_id = users.id'
+    );
+    expect(tables).toContain('orders');
+    expect(tables).toContain('users');
+    expect(tables).not.toContain('public');
+  });
+
+  it('strips schema prefix from schema-qualified UPDATE target', () => {
+    const tables = extractFromTables("UPDATE public.users SET name = ''");
+    expect(tables).toContain('users');
+    expect(tables).not.toContain('public');
+  });
+
+  it('strips schema prefix from schema-qualified table with alias', () => {
+    const tables = extractFromTables('SELECT * FROM public.users u WHERE u.id = 1');
+    expect(tables).toContain('users');
+    expect(tables).not.toContain('public');
+    expect(tables).not.toContain('u');
+  });
+
+  it('handles mixed qualified and unqualified tables in the same query', () => {
+    const tables = extractFromTables(
+      'SELECT * FROM users JOIN public.orders o ON users.id = o.user_id WHERE'
+    );
+    expect(tables).toContain('users');
+    expect(tables).toContain('orders');
+    expect(tables).not.toContain('public');
+    expect(tables).not.toContain('o');
+  });
 });
 
 describe('detectSqlContext', () => {
@@ -320,6 +363,18 @@ describe('extractAliasMap', () => {
     );
     expect(m.has('on')).toBe(false);
   });
+
+  it('maps schema-qualified table to bare name with alias', () => {
+    const m = extractAliasMap('SELECT u.id FROM public.users u WHERE u.id = 1');
+    expect(m.get('u')).toBe('users');
+    expect(m.get('users')).toBe('users');
+    expect(m.has('public')).toBe(false);
+  });
+
+  it('maps schema-qualified table with AS alias', () => {
+    const m = extractAliasMap('SELECT u.id FROM public.users AS u');
+    expect(m.get('u')).toBe('users');
+  });
 });
 
 // Shared fixture data used by ranking tests
@@ -402,6 +457,39 @@ describe('buildCompletionOptions — ranking', () => {
     });
     expect(opts.map((o) => o.label)).toContain('id');
     expect(opts.map((o) => o.label)).toContain('email');
+  });
+
+  it('schema-qualified FROM only shows columns from that table — no bleed', () => {
+    const entries: CompletionEntry[] = [
+      ...sampleEntries,
+      {
+        kind: 'column',
+        schema: 'public',
+        table: 'orders',
+        name: 'total',
+        dataType: 'numeric',
+        keyType: '',
+      },
+      {
+        kind: 'column',
+        schema: 'public',
+        table: 'orders',
+        name: 'placed_at',
+        dataType: 'timestamptz',
+        keyType: '',
+      },
+    ];
+    const stmt = 'SELECT * FROM public.users WHERE ';
+    const fromTables = extractFromTables(stmt);
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind !== 'column') return;
+    const opts = buildCompletionOptions(entries, { ...ctx, fromTables });
+    const labels = opts.map((o) => o.label);
+    expect(labels).toContain('id');
+    expect(labels).toContain('email');
+    expect(labels).not.toContain('total');
+    expect(labels).not.toContain('placed_at');
   });
 });
 
