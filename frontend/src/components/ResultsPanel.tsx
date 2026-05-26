@@ -150,7 +150,7 @@ export function ResultsPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto relative">
         {activeTab?.error ? (
           <div
             style={{ color: T.err, fontFamily: T.mono }}
@@ -161,7 +161,6 @@ export function ResultsPanel({
         ) : (
           <ResultsTable
             data={activeTab?.data ?? null}
-            loading={loading}
             truncated={activeTab?.truncated ?? false}
             activeTabPinned={activeTabPinned}
             pinActive={pinActive}
@@ -170,6 +169,23 @@ export function ResultsPanel({
             activeTabId={activeTab?.id}
             onExport={activeTab?.data ? handleExport : undefined}
           />
+        )}
+        {loading && (
+          <div
+            style={{ background: 'rgba(31,29,27,0.75)', color: T.textDim }}
+            className="absolute inset-0 flex items-center justify-center"
+            data-testid="fetching-overlay"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div
+                style={{ border: `2px solid ${T.accent}`, borderTopColor: 'transparent' }}
+                className="w-8 h-8 rounded-full animate-spin"
+              />
+              <span style={{ fontFamily: T.ui }} className="text-xs font-medium">
+                Fetching data...
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </div>

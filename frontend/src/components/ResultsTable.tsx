@@ -9,7 +9,6 @@ const MIN_COL_WIDTH = 40;
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
   data: { columns: string[]; rows: any[][] } | null;
-  loading: boolean;
   truncated?: boolean;
   activeTabPinned?: boolean;
   pinActive?: boolean;
@@ -21,7 +20,6 @@ interface ResultsTableProps {
 
 export function ResultsTable({
   data,
-  loading,
   truncated = false,
   activeTabPinned,
   pinActive,
@@ -72,25 +70,6 @@ export function ResultsTable({
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
-
-  if (loading) {
-    return (
-      <div
-        style={{ background: T.panel, color: T.textDim }}
-        className="flex items-center justify-center h-full"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div
-            style={{ border: `2px solid ${T.accent}`, borderTopColor: 'transparent' }}
-            className="w-8 h-8 rounded-full animate-spin"
-          />
-          <span style={{ fontFamily: T.ui }} className="text-xs font-medium">
-            Fetching data...
-          </span>
-        </div>
-      </div>
-    );
-  }
 
   if (!data?.rows) {
     return (
