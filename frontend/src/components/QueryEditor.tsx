@@ -359,14 +359,19 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   if (/\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upper) || /\bUPDATE\s*$/.test(upper)) {
     return { kind: 'table' };
   }
+  // Strip trailing expression noise (parens, operators, partial operands) after the
+  // last clause keyword so "WHERE (col = " is treated the same as "WHERE " by the
+  // patterns below. Only fires when a non-space char follows the keyword+space.
+  const normalised = upper.replace(/(\b(?:WHERE|HAVING|ON|AND|OR|SET|BY)\s+)\S[\s\S]*$/, '$1');
   const isSelectList = /\bSELECT(?:\s+DISTINCT)?\s+(?:\w+\s*,\s*)*$/.test(upper);
   const isColumnCtx =
     isSelectList ||
-    /\b(?:WHERE|HAVING|ON)\s*$/.test(upper) ||
-    /\b(?:AND|OR)\s*$/.test(upper) ||
-    /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(upper) ||
-    /\bBY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(upper) ||
-    /\bSET\s*$/.test(upper) ||
+    /\b(?:WHERE|HAVING|ON)\s*$/.test(normalised) ||
+    /\b(?:AND|OR)\s*$/.test(normalised) ||
+    /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
+    /\bBY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
+    /\bSET\s*$/.test(normalised) ||
+    // Multi-column SET pattern uses upper: "SET a=1, b=" doesn't involve parens
     /\bSET\s+(?:\w+\s*=\s*[^,]+,\s*)+$/.test(upper);
   if (isColumnCtx) {
     return { kind: 'column', fromTables: extractFromTables(stmtFull), isSelectList };
