@@ -338,18 +338,42 @@ describe('detectSqlContext', () => {
     const stmt = 'SELECT * FROM users WHERE (id = ';
     const ctx = detectSqlContext(stmt, stmt);
     expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
   });
 
   it('returns column context after WHERE (col IS NULL OR col = ', () => {
     const stmt = 'SELECT * FROM users WHERE (id IS NULL OR id = ';
     const ctx = detectSqlContext(stmt, stmt);
     expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
   });
 
   it('returns column context after WHERE with deeply nested parens', () => {
     const stmt = 'SELECT * FROM users WHERE ((id = ';
     const ctx = detectSqlContext(stmt, stmt);
     expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('returns column context after AND with opening parenthesis', () => {
+    const stmt = 'SELECT * FROM users WHERE id = 1 AND (status = ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('returns column context after HAVING with opening parenthesis', () => {
+    const stmt = 'SELECT id FROM users GROUP BY id HAVING (COUNT(*) > ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('returns column context after ORDER BY with opening parenthesis', () => {
+    const stmt = 'SELECT * FROM users ORDER BY (id ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
   });
 });
 

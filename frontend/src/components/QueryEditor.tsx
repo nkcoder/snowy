@@ -371,6 +371,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
     /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
     /\bBY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
     /\bSET\s*$/.test(normalised) ||
+    // Multi-column SET pattern uses upper: "SET a=1, b=" doesn't involve parens
     /\bSET\s+(?:\w+\s*=\s*[^,]+,\s*)+$/.test(upper);
   if (isColumnCtx) {
     return { kind: 'column', fromTables: extractFromTables(stmtFull), isSelectList };
