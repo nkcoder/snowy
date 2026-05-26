@@ -252,23 +252,28 @@ export function makeKeyTypeBadge(keyType: 'pk' | 'fk' | ''): HTMLElement {
   return badge;
 }
 
+function stripSchema(name: string): string {
+  return name.includes('.') ? name.split('.').pop()! : name;
+}
+
 export function extractFromTables(stmtText: string): string[] {
   const tables: string[] = [];
   const fromMatch = stmtText.match(
-    /\bFROM\s+([\w\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
+    /\bFROM\s+([\w.\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
   );
   if (fromMatch) {
     fromMatch[1].split(',').forEach((part) => {
-      const name = part.trim().split(/\s+/)[0];
+      const raw = part.trim().split(/\s+/)[0];
+      const name = stripSchema(raw);
       if (name && /^\w+$/.test(name)) tables.push(name.toLowerCase());
     });
   }
-  const joinRe = /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)/gi;
+  const joinRe = /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+([\w.]+)/gi;
   for (const m of stmtText.matchAll(joinRe)) {
-    tables.push(m[1].toLowerCase());
+    tables.push(stripSchema(m[1]).toLowerCase());
   }
-  const updateMatch = stmtText.match(/\bUPDATE\s+(\w+)/i);
-  if (updateMatch) tables.push(updateMatch[1].toLowerCase());
+  const updateMatch = stmtText.match(/\bUPDATE\s+([\w.]+)/i);
+  if (updateMatch) tables.push(stripSchema(updateMatch[1]).toLowerCase());
   return [...new Set(tables)];
 }
 
@@ -298,7 +303,7 @@ const ALIAS_RESERVED = new Set([
 export function extractAliasMap(stmtText: string): Map<string, string> {
   const map = new Map<string, string>();
   const addEntry = (tableName: string, alias?: string) => {
-    const t = tableName.toLowerCase();
+    const t = stripSchema(tableName.toLowerCase());
     map.set(t, t);
     if (alias) {
       const a = alias.toLowerCase();
@@ -306,7 +311,7 @@ export function extractAliasMap(stmtText: string): Map<string, string> {
     }
   };
   const fromMatch = stmtText.match(
-    /\bFROM\s+([\w\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
+    /\bFROM\s+([\w.\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
   );
   if (fromMatch) {
     fromMatch[1].split(',').forEach((part) => {
@@ -317,11 +322,11 @@ export function extractAliasMap(stmtText: string): Map<string, string> {
     });
   }
   const joinRe =
-    /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/gi;
+    /\b(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN\s+([\w.]+)(?:\s+(?:AS\s+)?(\w+))?/gi;
   for (const m of stmtText.matchAll(joinRe)) {
     addEntry(m[1], m[2]);
   }
-  const updateMatch = stmtText.match(/\bUPDATE\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/i);
+  const updateMatch = stmtText.match(/\bUPDATE\s+([\w.]+)(?:\s+(?:AS\s+)?(\w+))?/i);
   if (updateMatch) addEntry(updateMatch[1], updateMatch[2]);
   return map;
 }
