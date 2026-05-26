@@ -187,6 +187,23 @@ describe('extractFromTables', () => {
     expect(tables).toContain('users');
     expect(tables).not.toContain('public');
   });
+
+  it('strips schema prefix from schema-qualified table with alias', () => {
+    const tables = extractFromTables('SELECT * FROM public.users u WHERE u.id = 1');
+    expect(tables).toContain('users');
+    expect(tables).not.toContain('public');
+    expect(tables).not.toContain('u');
+  });
+
+  it('handles mixed qualified and unqualified tables in the same query', () => {
+    const tables = extractFromTables(
+      'SELECT * FROM users JOIN public.orders o ON users.id = o.user_id WHERE'
+    );
+    expect(tables).toContain('users');
+    expect(tables).toContain('orders');
+    expect(tables).not.toContain('public');
+    expect(tables).not.toContain('o');
+  });
 });
 
 describe('detectSqlContext', () => {

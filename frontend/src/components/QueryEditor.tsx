@@ -253,7 +253,8 @@ export function makeKeyTypeBadge(keyType: 'pk' | 'fk' | ''): HTMLElement {
 }
 
 function stripSchema(name: string): string {
-  return name.includes('.') ? name.split('.').pop()! : name;
+  // split('.') on a name containing '.' always has ≥2 parts; fall back to name to satisfy TS
+  return name.includes('.') ? (name.split('.').at(-1) ?? name) : name;
 }
 
 export function extractFromTables(stmtText: string): string[] {
