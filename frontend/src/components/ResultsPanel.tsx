@@ -149,12 +149,14 @@ export function ResultsPanel({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto relative">
+      {/* Content — no overflow-auto here: ResultsTable manages its own scroll.
+           Keeping this div overflow-visible ensures the absolute overlay always
+           covers the visible panel, even when the results grid is scrolled. */}
+      <div className="flex-1 min-h-0 relative">
         {activeTab?.error ? (
           <div
             style={{ color: T.err, fontFamily: T.mono }}
-            className="px-[18px] py-3.5 text-xs whitespace-pre-wrap break-words leading-relaxed"
+            className="px-[18px] py-3.5 text-xs whitespace-pre-wrap break-words leading-relaxed overflow-auto h-full"
           >
             {activeTab.error}
           </div>
@@ -170,11 +172,17 @@ export function ResultsPanel({
             onExport={activeTab?.data ? handleExport : undefined}
           />
         )}
+        {/* Overlay is rendered after content in the tree so it sits on top in the
+             stacking context (no z-index needed). The spinner is always centred in
+             the visible panel regardless of scroll position. */}
         {loading && (
           <div
-            style={{ background: 'rgba(31,29,27,0.75)', color: T.textDim }}
+            style={{ background: T.overlay, color: T.textDim }}
             className="absolute inset-0 flex items-center justify-center"
             data-testid="fetching-overlay"
+            role="status"
+            aria-label="Fetching data"
+            aria-live="polite"
           >
             <div className="flex flex-col items-center gap-3">
               <div

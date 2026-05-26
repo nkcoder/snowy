@@ -29,6 +29,7 @@ export const T = {
   gridHeader: 'var(--t-grid-header)',
   shadow: 'var(--t-shadow)',
   vibrancy: 'var(--t-vibrancy)',
+  overlay: 'color-mix(in srgb, var(--t-panel) 75%, transparent)',
   mono: 'var(--t-font-mono)',
   ui: 'var(--t-font-ui)',
 } as const;

@@ -119,6 +119,7 @@ describe('ResultsPanel', () => {
 
   it('shows fetching overlay when loading', () => {
     render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} loading={true} />);
+    expect(screen.getByTestId('fetching-overlay')).toBeTruthy();
     expect(screen.getByText('Fetching data...')).toBeTruthy();
   });
 
