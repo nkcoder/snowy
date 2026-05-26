@@ -117,9 +117,23 @@ describe('ResultsPanel', () => {
     expect(screen.getByText('Execute a query to view results')).toBeTruthy();
   });
 
-  it('renders loading state through ResultsTable', () => {
+  it('shows fetching overlay when loading', () => {
     render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} loading={true} />);
+    expect(screen.getByTestId('fetching-overlay')).toBeTruthy();
     expect(screen.getByText('Fetching data...')).toBeTruthy();
+  });
+
+  it('shows fetching overlay on top of previous results when loading', () => {
+    const tabWithData = makeLiveTab({ data: { columns: ['id'], rows: [[42]] } });
+    render(<ResultsPanel resultTabs={[tabWithData]} {...defaultProps} loading={true} />);
+    expect(screen.getByText('Fetching data...')).toBeTruthy();
+    // Previous result row still in DOM — overlay does not clear results
+    expect(screen.getByText('42')).toBeTruthy();
+  });
+
+  it('does not show fetching overlay when not loading', () => {
+    render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} loading={false} />);
+    expect(screen.queryByText('Fetching data...')).toBeNull();
   });
 
   it('triggers export download when export button is clicked on a tab with data', () => {
