@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Integration tests require a running Postgres instance.
@@ -259,6 +261,30 @@ func TestCacheCompletionsFromMetadata_Overwrite(t *testing.T) {
 			t.Error("stale 'old_table' entry still present after cache overwrite")
 		}
 	}
+}
+
+func TestAcquireRetryOnDeadPool(t *testing.T) {
+	app, dsID := newTestApp(t)
+
+	// Prime the pool.
+	pool, err := app.dbService.getPool(dsID)
+	if err != nil {
+		t.Fatalf("getPool: %v", err)
+	}
+
+	// Simulate pool death (e.g. NAT/firewall teardown) by closing the pool
+	// without removing it from the cache — leaving a stale entry behind.
+	pool.Close()
+
+	// acquire() must detect the failure, discard the stale pool, and retry
+	// successfully with a freshly created pool.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := app.dbService.acquire(ctx, dsID)
+	if err != nil {
+		t.Fatalf("acquire after pool death: %v", err)
+	}
+	conn.Release()
 }
 
 func TestListTableKeys_EmptyTable(t *testing.T) {
