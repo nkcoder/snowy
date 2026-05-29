@@ -285,6 +285,15 @@ func TestAcquireRetryOnDeadPool(t *testing.T) {
 		t.Fatalf("acquire after pool death: %v", err)
 	}
 	conn.Release()
+
+	// Verify the retry path actually replaced the pool (not the original closed one).
+	newPool, err := app.dbService.getPool(dsID)
+	if err != nil {
+		t.Fatalf("getPool after retry: %v", err)
+	}
+	if newPool == pool {
+		t.Error("expected acquire() to replace the stale pool, but pool pointer is unchanged")
+	}
 }
 
 func TestListTableKeys_EmptyTable(t *testing.T) {
