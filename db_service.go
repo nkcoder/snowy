@@ -69,6 +69,7 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 	poolCfg.MinConns = 0
 	poolCfg.MaxConnIdleTime = 5 * time.Minute
 	poolCfg.MaxConnLifetime = 30 * time.Minute
+	poolCfg.HealthCheckPeriod = 1 * time.Minute // explicit; matches pgxpool v5 default
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
 	if err != nil {
@@ -80,12 +81,28 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 
 // acquire borrows a connection from the pool for dsID.
 // Callers must defer conn.Release() immediately after a nil-error check.
+// If the pool returns an error (e.g. after long idle when NAT/firewall closed
+// the underlying TCP connections), the stale pool is discarded and one retry
+// is attempted with a freshly created pool.
 func (s *DbService) acquire(ctx context.Context, dsID string) (*pgxpool.Conn, error) {
 	pool, err := s.getPool(dsID)
 	if err != nil {
 		return nil, err
 	}
-	return pool.Acquire(ctx)
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, err // context cancelled/expired — retry won't help
+		}
+		// Pool may contain stale connections after long idle; reset and retry once.
+		s.closePool(dsID)
+		pool, err = s.getPool(dsID)
+		if err != nil {
+			return nil, err
+		}
+		return pool.Acquire(ctx)
+	}
+	return conn, nil
 }
 
 // closePool shuts down the pool for dsID and evicts its completion cache entry.
