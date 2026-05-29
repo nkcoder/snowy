@@ -1,3 +1,4 @@
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
 import type { main } from '../wailsjs/go/models';
@@ -84,6 +85,10 @@ function App() {
   const [sidebarHandleHovered, setSidebarHandleHovered] = useState(false);
   const [bottomHandleHovered, setBottomHandleHovered] = useState(false);
 
+  // ── Panel visibility ──────────────────────────────────────────────────────
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [bottomVisible, setBottomVisible] = useState(true);
+
   // ── History drawer ────────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<main.HistoryEntry[]>([]);
@@ -117,12 +122,17 @@ function App() {
     resultTabs,
     activeResultTabId,
     setActiveResultTabId,
-    handleRunQuery,
+    handleRunQuery: runQueryInternal,
     handlePinResult,
     handleCloseResultTab,
     handleUnpinResult,
     resetResults,
   } = useQueryExecution(activeDatasourceId);
+
+  const handleRunQuery = (sql: string) => {
+    setBottomVisible(true);
+    runQueryInternal(sql);
+  };
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   const loadConfig = async () => {
@@ -368,6 +378,16 @@ function App() {
                 </>
               )}
             </div>
+            <button
+              type="button"
+              data-testid="sidebar-toggle"
+              onClick={() => setSidebarVisible((v) => !v)}
+              title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+              style={{ color: sidebarVisible ? T.textSec : T.textDim }}
+              className="p-1 bg-transparent border-none cursor-pointer flex items-center rounded ml-1"
+            >
+              {sidebarVisible ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+            </button>
             <div className="flex-1" />
             <button
               type="button"
@@ -420,7 +440,7 @@ function App() {
               appBuildDate={appVersion.buildDate}
               onNewConsole={handleNewTab}
               onDisconnect={handleDisconnect}
-              width={sidebarWidth}
+              width={sidebarVisible ? sidebarWidth : 0}
               preloadedMetadata={
                 activeDatasourceId ? (metadataByDs[activeDatasourceId] ?? null) : null
               }
@@ -429,17 +449,20 @@ function App() {
               }
             />
 
-            {/* Sidebar resize handle */}
-            <div
-              onMouseDown={startSidebarDrag}
-              onMouseEnter={() => setSidebarHandleHovered(true)}
-              onMouseLeave={() => setSidebarHandleHovered(false)}
-              className="w-2.5 shrink-0 cursor-col-resize"
-              style={{
-                borderLeft: `${sidebarHandleHovered || isSidebarDragging ? 4 : 1}px solid ${sidebarHandleHovered || isSidebarDragging ? T.accent : T.border}`,
-                transition: isSidebarDragging ? 'none' : 'border 0.1s ease',
-              }}
-            />
+            {/* Sidebar resize handle — hidden when sidebar is collapsed */}
+            {sidebarVisible && (
+              <div
+                data-testid="sidebar-resize-handle"
+                onMouseDown={startSidebarDrag}
+                onMouseEnter={() => setSidebarHandleHovered(true)}
+                onMouseLeave={() => setSidebarHandleHovered(false)}
+                className="w-2.5 shrink-0 cursor-col-resize"
+                style={{
+                  borderLeft: `${sidebarHandleHovered || isSidebarDragging ? 4 : 1}px solid ${sidebarHandleHovered || isSidebarDragging ? T.accent : T.border}`,
+                  transition: isSidebarDragging ? 'none' : 'border 0.1s ease',
+                }}
+              />
+            )}
 
             <div
               className="flex-1 flex flex-col min-w-0 overflow-hidden"
@@ -475,21 +498,27 @@ function App() {
                 </div>
               </div>
 
-              {/* Bottom resize handle */}
-              <div
-                onMouseDown={startBottomDrag}
-                onMouseEnter={() => setBottomHandleHovered(true)}
-                onMouseLeave={() => setBottomHandleHovered(false)}
-                style={{
-                  borderTop: `${bottomHandleHovered || isBottomDragging ? 4 : 1}px solid ${bottomHandleHovered || isBottomDragging ? T.accent : T.border}`,
-                  zIndex: 10,
-                  transition: isBottomDragging ? 'none' : 'border 0.1s ease',
-                }}
-                className="h-2.5 shrink-0 cursor-row-resize"
-              />
+              {/* Bottom resize handle — hidden when results panel is collapsed */}
+              {bottomVisible && (
+                <div
+                  data-testid="bottom-resize-handle"
+                  onMouseDown={startBottomDrag}
+                  onMouseEnter={() => setBottomHandleHovered(true)}
+                  onMouseLeave={() => setBottomHandleHovered(false)}
+                  style={{
+                    borderTop: `${bottomHandleHovered || isBottomDragging ? 4 : 1}px solid ${bottomHandleHovered || isBottomDragging ? T.accent : T.border}`,
+                    zIndex: 10,
+                    transition: isBottomDragging ? 'none' : 'border 0.1s ease',
+                  }}
+                  className="h-2.5 shrink-0 cursor-row-resize"
+                />
+              )}
 
               {/* Bottom panel */}
-              <div style={{ height: bottomHeight }} className="flex min-h-0 shrink-0">
+              <div
+                style={{ height: bottomVisible ? bottomHeight : 'auto' }}
+                className="flex min-h-0 shrink-0"
+              >
                 {/* Results panel */}
                 <div className="flex-1 min-w-0 overflow-hidden" style={{ minWidth: 0 }}>
                   <ResultsPanel
@@ -501,6 +530,9 @@ function App() {
                     onUnpin={handleUnpinResult}
                     onCloseTab={handleCloseResultTab}
                     onOpenHistory={handleOpenHistory}
+                    onTogglePanel={() => setBottomVisible((v) => !v)}
+                    bottomVisible={bottomVisible}
+                    collapsed={!bottomVisible}
                   />
                 </div>
               </div>

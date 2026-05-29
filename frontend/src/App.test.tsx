@@ -441,3 +441,64 @@ describe('WorkspaceErrorBoundary (via App render error)', () => {
     consoleErrorSpy.mockRestore();
   });
 });
+
+describe('App panel toggles', () => {
+  async function renderConnectedApp() {
+    vi.mocked(GoApp.GetConfig).mockResolvedValue(
+      main.Config.createFrom({
+        projects: [{ id: 'default', name: 'Default' }],
+        datasources: [DEMO_DS],
+      })
+    );
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('ds-item-ds-1')).toBeTruthy());
+    fireEvent.doubleClick(screen.getByTestId('ds-item-ds-1'));
+    await waitFor(() => expect(screen.getByTitle('Manage connections')).toBeTruthy());
+  }
+
+  it('sidebar toggle button is present in title bar', async () => {
+    await renderConnectedApp();
+    expect(screen.getByTestId('sidebar-toggle')).toBeTruthy();
+  });
+
+  it('clicking sidebar toggle hides the sidebar resize handle', async () => {
+    await renderConnectedApp();
+    expect(screen.getByTestId('sidebar-resize-handle')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('sidebar-toggle'));
+    expect(screen.queryByTestId('sidebar-resize-handle')).toBeNull();
+  });
+
+  it('clicking sidebar toggle again restores the sidebar resize handle', async () => {
+    await renderConnectedApp();
+    fireEvent.click(screen.getByTestId('sidebar-toggle'));
+    fireEvent.click(screen.getByTestId('sidebar-toggle'));
+    expect(screen.getByTestId('sidebar-resize-handle')).toBeTruthy();
+  });
+
+  it('results panel toggle button is present in results panel tab strip', async () => {
+    await renderConnectedApp();
+    expect(screen.getByTestId('results-toggle')).toBeTruthy();
+  });
+
+  it('clicking results toggle hides the bottom resize handle', async () => {
+    await renderConnectedApp();
+    expect(screen.getByTestId('bottom-resize-handle')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('results-toggle'));
+    expect(screen.queryByTestId('bottom-resize-handle')).toBeNull();
+  });
+
+  it('clicking results toggle again restores the bottom resize handle', async () => {
+    await renderConnectedApp();
+    fireEvent.click(screen.getByTestId('results-toggle'));
+    fireEvent.click(screen.getByTestId('results-toggle'));
+    expect(screen.getByTestId('bottom-resize-handle')).toBeTruthy();
+  });
+
+  it('sidebar and results toggles are independent', async () => {
+    await renderConnectedApp();
+    fireEvent.click(screen.getByTestId('sidebar-toggle'));
+    // sidebar collapsed, bottom still visible
+    expect(screen.queryByTestId('sidebar-resize-handle')).toBeNull();
+    expect(screen.getByTestId('bottom-resize-handle')).toBeTruthy();
+  });
+});
