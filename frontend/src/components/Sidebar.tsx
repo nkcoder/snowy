@@ -1522,7 +1522,9 @@ export function Sidebar({
             No connections — click + to add one
           </div>
         ) : (
-          datasources.map((ds) => renderConnectionNode(ds))
+          [...datasources]
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+            .map((ds) => renderConnectionNode(ds))
         )}
       </div>
 
