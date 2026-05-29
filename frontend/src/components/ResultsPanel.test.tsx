@@ -38,6 +38,9 @@ const defaultProps = {
   onUnpin: vi.fn(),
   onCloseTab: vi.fn(),
   onOpenHistory: vi.fn(),
+  onTogglePanel: vi.fn(),
+  bottomVisible: true,
+  collapsed: false,
 };
 
 describe('ResultsPanel', () => {
@@ -74,6 +77,32 @@ describe('ResultsPanel', () => {
     );
     fireEvent.click(screen.getByTitle('Query history'));
     expect(onOpenHistory).toHaveBeenCalled();
+  });
+
+  it('calls onTogglePanel when results toggle is clicked', () => {
+    const onTogglePanel = vi.fn();
+    render(
+      <ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} onTogglePanel={onTogglePanel} />
+    );
+    fireEvent.click(screen.getByTitle('Hide results panel'));
+    expect(onTogglePanel).toHaveBeenCalled();
+  });
+
+  it('results toggle shows "Show results panel" title when bottomVisible is false', () => {
+    render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} bottomVisible={false} />);
+    expect(screen.getByTitle('Show results panel')).toBeTruthy();
+  });
+
+  it('hides content area when collapsed', () => {
+    const tab = makeLiveTab({ error: 'should not appear' });
+    render(<ResultsPanel resultTabs={[tab]} {...defaultProps} collapsed={true} />);
+    expect(screen.queryByText('should not appear')).toBeNull();
+  });
+
+  it('shows content area when not collapsed', () => {
+    const tab = makeLiveTab({ error: 'visible error' });
+    render(<ResultsPanel resultTabs={[tab]} {...defaultProps} collapsed={false} />);
+    expect(screen.getByText('visible error')).toBeTruthy();
   });
 
   it('shows error text in content area for error tab', () => {

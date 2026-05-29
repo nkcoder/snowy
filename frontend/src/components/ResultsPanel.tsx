@@ -1,4 +1,4 @@
-import { History, Pin, X } from 'lucide-react';
+import { History, PanelBottomClose, PanelBottomOpen, Pin, X } from 'lucide-react';
 import { T } from '../lib/tokens';
 import { ResultsTable } from './ResultsTable';
 
@@ -25,6 +25,9 @@ interface ResultsPanelProps {
   onUnpin: (id: string) => void;
   onCloseTab: (id: string) => void;
   onOpenHistory: () => void;
+  onTogglePanel: () => void;
+  bottomVisible: boolean;
+  collapsed: boolean;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: CSV cells can be any DB value
@@ -60,6 +63,9 @@ export function ResultsPanel({
   onUnpin,
   onCloseTab,
   onOpenHistory,
+  onTogglePanel,
+  bottomVisible,
+  collapsed,
 }: ResultsPanelProps) {
   const activeTab = resultTabs.find((t) => t.id === activeResultTabId) ?? resultTabs[0] ?? null;
   const liveTab = resultTabs.find((t) => !t.pinned) ?? null;
@@ -139,6 +145,16 @@ export function ResultsPanel({
         >
           <button
             type="button"
+            data-testid="results-toggle"
+            onClick={onTogglePanel}
+            title={bottomVisible ? 'Hide results panel' : 'Show results panel'}
+            style={{ color: bottomVisible ? T.textSec : T.textDim }}
+            className="flex items-center p-1 bg-transparent border-none rounded-[3px] cursor-pointer"
+          >
+            {bottomVisible ? <PanelBottomClose size={13} /> : <PanelBottomOpen size={13} />}
+          </button>
+          <button
+            type="button"
             onClick={onOpenHistory}
             title="Query history"
             style={{ color: T.textSec }}
@@ -149,53 +165,53 @@ export function ResultsPanel({
         </div>
       </div>
 
-      {/* Content — no overflow-auto here: ResultsTable manages its own scroll.
-           Keeping this div overflow-visible ensures the absolute overlay always
-           covers the visible panel, even when the results grid is scrolled. */}
-      <div className="flex-1 min-h-0 relative">
-        {activeTab?.error ? (
-          <div
-            style={{ color: T.err, fontFamily: T.mono }}
-            className="px-[18px] py-3.5 text-xs whitespace-pre-wrap break-words leading-relaxed overflow-auto h-full"
-          >
-            {activeTab.error}
-          </div>
-        ) : (
-          <ResultsTable
-            data={activeTab?.data ?? null}
-            truncated={activeTab?.truncated ?? false}
-            activeTabPinned={activeTabPinned}
-            pinActive={pinActive}
-            onPin={onPin}
-            onUnpin={onUnpin}
-            activeTabId={activeTab?.id}
-            onExport={activeTab?.data ? handleExport : undefined}
-          />
-        )}
-        {/* Overlay is rendered after content in the tree so it sits on top in the
+      {/* Content — hidden when panel is collapsed to just the tab strip */}
+      {!collapsed && (
+        <div className="flex-1 min-h-0 relative">
+          {activeTab?.error ? (
+            <div
+              style={{ color: T.err, fontFamily: T.mono }}
+              className="px-[18px] py-3.5 text-xs whitespace-pre-wrap break-words leading-relaxed overflow-auto h-full"
+            >
+              {activeTab.error}
+            </div>
+          ) : (
+            <ResultsTable
+              data={activeTab?.data ?? null}
+              truncated={activeTab?.truncated ?? false}
+              activeTabPinned={activeTabPinned}
+              pinActive={pinActive}
+              onPin={onPin}
+              onUnpin={onUnpin}
+              activeTabId={activeTab?.id}
+              onExport={activeTab?.data ? handleExport : undefined}
+            />
+          )}
+          {/* Overlay is rendered after content in the tree so it sits on top in the
              stacking context (no z-index needed). The spinner is always centred in
              the visible panel regardless of scroll position. */}
-        {loading && (
-          <div
-            style={{ background: T.overlay, color: T.textDim }}
-            className="absolute inset-0 flex items-center justify-center"
-            data-testid="fetching-overlay"
-            role="status"
-            aria-label="Fetching data"
-            aria-live="polite"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div
-                style={{ border: `2px solid ${T.accent}`, borderTopColor: 'transparent' }}
-                className="w-8 h-8 rounded-full animate-spin"
-              />
-              <span style={{ fontFamily: T.ui }} className="text-xs font-medium">
-                Fetching data...
-              </span>
+          {loading && (
+            <div
+              style={{ background: T.overlay, color: T.textDim }}
+              className="absolute inset-0 flex items-center justify-center"
+              data-testid="fetching-overlay"
+              role="status"
+              aria-label="Fetching data"
+              aria-live="polite"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  style={{ border: `2px solid ${T.accent}`, borderTopColor: 'transparent' }}
+                  className="w-8 h-8 rounded-full animate-spin"
+                />
+                <span style={{ fontFamily: T.ui }} className="text-xs font-medium">
+                  Fetching data...
+                </span>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

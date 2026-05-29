@@ -1,4 +1,4 @@
-import { PanelBottomClose, PanelBottomOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
 import type { main } from '../wailsjs/go/models';
@@ -122,12 +122,17 @@ function App() {
     resultTabs,
     activeResultTabId,
     setActiveResultTabId,
-    handleRunQuery,
+    handleRunQuery: runQueryInternal,
     handlePinResult,
     handleCloseResultTab,
     handleUnpinResult,
     resetResults,
   } = useQueryExecution(activeDatasourceId);
+
+  const handleRunQuery = (sql: string) => {
+    setBottomVisible(true);
+    runQueryInternal(sql);
+  };
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   const loadConfig = async () => {
@@ -511,7 +516,7 @@ function App() {
 
               {/* Bottom panel */}
               <div
-                style={{ height: bottomVisible ? bottomHeight : 0 }}
+                style={{ height: bottomVisible ? bottomHeight : 'auto' }}
                 className="flex min-h-0 shrink-0"
               >
                 {/* Results panel */}
@@ -525,6 +530,9 @@ function App() {
                     onUnpin={handleUnpinResult}
                     onCloseTab={handleCloseResultTab}
                     onOpenHistory={handleOpenHistory}
+                    onTogglePanel={() => setBottomVisible((v) => !v)}
+                    bottomVisible={bottomVisible}
+                    collapsed={!bottomVisible}
                   />
                 </div>
               </div>
@@ -558,16 +566,6 @@ function App() {
                     {rowCount} rows · {durationMs}ms
                   </span>
                 )}
-                <button
-                  type="button"
-                  data-testid="results-toggle"
-                  onClick={() => setBottomVisible((v) => !v)}
-                  title={bottomVisible ? 'Hide results panel' : 'Show results panel'}
-                  style={{ color: bottomVisible ? T.textSec : T.textDim }}
-                  className="p-1 bg-transparent border-none cursor-pointer flex items-center rounded"
-                >
-                  {bottomVisible ? <PanelBottomClose size={13} /> : <PanelBottomOpen size={13} />}
-                </button>
                 <span style={{ color: T.textDim }}>UTC</span>
               </div>
             </div>

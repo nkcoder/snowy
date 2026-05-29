@@ -475,7 +475,7 @@ describe('App panel toggles', () => {
     expect(screen.getByTestId('sidebar-resize-handle')).toBeTruthy();
   });
 
-  it('results panel toggle button is present in status bar', async () => {
+  it('results panel toggle button is present in results panel tab strip', async () => {
     await renderConnectedApp();
     expect(screen.getByTestId('results-toggle')).toBeTruthy();
   });
