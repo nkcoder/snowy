@@ -53,3 +53,26 @@ jobs:
         run: |
           go tool cover -func=coverage.out | \
           awk '/^total:/ { sub(/%/,""); if ($3+0 < 80) { print "FAIL: Go coverage "$3"% < 80%"; exit 1 } }'
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npx playwright test
