@@ -64,4 +64,62 @@ test.describe('Column resize handles', () => {
     console.log('Before:', thWidth, 'After inline:', newWidth.inline, 'computed:', newWidth.computed);
     expect(newWidth.computed).toBeGreaterThan(thWidth);
   });
+
+  test('drag left shrinks column width', async ({ page }) => {
+    const info = await page.evaluate(() => {
+      const th = Array.from(document.querySelectorAll('table thead th'))[1] as HTMLTableCellElement;
+      if (!th) return null;
+      let handleRect: DOMRect | null = null;
+      for (const div of th.querySelectorAll('div')) {
+        if (getComputedStyle(div).cursor === 'col-resize') {
+          handleRect = div.getBoundingClientRect();
+          break;
+        }
+      }
+      return {
+        thWidth: th.offsetWidth,
+        handleX: handleRect ? handleRect.x + handleRect.width / 2 : null,
+        handleY: handleRect ? handleRect.y + handleRect.height / 2 : null,
+      };
+    });
+    expect(info?.handleX).not.toBeNull();
+
+    await page.mouse.move(info!.handleX!, info!.handleY!);
+    await page.mouse.down();
+    await page.mouse.move(info!.handleX! - 60, info!.handleY!, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+
+    const newWidth = await page.evaluate(() => {
+      const th = document.querySelectorAll('table thead th')[1] as HTMLTableCellElement;
+      return th.offsetWidth;
+    });
+    expect(newWidth).toBeLessThan(info!.thWidth);
+  });
+
+  test('column width cannot be dragged below minimum (40px)', async ({ page }) => {
+    const handlePos = await page.evaluate(() => {
+      const th = Array.from(document.querySelectorAll('table thead th'))[1] as HTMLTableCellElement;
+      for (const div of th.querySelectorAll('div')) {
+        if (getComputedStyle(div).cursor === 'col-resize') {
+          const r = div.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        }
+      }
+      return null;
+    });
+    expect(handlePos).not.toBeNull();
+
+    await page.mouse.move(handlePos!.x, handlePos!.y);
+    await page.mouse.down();
+    await page.mouse.move(handlePos!.x - 400, handlePos!.y, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+
+    const width = await page.evaluate(() => {
+      const th = document.querySelectorAll('table thead th')[1] as HTMLTableCellElement;
+      return th.offsetWidth;
+    });
+    expect(width).toBeGreaterThanOrEqual(40);
+  });
 });
