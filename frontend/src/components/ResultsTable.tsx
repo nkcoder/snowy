@@ -169,7 +169,7 @@ export function ResultsTable({
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto" style={{ minWidth: 0 }}>
+      <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }}>
         <table
           className="border-collapse"
           style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
