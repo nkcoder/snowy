@@ -1058,62 +1058,64 @@ export function ConnectionManager({
 
         {/* Datasource list */}
         <div style={{ flex: 1, padding: '4px', overflowY: 'auto' }}>
-          {datasources.map((ds) => {
-            const envColor = ENV_COLORS[ds.env] ?? T.textSec;
-            const selected = ds.id === selectedDsId && formMode !== 'add';
-            return (
-              <div
-                key={ds.id}
-                data-testid={`ds-item-${ds.id}`}
-                onClick={() => {
-                  setSelectedDsId(ds.id);
-                  setFormMode('edit');
-                }}
-                onDoubleClick={() => onConnect(ds.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '7px 10px',
-                  background: selected ? T.selected : 'transparent',
-                  borderLeft: `2px solid ${selected ? T.selectedBorder : 'transparent'}`,
-                  borderRadius: 4,
-                  marginBottom: 1,
-                  cursor: 'pointer',
-                  userSelect: 'none' as const,
-                }}
-              >
-                <ElephantIcon color={envColor} size={14} />
-                <div style={{ flex: 1, minWidth: 0 }}>
+          {[...datasources]
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+            .map((ds) => {
+              const envColor = ENV_COLORS[ds.env] ?? T.textSec;
+              const selected = ds.id === selectedDsId && formMode !== 'add';
+              return (
+                <div
+                  key={ds.id}
+                  data-testid={`ds-item-${ds.id}`}
+                  onClick={() => {
+                    setSelectedDsId(ds.id);
+                    setFormMode('edit');
+                  }}
+                  onDoubleClick={() => onConnect(ds.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '7px 10px',
+                    background: selected ? T.selected : 'transparent',
+                    borderLeft: `2px solid ${selected ? T.selectedBorder : 'transparent'}`,
+                    borderRadius: 4,
+                    marginBottom: 1,
+                    cursor: 'pointer',
+                    userSelect: 'none' as const,
+                  }}
+                >
+                  <ElephantIcon color={envColor} size={14} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: selected ? 600 : 500,
+                        color: T.text,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {ds.name}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: T.textDim, fontFamily: T.mono }}>
+                      {ds.host}
+                    </div>
+                  </div>
                   <div
                     style={{
-                      fontSize: 12.5,
-                      fontWeight: selected ? 600 : 500,
-                      color: T.text,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      flexShrink: 0,
+                      background: ds.id === activeDatasourceId ? T.ok : T.textDim,
+                      boxShadow: ds.id === activeDatasourceId ? `0 0 4px ${T.ok}` : 'none',
                     }}
-                  >
-                    {ds.name}
-                  </div>
-                  <div style={{ fontSize: 10.5, color: T.textDim, fontFamily: T.mono }}>
-                    {ds.host}
-                  </div>
+                  />
                 </div>
-                <div
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
-                    flexShrink: 0,
-                    background: ds.id === activeDatasourceId ? T.ok : T.textDim,
-                    boxShadow: ds.id === activeDatasourceId ? `0 0 4px ${T.ok}` : 'none',
-                  }}
-                />
-              </div>
-            );
-          })}
+              );
+            })}
           {datasources.length === 0 && (
             <div
               style={{
