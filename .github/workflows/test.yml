@@ -62,6 +62,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Install root deps
         run: npm ci
 
