@@ -53,3 +53,24 @@ jobs:
         run: |
           go tool cover -func=coverage.out | \
           awk '/^total:/ { sub(/%/,""); if ($3+0 < 80) { print "FAIL: Go coverage "$3"% < 80%"; exit 1 } }'
+
+  e2e:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run E2E tests
+        run: npx playwright test
