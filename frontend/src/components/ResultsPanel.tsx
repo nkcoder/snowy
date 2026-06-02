@@ -79,7 +79,7 @@ export function ResultsPanel({
   };
 
   return (
-    <div style={{ background: T.panel }} className="flex flex-col h-full">
+    <div style={{ background: T.panel }} className="flex flex-col h-full relative">
       {/* Result tab strip */}
       <div
         style={{
@@ -165,9 +165,13 @@ export function ResultsPanel({
         </div>
       </div>
 
-      {/* Content — hidden when panel is collapsed to just the tab strip */}
+      {/* Content — absolutely fills the panel below the tab strip (top 32px = h-8).
+           Absolute layout avoids the flex percentage-height chain that caused scroll to break. */}
       {!collapsed && (
-        <div className="flex-1 min-h-0 relative">
+        <div
+          className="overflow-hidden"
+          style={{ position: 'absolute', top: 32, left: 0, right: 0, bottom: 0 }}
+        >
           {activeTab?.error ? (
             <div
               style={{ color: T.err, fontFamily: T.mono }}
