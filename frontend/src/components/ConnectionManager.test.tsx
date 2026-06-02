@@ -336,6 +336,92 @@ describe('ConnectionForm', () => {
     expect(applied.name).toBe('myconn');
     expect(applied.database).toBe('mydb');
   });
+
+  it('Cancel and Apply disabled initially when editing existing datasource', () => {
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        initial={{ id: 'd1', name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    expect(screen.getByTestId('btn-cancel')).toBeDisabled();
+    expect(screen.getByTestId('btn-apply')).toBeDisabled();
+  });
+
+  it('Cancel and Apply enabled after editing a field', async () => {
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        initial={{ id: 'd1', name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'changed');
+    expect(screen.getByTestId('btn-cancel')).not.toBeDisabled();
+    expect(screen.getByTestId('btn-apply')).not.toBeDisabled();
+  });
+
+  it('Apply disables Cancel and Apply again after success', async () => {
+    const onApply = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={onApply}
+        initial={{ id: 'd1', name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'changed');
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
+    expect(screen.getByTestId('btn-cancel')).toBeDisabled();
+    expect(screen.getByTestId('btn-apply')).toBeDisabled();
+  });
+
+  it('Cancel always enabled for new datasource (isNew)', () => {
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        initial={{}}
+      />
+    );
+    expect(screen.getByTestId('btn-cancel')).not.toBeDisabled();
+  });
+
+  it('calls onDirtyChange(true) when a field is edited on existing ds', async () => {
+    const onDirtyChange = vi.fn();
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onDirtyChange={onDirtyChange}
+        initial={{ id: 'd1', name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'x');
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true));
+  });
+
+  it('calls onDirtyChange(false) after Apply resets the baseline', async () => {
+    const onDirtyChange = vi.fn();
+    const onApply = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ConnectionForm
+        {...defaultProps}
+        onApply={onApply}
+        onDirtyChange={onDirtyChange}
+        initial={{ id: 'd1', name: 'myconn', host: 'localhost', database: 'mydb' }}
+      />
+    );
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'changed');
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(true));
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onDirtyChange).toHaveBeenCalledWith(false));
+  });
 });
 
 // ── ConnectionManager ──────────────────────────────────────────────────────────
@@ -462,6 +548,129 @@ describe('ConnectionManager', () => {
     await userEvent.click(screen.getByTestId('btn-cancel'));
     // After cancel with existing ds, form closes
     expect(screen.queryByText('New Data Source')).not.toBeInTheDocument();
+  });
+
+  it('switching datasources resets form to the new ds values (core bug fix)', async () => {
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', host: 'alpha-host', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', host: 'beta-host', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2] });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    expect(screen.getByTestId('field-name')).toHaveValue('alpha');
+
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+    expect(screen.getByTestId('field-name')).toHaveValue('beta');
+    expect(screen.getByTestId('field-host')).toHaveValue('beta-host');
+  });
+
+  it('no unsaved-changes prompt when switching with clean form', async () => {
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2] });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+
+    expect(screen.queryByTestId('unsaved-changes-dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('field-name')).toHaveValue('beta');
+  });
+
+  it('unsaved-changes prompt appears when switching ds with a dirty form', async () => {
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2] });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+    expect(screen.getByTestId('unsaved-changes-dialog')).toBeInTheDocument();
+  });
+
+  it('Discard in prompt switches without saving', async () => {
+    const onUpdateDs = vi.fn().mockResolvedValue(undefined);
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2], onUpdateDs });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+
+    await userEvent.click(screen.getByTestId('unsaved-discard'));
+
+    expect(screen.queryByTestId('unsaved-changes-dialog')).not.toBeInTheDocument();
+    expect(onUpdateDs).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('field-name')).toHaveValue('beta'));
+  });
+
+  it('Cancel in prompt stays on current ds with edits intact', async () => {
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2] });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+
+    await userEvent.click(screen.getByTestId('unsaved-cancel'));
+
+    expect(screen.queryByTestId('unsaved-changes-dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('field-name')).toHaveValue('modified');
+  });
+
+  it('Save in prompt saves current ds then switches', async () => {
+    const onUpdateDs = vi.fn().mockResolvedValue(undefined);
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2], onUpdateDs });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+
+    await userEvent.click(screen.getByTestId('unsaved-save'));
+    await waitFor(() => expect(onUpdateDs).toHaveBeenCalledOnce());
+    const saved = onUpdateDs.mock.calls[0][0] as Datasource;
+    expect(saved.name).toBe('modified');
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('unsaved-changes-dialog')).not.toBeInTheDocument()
+    );
+    expect(screen.getByTestId('field-name')).toHaveValue('beta');
+  });
+
+  it('Add button triggers unsaved-changes prompt when form is dirty', async () => {
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    renderManager({ datasources: [ds1] });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+
+    await userEvent.click(screen.getByTestId('btn-add-connection'));
+    expect(screen.getByTestId('unsaved-changes-dialog')).toBeInTheDocument();
+  });
+
+  it('Apply clears dirty — no prompt when switching after Apply', async () => {
+    const onUpdateDs = vi.fn().mockResolvedValue(undefined);
+    const ds1 = makeDs({ id: 'd1', name: 'alpha', database: 'db1' });
+    const ds2 = makeDs({ id: 'd2', name: 'beta', database: 'db2' });
+    renderManager({ datasources: [ds1, ds2], onUpdateDs });
+
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.clear(screen.getByTestId('field-name'));
+    await userEvent.type(screen.getByTestId('field-name'), 'modified');
+    await userEvent.click(screen.getByTestId('btn-apply'));
+    await waitFor(() => expect(onUpdateDs).toHaveBeenCalledOnce());
+
+    await userEvent.click(screen.getByTestId('ds-item-d2'));
+    expect(screen.queryByTestId('unsaved-changes-dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('field-name')).toHaveValue('beta'));
   });
 
   it('Test connection calls GoApp.TestDatasource with sslMode', async () => {

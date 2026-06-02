@@ -1,5 +1,5 @@
 import { ChevronDown, Copy, Eye, EyeOff, Loader, Plus, Wifi, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as GoApp from '../../wailsjs/go/main/App';
 import { ENV_COLORS, T } from '../lib/tokens';
 import type { Datasource, Project } from '../types';
@@ -195,6 +195,112 @@ function ElephantIcon({ color, size = 16 }: { color: string; size?: number }) {
   );
 }
 
+// ── Unsaved changes dialog ───────────────────────────────────────────────────
+function UnsavedChangesDialog({
+  onDiscard,
+  onCancel,
+  onSave,
+}: {
+  onDiscard: () => void;
+  onCancel: () => void;
+  onSave: () => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave();
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div
+      data-testid="unsaved-changes-dialog"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+      }}
+    >
+      <div
+        style={{
+          background: T.panel,
+          border: `0.5px solid ${T.borderStrong}`,
+          borderRadius: 10,
+          padding: '24px 28px',
+          width: 360,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ fontSize: 14, color: T.text, marginBottom: 20, lineHeight: 1.5 }}>
+          You have unsaved changes. What would you like to do?
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            data-testid="unsaved-discard"
+            onClick={onDiscard}
+            disabled={saving}
+            style={{
+              padding: '5px 14px',
+              background: T.err,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 5,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            data-testid="unsaved-cancel"
+            onClick={onCancel}
+            disabled={saving}
+            style={{
+              padding: '5px 14px',
+              background: T.panelAlt,
+              color: T.textSec,
+              border: `0.5px solid ${T.border}`,
+              borderRadius: 5,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            data-testid="unsaved-save"
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '5px 14px',
+              background: T.accent,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 5,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Confirm delete dialog ────────────────────────────────────────────────────
 function ConfirmDialog({
   message,
@@ -301,6 +407,8 @@ export function ConnectionForm({
   onCancel,
   onApply,
   onTest,
+  onDirtyChange,
+  onFormChange,
 }: {
   initial: Partial<Datasource>;
   projectId: string;
@@ -308,6 +416,8 @@ export function ConnectionForm({
   onCancel: () => void;
   onApply?: (ds: Datasource) => Promise<void>;
   onTest: (ds: Partial<Datasource>) => Promise<TestResult>;
+  onDirtyChange?: (dirty: boolean) => void;
+  onFormChange?: (ds: Datasource) => void;
 }) {
   const [form, setForm] = useState<Omit<Datasource, 'id' | 'projectId'>>({
     ...makeEmptyForm(),
@@ -327,13 +437,48 @@ export function ConnectionForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const stableId = useRef(initial.id ?? `${Date.now()}`);
+  const [cleanValues, setCleanValues] = useState<Omit<Datasource, 'id' | 'projectId'>>({
+    name: initial.name ?? '',
+    host: initial.host ?? 'localhost',
+    port: initial.port ?? 5432,
+    database: initial.database ?? '',
+    username: initial.username ?? '',
+    password: initial.password ?? '',
+    env: initial.env ?? 'local',
+    sslMode: initial.sslMode ?? 'require',
+  });
+
+  const isDirty = useMemo(
+    () =>
+      (Object.keys(cleanValues) as Array<keyof typeof cleanValues>).some(
+        (k) => form[k] !== cleanValues[k]
+      ),
+    [form, cleanValues]
+  );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    onFormChange?.({ id: stableId.current, projectId, ...form });
+  }, [form, onFormChange, projectId]);
+
+  useEffect(
+    () => () => {
+      onDirtyChange?.(false);
+    },
+    [onDirtyChange]
+  );
+
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const derivedUrl = `postgres://${form.username}@${form.host}:${form.port}/${form.database}?sslmode=${form.sslMode}`;
 
   const buildDs = (): Datasource => ({
-    id: initial.id ?? `${Date.now()}`,
+    id: stableId.current,
     projectId,
     ...form,
   });
@@ -363,6 +508,8 @@ export function ConnectionForm({
     setSaving(true);
     try {
       await onApply?.(buildDs());
+      setCleanValues({ ...form });
+      onDirtyChange?.(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -373,6 +520,7 @@ export function ConnectionForm({
   const tabs = ['General', 'Options', 'SSL'];
   const canSave = !saving && !!form.name && !!form.host && !!form.database;
   const isNew = !initial.id;
+  const canApplyOrCancel = isNew || isDirty;
 
   return (
     <div
@@ -778,14 +926,16 @@ export function ConnectionForm({
           type="button"
           data-testid="btn-cancel"
           onClick={onCancel}
+          disabled={!canApplyOrCancel}
           style={{
             padding: '5px 12px',
             border: `0.5px solid ${T.border}`,
             borderRadius: 4,
             fontSize: 12,
-            color: T.textSec,
+            color: canApplyOrCancel ? T.textSec : T.textDim,
             background: 'none',
-            cursor: 'pointer',
+            cursor: canApplyOrCancel ? 'pointer' : 'not-allowed',
+            opacity: canApplyOrCancel ? 1 : 0.4,
           }}
         >
           Cancel
@@ -795,16 +945,16 @@ export function ConnectionForm({
             type="button"
             data-testid="btn-apply"
             onClick={handleApply}
-            disabled={!canSave}
+            disabled={!canSave || !canApplyOrCancel}
             style={{
               padding: '5px 14px',
               background: T.panelAlt,
-              color: canSave ? T.text : T.textDim,
+              color: canSave && canApplyOrCancel ? T.text : T.textDim,
               border: `0.5px solid ${T.border}`,
               borderRadius: 4,
               fontSize: 12,
               fontWeight: 500,
-              cursor: canSave ? 'pointer' : 'not-allowed',
+              cursor: canSave && canApplyOrCancel ? 'pointer' : 'not-allowed',
               display: 'flex',
               alignItems: 'center',
               gap: 5,
@@ -858,6 +1008,12 @@ export function ConnectionManager({
   const [selectedDsId, setSelectedDsId] = useState<string | null>(datasources[0]?.id ?? null);
   const [formMode, setFormMode] = useState<FormMode>(datasources.length === 0 ? 'add' : null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; message: string } | null>(null);
+  const [formIsDirty, setFormIsDirty] = useState(false);
+  const [pendingSwitch, setPendingSwitch] = useState<{
+    dsId: string | null;
+    toMode: 'add' | 'edit';
+  } | null>(null);
+  const latestFormRef = useRef<Datasource | null>(null);
 
   useEffect(() => {
     if (startInAddMode) {
@@ -985,8 +1141,12 @@ export function ConnectionManager({
             data-testid="btn-add-connection"
             title="Add"
             onClick={() => {
-              setFormMode('add');
-              setSelectedDsId(null);
+              if (formIsDirty) {
+                setPendingSwitch({ dsId: null, toMode: 'add' });
+              } else {
+                setFormMode('add');
+                setSelectedDsId(null);
+              }
             }}
             style={{
               width: 22,
@@ -1068,8 +1228,12 @@ export function ConnectionManager({
                   key={ds.id}
                   data-testid={`ds-item-${ds.id}`}
                   onClick={() => {
-                    setSelectedDsId(ds.id);
-                    setFormMode('edit');
+                    if (formIsDirty) {
+                      setPendingSwitch({ dsId: ds.id, toMode: 'edit' });
+                    } else {
+                      setSelectedDsId(ds.id);
+                      setFormMode('edit');
+                    }
                   }}
                   onDoubleClick={() => onConnect(ds.id)}
                   style={{
@@ -1156,22 +1320,32 @@ export function ConnectionManager({
       {/* ── Form / detail panel ──────────────────────────────────────── */}
       {showForm && formMode === 'add' && (
         <ConnectionForm
+          key="add"
           initial={{ projectId: defaultProjectId }}
           projectId={defaultProjectId}
           onSave={handleSaveNew}
           onApply={handleApplyNew}
           onCancel={() => setFormMode(datasources.length > 0 ? 'edit' : null)}
           onTest={handleTest}
+          onDirtyChange={setFormIsDirty}
+          onFormChange={(ds) => {
+            latestFormRef.current = ds;
+          }}
         />
       )}
       {showForm && formMode === 'edit' && selectedDs && (
         <ConnectionForm
+          key={selectedDs.id}
           initial={selectedDs}
           projectId={selectedDs.projectId}
           onSave={handleSaveEdit}
           onApply={handleApplyEdit}
           onCancel={() => setFormMode(null)}
           onTest={handleTest}
+          onDirtyChange={setFormIsDirty}
+          onFormChange={(ds) => {
+            latestFormRef.current = ds;
+          }}
         />
       )}
       {!showForm && (
@@ -1190,7 +1364,13 @@ export function ConnectionManager({
           <div style={{ fontSize: 13, fontWeight: 500 }}>Select a data source to configure</div>
           <button
             type="button"
-            onClick={() => setFormMode('add')}
+            onClick={() => {
+              if (formIsDirty) {
+                setPendingSwitch({ dsId: null, toMode: 'add' });
+              } else {
+                setFormMode('add');
+              }
+            }}
             style={{
               fontSize: 12,
               color: T.accent,
@@ -1211,6 +1391,45 @@ export function ConnectionManager({
           message={confirmDelete.message}
           onConfirm={handleConfirm}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {/* ── Unsaved changes ────────────────────────────────────────────── */}
+      {pendingSwitch && (
+        <UnsavedChangesDialog
+          onDiscard={() => {
+            const p = pendingSwitch;
+            setPendingSwitch(null);
+            if (p.dsId !== null) {
+              setSelectedDsId(p.dsId);
+              setFormMode('edit');
+            } else {
+              setFormMode('add');
+              setSelectedDsId(null);
+            }
+          }}
+          onCancel={() => setPendingSwitch(null)}
+          onSave={async () => {
+            const ds = latestFormRef.current;
+            if (!ds) return;
+            if (formMode === 'edit') {
+              await handleApplyEdit(ds);
+            } else if (formMode === 'add') {
+              await onSaveAll(projects, [
+                ...datasources,
+                { ...ds, projectId: ds.projectId || defaultProjectId },
+              ]);
+            }
+            const p = pendingSwitch;
+            setPendingSwitch(null);
+            if (p.dsId !== null) {
+              setSelectedDsId(p.dsId);
+              setFormMode('edit');
+            } else {
+              setFormMode('add');
+              setSelectedDsId(null);
+            }
+          }}
         />
       )}
     </div>
