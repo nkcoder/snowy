@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildMockBridgeScript, mockConfig, mockCompletions, mockQueryResult } from './mock-bridge';
+import { buildMockBridgeScript, mockConfig, mockCompletions, mockQueryResult, mockHistoryEntries } from './mock-bridge';
 import { setupMock, connectToWorkspace, runQuery } from './helpers';
 
 test.describe('Result tabs', () => {
@@ -206,5 +206,105 @@ test.describe('Query Error Display', () => {
     const hasError = await page.locator('text=invalid input syntax').isVisible();
     expect(hasError, 'error message must be cleared after a successful query').toBe(false);
     await expect(page.locator('text=user_id').first()).toBeVisible({ timeout: 3_000 });
+  });
+});
+
+// ── helper: build a mock with N rows in the query result ─────────────────────
+function manyRowsMock(n: number) {
+  return buildMockBridgeScript(
+    mockConfig,
+    mockCompletions,
+    {
+      columns: ['n'],
+      rows: Array.from({ length: n }, (_, i) => [i + 1]),
+      durationMs: 5,
+      rowCount: n,
+    },
+    mockHistoryEntries,
+  );
+}
+
+test.describe('Scroll', () => {
+  test('results grid scrolls vertically when rows exceed panel height', async ({ page }) => {
+    await page.addInitScript(manyRowsMock(100));
+    await connectToWorkspace(page);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('SELECT n FROM generate_series(1,100) n;');
+    await page.locator('[data-testid="run-button"]').click();
+    // Wait for at least one row to appear
+    await page.locator('text=1').first().waitFor({ timeout: 5_000 });
+
+    const grid = page.locator('.flex-1.overflow-auto').last();
+
+    // Grid must be constrained: content taller than the visible area
+    const { clientH, scrollH } = await grid.evaluate((el) => ({
+      clientH: el.clientHeight,
+      scrollH: el.scrollHeight,
+    }));
+    expect(scrollH, 'table content should overflow the grid container').toBeGreaterThan(clientH);
+
+    // Programmatic scroll must move the position
+    await grid.evaluate((el) => { el.scrollTop = 400; });
+    const scrollTop = await grid.evaluate((el) => el.scrollTop);
+    expect(scrollTop, 'scrollTop must update after programmatic scroll').toBeGreaterThan(0);
+  });
+
+  test('sticky header stays in view after scrolling', async ({ page }) => {
+    await page.addInitScript(manyRowsMock(100));
+    await connectToWorkspace(page);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('SELECT n FROM generate_series(1,100) n;');
+    await page.locator('[data-testid="run-button"]').click();
+    await page.locator('text=1').first().waitFor({ timeout: 5_000 });
+
+    const grid = page.locator('.flex-1.overflow-auto').last();
+    await grid.evaluate((el) => { el.scrollTop = 600; });
+
+    // The thead has position:sticky — its bounding box top should stay near 0
+    // relative to the grid container (not scroll away with the rows)
+    const headerTop = await page.evaluate(() => {
+      const thead = document.querySelector('thead') as HTMLElement | null;
+      const gridEl = document.querySelector('.overflow-auto') as HTMLElement | null;
+      if (!thead || !gridEl) return null;
+      const gridRect = gridEl.getBoundingClientRect();
+      const headRect = thead.getBoundingClientRect();
+      return headRect.top - gridRect.top;
+    });
+    expect(headerTop, 'sticky thead should stay at top of grid after scroll').not.toBeNull();
+    expect(headerTop!).toBeLessThan(5); // within 5px of grid top
+  });
+
+  test('results panel is still constrained after panel resize', async ({ page }) => {
+    await page.addInitScript(manyRowsMock(100));
+    await connectToWorkspace(page);
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('SELECT n FROM generate_series(1,100) n;');
+    await page.locator('[data-testid="run-button"]').click();
+    await page.locator('text=1').first().waitFor({ timeout: 5_000 });
+
+    // Drag the resize handle upward to make the panel taller
+    const handle = page.locator('[data-testid="bottom-resize-handle"]');
+    const handleBox = await handle.boundingBox();
+    if (handleBox) {
+      await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y);
+      await page.mouse.down();
+      await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y - 80, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(150);
+    }
+
+    // Grid must still be constrained (scrollH > clientH) after resize
+    const grid = page.locator('.flex-1.overflow-auto').last();
+    const { clientH, scrollH } = await grid.evaluate((el) => ({
+      clientH: el.clientHeight,
+      scrollH: el.scrollHeight,
+    }));
+    expect(scrollH, 'grid should still overflow after panel resize').toBeGreaterThan(clientH);
   });
 });
