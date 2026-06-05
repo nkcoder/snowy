@@ -401,6 +401,12 @@ export function isInsideString(text: string): boolean {
   return inSingle || inDouble;
 }
 
+export function isAfterStringClose(text: string): boolean {
+  if (!text) return false;
+  const last = text[text.length - 1];
+  return (last === "'" || last === '"') && !isInsideString(text);
+}
+
 type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
@@ -510,7 +516,7 @@ export function QueryEditor({
         stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1
       );
       const beforeWord = fullText.slice(stmtStart, word.from);
-      if (isInsideString(beforeWord)) return null;
+      if (isInsideString(beforeWord) || isAfterStringClose(beforeWord)) return null;
       const ctx = detectSqlContext(beforeWord, stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
       const options = applyFuzzyMatch(buildCompletionOptions(entriesRef.current, ctx), word.text);
