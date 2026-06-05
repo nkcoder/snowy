@@ -82,6 +82,9 @@ beforeEach(() => {
   );
   vi.mocked(GoApp.ClosePool).mockResolvedValue(undefined);
   vi.mocked(GoApp.GetQueryHistory).mockResolvedValue([]);
+  vi.mocked(GoApp.PingDatasource).mockResolvedValue(
+    main.TestConnectionResult.createFrom({ Success: true, Message: 'Connection successful' })
+  );
 });
 
 describe('App', () => {

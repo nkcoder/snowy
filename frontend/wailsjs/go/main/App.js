@@ -70,6 +70,10 @@ export function LoadSavedQuery(arg1, arg2) {
   return window['go']['main']['App']['LoadSavedQuery'](arg1, arg2);
 }
 
+export function PingDatasource(arg1) {
+  return window['go']['main']['App']['PingDatasource'](arg1);
+}
+
 export function RecordHistory(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['RecordHistory'](arg1, arg2, arg3, arg4);
 }

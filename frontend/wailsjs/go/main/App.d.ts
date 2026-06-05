@@ -36,6 +36,8 @@ export function ListTables(arg1:string,arg2:string):Promise<Array<main.TableItem
 
 export function LoadSavedQuery(arg1:string,arg2:string):Promise<string>;
 
+export function PingDatasource(arg1:string):Promise<main.TestConnectionResult>;
+
 export function RecordHistory(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function RefreshMetadata(arg1:string):Promise<main.DatabaseMetadata>;
