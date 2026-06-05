@@ -7,6 +7,7 @@ import {
   detectSqlContext,
   extractAliasMap,
   extractFromTables,
+  isAfterStringClose,
   isInsideString,
   makeKeyTypeBadge,
   QueryEditor,
@@ -595,6 +596,33 @@ describe('applyFuzzyMatch', () => {
     const result = applyFuzzyMatch(opts, 'coun');
     expect(result[0].matchRanges).toBeDefined();
     expect(result[0].matchRanges!.length).toBeGreaterThan(0);
+  });
+});
+
+describe('isAfterStringClose', () => {
+  it('returns true immediately after a closing single quote', () => {
+    expect(isAfterStringClose("WHERE id = 'xxx'")).toBe(true);
+  });
+
+  it('returns true immediately after a closing double quote', () => {
+    expect(isAfterStringClose('SELECT "my_col"')).toBe(true);
+  });
+
+  it('returns false when still inside an open single-quoted string', () => {
+    expect(isAfterStringClose("WHERE id = 'xxx")).toBe(false);
+  });
+
+  it('returns false when last char is not a quote', () => {
+    expect(isAfterStringClose('WHERE id = ')).toBe(false);
+    expect(isAfterStringClose('SELECT * FROM users WHERE ')).toBe(false);
+  });
+
+  it('returns false for empty string', () => {
+    expect(isAfterStringClose('')).toBe(false);
+  });
+
+  it('returns false inside a double-quoted identifier', () => {
+    expect(isAfterStringClose('SELECT "my_col')).toBe(false);
   });
 });
 
