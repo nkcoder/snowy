@@ -234,5 +234,9 @@ func (a *App) PingDatasource(dsID string) TestConnectionResult {
 	if ds == nil {
 		return TestConnectionResult{Success: false, Message: "datasource not found"}
 	}
+	// Password is not stored in config — load from Keychain.
+	if pw, err := a.configManager.GetDatasourcePassword(dsID); err == nil {
+		ds.Password = pw
+	}
 	return a.TestDatasource(ds.Host, ds.Port, ds.Database, ds.Username, ds.Password, ds.SSLMode)
 }
