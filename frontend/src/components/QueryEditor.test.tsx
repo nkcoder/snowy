@@ -65,6 +65,12 @@ vi.mock('@codemirror/language', () => ({
 vi.mock('@codemirror/search', () => ({
   search: () => ({}),
   searchKeymap: [],
+  SearchQuery: class {
+    constructor(public spec: unknown) {}
+  },
+  setSearchQuery: { of: vi.fn() },
+  findNext: vi.fn(),
+  findPrevious: vi.fn(),
 }));
 
 describe('QueryEditor', () => {

@@ -7,7 +7,7 @@ import {
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { search, searchKeymap } from '@codemirror/search';
+import { findNext, findPrevious, SearchQuery, search, setSearchQuery } from '@codemirror/search';
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
@@ -19,8 +19,8 @@ import {
 } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import Fuse from 'fuse.js';
-import { Clock, Play, Save, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, Clock, Play, Save, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { T } from '../lib/tokens';
 
 export interface CompletionEntry {
@@ -482,6 +482,9 @@ export function QueryEditor({
   const onSaveRef = useRef(onSave);
   const onChangeRef = useRef(onChange);
   const entriesRef = useRef<CompletionEntry[]>(completions ?? []);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const findInputRef = useRef<HTMLInputElement>(null);
   onRunRef.current = onRun;
   onSaveRef.current = onSave;
   onChangeRef.current = onChange;
@@ -503,6 +506,11 @@ export function QueryEditor({
 
     const saveCmd = (_view: EditorView) => {
       onSaveRef.current();
+      return true;
+    };
+
+    const openFindCmd = () => {
+      setFindOpen(true);
       return true;
     };
 
@@ -552,18 +560,18 @@ export function QueryEditor({
           ],
         }),
         sql({ dialect: PostgreSQL }),
-        search(),
+        search({ createPanel: () => ({ dom: document.createElement('div') }) }),
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
         Prec.high(keymap.of([{ key: 'Enter', run: insertNewline }])),
         keymap.of([
+          { key: 'Mod-f', run: openFindCmd },
           { key: 'Mod-Enter', run: runCmd },
           { key: 'Ctrl-Enter', run: runCmd },
           { key: 'Mod-s', run: saveCmd, preventDefault: true },
           ...defaultKeymap,
           ...historyKeymap,
-          ...searchKeymap,
         ]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isProgrammatic.current) {
@@ -608,6 +616,39 @@ export function QueryEditor({
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
+  }, []);
+
+  useEffect(() => {
+    if (findOpen) findInputRef.current?.focus();
+  }, [findOpen]);
+
+  const handleFindChange = (val: string) => {
+    setFindQuery(val);
+    const view = viewRef.current;
+    if (view)
+      view.dispatch({
+        effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
+      });
+  };
+
+  const handleFindNext = useCallback(() => {
+    const view = viewRef.current;
+    if (view && findQuery) findNext(view);
+  }, [findQuery]);
+
+  const handleFindPrev = useCallback(() => {
+    const view = viewRef.current;
+    if (view && findQuery) findPrevious(view);
+  }, [findQuery]);
+
+  const handleFindClose = useCallback(() => {
+    setFindOpen(false);
+    setFindQuery('');
+    const view = viewRef.current;
+    if (view) {
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) });
+      view.focus();
+    }
   }, []);
 
   return (
@@ -677,8 +718,93 @@ export function QueryEditor({
         </div>
       </div>
 
-      {/* CodeMirror */}
-      <div ref={containerRef} className="flex-1 overflow-hidden" data-testid="cm-editor" />
+      {/* CodeMirror + find bar */}
+      <div className="flex-1 overflow-hidden relative">
+        <div ref={containerRef} style={{ height: '100%' }} data-testid="cm-editor" />
+        {findOpen && (
+          <div
+            data-testid="find-bar"
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              background: T.chrome,
+              border: `1px solid ${T.border}`,
+              borderRadius: 6,
+              padding: '3px 4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+          >
+            <input
+              ref={findInputRef}
+              data-testid="find-input"
+              value={findQuery}
+              onChange={(e) => handleFindChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  handleFindNext();
+                  e.preventDefault();
+                } else if (e.key === 'Enter' && e.shiftKey) {
+                  handleFindPrev();
+                  e.preventDefault();
+                } else if (e.key === 'Escape') {
+                  handleFindClose();
+                }
+              }}
+              placeholder="Find…"
+              style={{
+                background: T.panel,
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                color: T.text,
+                fontFamily: T.mono,
+                fontSize: 12,
+                padding: '2px 6px',
+                width: 160,
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              data-testid="find-prev"
+              onClick={handleFindPrev}
+              disabled={!findQuery}
+              title="Previous match (Shift+Enter)"
+              style={{
+                color: T.textDim,
+                background: 'none',
+                border: 'none',
+                cursor: findQuery ? 'pointer' : 'default',
+                padding: '2px 3px',
+                borderRadius: 3,
+              }}
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              type="button"
+              data-testid="find-next"
+              onClick={handleFindNext}
+              disabled={!findQuery}
+              title="Next match (Enter)"
+              style={{
+                color: T.textDim,
+                background: 'none',
+                border: 'none',
+                cursor: findQuery ? 'pointer' : 'default',
+                padding: '2px 3px',
+                borderRadius: 3,
+              }}
+            >
+              <ChevronDown size={14} />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
