@@ -159,6 +159,7 @@ export function buildMockBridgeScript(
           SaveConfig: () => Promise.resolve(),
           UpdateDatasource: () => Promise.resolve(),
           TestDatasource: () => Promise.resolve({ Success: true, Message: 'Connection successful' }),
+          PingDatasource: () => Promise.resolve({ Success: true, Message: 'Connection successful' }),
           GetCompletions: () => Promise.resolve(_completions),
           ListSchemas: () => Promise.resolve(
             _metadata.schemas.map(s => ({ name: s.name }))
