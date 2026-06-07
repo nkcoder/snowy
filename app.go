@@ -217,3 +217,26 @@ func (a *App) TestDatasource(host string, port int, database, username, password
 
 	return TestConnectionResult{Success: true, Message: "Connection successful"}
 }
+
+// PingDatasource looks up a saved datasource by ID and pings it.
+func (a *App) PingDatasource(dsID string) TestConnectionResult {
+	cfg, err := a.configManager.LoadConfig()
+	if err != nil {
+		return TestConnectionResult{Success: false, Message: err.Error()}
+	}
+	var ds *Datasource
+	for i := range cfg.Datasources {
+		if cfg.Datasources[i].ID == dsID {
+			ds = &cfg.Datasources[i]
+			break
+		}
+	}
+	if ds == nil {
+		return TestConnectionResult{Success: false, Message: "datasource not found"}
+	}
+	// Password is not stored in config — load from Keychain.
+	if pw, err := a.configManager.GetDatasourcePassword(dsID); err == nil {
+		ds.Password = pw
+	}
+	return a.TestDatasource(ds.Host, ds.Port, ds.Database, ds.Username, ds.Password, ds.SSLMode)
+}

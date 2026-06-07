@@ -228,3 +228,31 @@ func TestApp_TestDatasource_DefaultsSSLMode(t *testing.T) {
 		t.Error("expected failure")
 	}
 }
+
+// ── PingDatasource ────────────────────────────────────────────────────────────
+
+func TestApp_PingDatasource_NotFound(t *testing.T) {
+	app := newAppForTest(t)
+	result := app.PingDatasource("ghost-id")
+	if result.Success {
+		t.Error("expected failure for unknown datasource")
+	}
+	if result.Message == "" {
+		t.Error("expected non-empty error message")
+	}
+}
+
+func TestApp_PingDatasource_FailsOnBadHost(t *testing.T) {
+	app := newAppForTest(t)
+	ds := Datasource{ID: "ds-1", Name: "Test", Host: "127.0.0.1", Port: 1, Database: "db", Username: "user", SSLMode: "disable"}
+	if err := app.SaveConfig(Config{Datasources: []Datasource{ds}}); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	result := app.PingDatasource("ds-1")
+	if result.Success {
+		t.Error("expected failure connecting to port 1")
+	}
+	if result.Message == "" {
+		t.Error("expected non-empty error message")
+	}
+}

@@ -1014,6 +1014,8 @@ export function ConnectionManager({
     toMode: 'add' | 'edit';
   } | null>(null);
   const latestFormRef = useRef<Datasource | null>(null);
+  const [connectingDsId, setConnectingDsId] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<{ dsId: string; message: string } | null>(null);
 
   useEffect(() => {
     if (startInAddMode) {
@@ -1040,6 +1042,23 @@ export function ConnectionManager({
       return { success: r.Success, message: r.Message };
     } catch (e: unknown) {
       return { success: false, message: e instanceof Error ? e.message : String(e) };
+    }
+  };
+
+  const handleDoubleClickConnect = async (dsId: string) => {
+    setConnectingDsId(dsId);
+    setConnectError(null);
+    try {
+      const r = await GoApp.PingDatasource(dsId);
+      if (r.Success) {
+        onConnect(dsId);
+      } else {
+        setConnectError({ dsId, message: r.Message });
+      }
+    } catch (e: unknown) {
+      setConnectError({ dsId, message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setConnectingDsId(null);
     }
   };
 
@@ -1235,7 +1254,7 @@ export function ConnectionManager({
                       setFormMode('edit');
                     }
                   }}
-                  onDoubleClick={() => onConnect(ds.id)}
+                  onDoubleClick={() => handleDoubleClickConnect(ds.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1245,8 +1264,9 @@ export function ConnectionManager({
                     borderLeft: `2px solid ${selected ? T.selectedBorder : 'transparent'}`,
                     borderRadius: 4,
                     marginBottom: 1,
-                    cursor: 'pointer',
+                    cursor: connectingDsId === ds.id ? 'wait' : 'pointer',
                     userSelect: 'none' as const,
+                    opacity: connectingDsId === ds.id ? 0.6 : 1,
                   }}
                 >
                   <ElephantIcon color={envColor} size={14} />
@@ -1266,6 +1286,11 @@ export function ConnectionManager({
                     <div style={{ fontSize: 10.5, color: T.textDim, fontFamily: T.mono }}>
                       {ds.host}
                     </div>
+                    {connectError?.dsId === ds.id && (
+                      <div style={{ fontSize: 10.5, color: T.err, marginTop: 2 }}>
+                        {connectError.message}
+                      </div>
+                    )}
                   </div>
                   <div
                     style={{

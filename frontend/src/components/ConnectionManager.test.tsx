@@ -12,6 +12,7 @@ import {
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   TestDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'ok' }),
+  PingDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'Connection successful' }),
   GetConfig: vi.fn().mockResolvedValue({ projects: [], datasources: [] }),
   SaveConfig: vi.fn().mockResolvedValue(undefined),
   UpdateDatasource: vi.fn().mockResolvedValue(undefined),
@@ -728,5 +729,37 @@ describe('ConnectionManager', () => {
     await waitFor(() => expect(onSaveAll).toHaveBeenCalledOnce());
     const [, savedDs] = onSaveAll.mock.calls[0] as [Project[], Datasource[]];
     expect(savedDs.find((d) => d.name === 'applied-conn')).toBeTruthy();
+  });
+});
+
+// ── Double-click to connect ────────────────────────────────────────────────────
+
+describe('ConnectionManager double-click connect', () => {
+  beforeEach(() => {
+    vi.mocked(GoApp.PingDatasource).mockResolvedValue({
+      Success: true,
+      Message: 'Connection successful',
+    });
+  });
+
+  it('calls onConnect when double-clicking a reachable connection', async () => {
+    const ds = makeDs();
+    const onConnect = vi.fn();
+    renderManager({ datasources: [ds], onConnect });
+    await userEvent.dblClick(screen.getByTestId(`ds-item-${ds.id}`));
+    await waitFor(() => expect(onConnect).toHaveBeenCalledWith(ds.id));
+  });
+
+  it('shows inline error and does not call onConnect when ping fails', async () => {
+    vi.mocked(GoApp.PingDatasource).mockResolvedValue({
+      Success: false,
+      Message: 'connection refused',
+    });
+    const ds = makeDs();
+    const onConnect = vi.fn();
+    renderManager({ datasources: [ds], onConnect });
+    await userEvent.dblClick(screen.getByTestId(`ds-item-${ds.id}`));
+    await waitFor(() => expect(screen.getByText('connection refused')).toBeInTheDocument());
+    expect(onConnect).not.toHaveBeenCalled();
   });
 });
