@@ -7,6 +7,7 @@ import {
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { search, searchKeymap } from '@codemirror/search';
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
@@ -551,6 +552,7 @@ export function QueryEditor({
           ],
         }),
         sql({ dialect: PostgreSQL }),
+        search(),
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
@@ -561,6 +563,7 @@ export function QueryEditor({
           { key: 'Mod-s', run: saveCmd, preventDefault: true },
           ...defaultKeymap,
           ...historyKeymap,
+          ...searchKeymap,
         ]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isProgrammatic.current) {

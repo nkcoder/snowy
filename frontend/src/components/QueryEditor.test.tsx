@@ -62,6 +62,11 @@ vi.mock('@codemirror/language', () => ({
   syntaxHighlighting: () => ({}),
 }));
 
+vi.mock('@codemirror/search', () => ({
+  search: () => ({}),
+  searchKeymap: [],
+}));
+
 describe('QueryEditor', () => {
   const defaultProps = {
     sql: 'SELECT 1;',
