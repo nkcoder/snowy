@@ -27,7 +27,7 @@ import {
 } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import Fuse from 'fuse.js';
-import { ChevronDown, ChevronUp, Clock, Play, Save, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Play, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { T } from '../lib/tokens';
 
@@ -635,12 +635,10 @@ export function FindBar({
           cursor: 'pointer',
           padding: '2px 4px',
           borderRadius: 3,
-          fontSize: 14,
-          lineHeight: 1,
           marginLeft: 2,
         }}
       >
-        ×
+        <X size={12} />
       </button>
     </div>
   );
@@ -665,6 +663,7 @@ export function QueryEditor({
   const [findQuery, setFindQuery] = useState('');
   const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
+  const findHasNavigated = useRef(false);
   onRunRef.current = onRun;
   onSaveRef.current = onSave;
   onChangeRef.current = onChange;
@@ -741,6 +740,7 @@ export function QueryEditor({
           ],
         }),
         sql({ dialect: PostgreSQL }),
+        // No-op panel suppresses the default CM search UI while keeping match highlighting active.
         search({ createPanel: () => ({ dom: document.createElement('div') }) }),
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
@@ -811,9 +811,15 @@ export function QueryEditor({
       effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
     });
     if (val) {
-      findNext(view);
+      // Navigate to first match only when the query goes from empty to non-empty,
+      // so typing subsequent characters doesn't jump the cursor on every keystroke.
+      if (!findHasNavigated.current) {
+        findNext(view);
+        findHasNavigated.current = true;
+      }
       setMatchInfo(findMatchInfo(view, val));
     } else {
+      findHasNavigated.current = false;
       setMatchInfo(null);
     }
   };
@@ -836,6 +842,7 @@ export function QueryEditor({
     setFindOpen(false);
     setFindQuery('');
     setMatchInfo(null);
+    findHasNavigated.current = false;
     const view = viewRef.current;
     if (view) {
       closeSearchPanel(view);

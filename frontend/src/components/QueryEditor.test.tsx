@@ -153,11 +153,6 @@ describe('QueryEditor', () => {
   });
 
   describe('find bar integration', () => {
-    beforeEach(() => {
-      cmMockState.capturedKeyHandlers.length = 0;
-      cmMockState.lastView = null;
-    });
-
     function openFindBar() {
       render(<QueryEditor {...defaultProps} />);
       act(() => {
