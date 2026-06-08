@@ -490,7 +490,7 @@ export interface FindBarProps {
   matchInfo?: MatchInfo | null;
 }
 
-function findMatchInfo(view: EditorView, searchStr: string): MatchInfo | null {
+export function findMatchInfo(view: EditorView, searchStr: string): MatchInfo | null {
   if (!searchStr) return null;
   const docText = view.state.doc.toString();
   const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
