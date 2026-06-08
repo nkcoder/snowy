@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CompletionEntry } from './QueryEditor';
+import type { CompletionEntry, MatchInfo } from './QueryEditor';
 import {
   applyFuzzyMatch,
   buildCompletionOptions,
@@ -209,6 +209,23 @@ describe('FindBar', () => {
     const { onClose } = renderFindBar('sel');
     await userEvent.click(screen.getByTestId('find-close'));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('does not show match count when matchInfo is null', () => {
+    renderFindBar('sel', { matchInfo: null });
+    expect(screen.queryByTestId('find-match-count')).not.toBeInTheDocument();
+  });
+
+  it('shows "No matches" when matchInfo.total is 0', () => {
+    const matchInfo: MatchInfo = { current: 0, total: 0 };
+    renderFindBar('xyz', { matchInfo });
+    expect(screen.getByTestId('find-match-count')).toHaveTextContent('No matches');
+  });
+
+  it('shows "N of M" when matchInfo has matches', () => {
+    const matchInfo: MatchInfo = { current: 2, total: 5 };
+    renderFindBar('sel', { matchInfo });
+    expect(screen.getByTestId('find-match-count')).toHaveTextContent('2 of 5');
   });
 });
 

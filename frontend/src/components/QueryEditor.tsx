@@ -475,6 +475,11 @@ export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlConte
   return keywordOptions;
 }
 
+export interface MatchInfo {
+  current: number;
+  total: number;
+}
+
 export interface FindBarProps {
   query: string;
   onQueryChange: (val: string) => void;
@@ -482,9 +487,43 @@ export interface FindBarProps {
   onPrev: () => void;
   onClose: () => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  matchInfo?: MatchInfo | null;
 }
 
-export function FindBar({ query, onQueryChange, onNext, onPrev, onClose, inputRef }: FindBarProps) {
+function findMatchInfo(view: EditorView, searchStr: string): MatchInfo | null {
+  if (!searchStr) return null;
+  const docText = view.state.doc.toString();
+  const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let re: RegExp;
+  try {
+    re = new RegExp(escaped, 'gi');
+  } catch {
+    return null;
+  }
+  const starts: number[] = [];
+  let m: RegExpExecArray | null;
+  for (;;) {
+    m = re.exec(docText);
+    if (m === null) break;
+    starts.push(m.index);
+    if (m[0].length === 0) re.lastIndex++;
+  }
+  const total = starts.length;
+  if (total === 0) return { current: 0, total: 0 };
+  const selFrom = view.state.selection.main.from;
+  const idx = starts.indexOf(selFrom);
+  return { current: idx === -1 ? 0 : idx + 1, total };
+}
+
+export function FindBar({
+  query,
+  onQueryChange,
+  onNext,
+  onPrev,
+  onClose,
+  inputRef,
+  matchInfo,
+}: FindBarProps) {
   return (
     <div
       data-testid="find-bar"
@@ -535,6 +574,21 @@ export function FindBar({ query, onQueryChange, onNext, onPrev, onClose, inputRe
           outline: 'none',
         }}
       />
+      {matchInfo != null && (
+        <span
+          data-testid="find-match-count"
+          style={{
+            fontSize: 11,
+            color: matchInfo.total === 0 ? T.err : T.textDim,
+            minWidth: 52,
+            textAlign: 'center',
+            padding: '0 4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {matchInfo.total === 0 ? 'No matches' : `${matchInfo.current} of ${matchInfo.total}`}
+        </span>
+      )}
       <button
         type="button"
         data-testid="find-prev"
@@ -609,6 +663,7 @@ export function QueryEditor({
   const entriesRef = useRef<CompletionEntry[]>(completions ?? []);
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState('');
+  const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   onRunRef.current = onRun;
   onSaveRef.current = onSave;
@@ -751,25 +806,36 @@ export function QueryEditor({
   const handleFindChange = (val: string) => {
     setFindQuery(val);
     const view = viewRef.current;
-    if (view)
-      view.dispatch({
-        effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
-      });
+    if (!view) return;
+    view.dispatch({
+      effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
+    });
+    if (val) {
+      findNext(view);
+      setMatchInfo(findMatchInfo(view, val));
+    } else {
+      setMatchInfo(null);
+    }
   };
 
   const handleFindNext = useCallback(() => {
     const view = viewRef.current;
-    if (view && findQuery) findNext(view);
+    if (!view || !findQuery) return;
+    findNext(view);
+    setMatchInfo(findMatchInfo(view, findQuery));
   }, [findQuery]);
 
   const handleFindPrev = useCallback(() => {
     const view = viewRef.current;
-    if (view && findQuery) findPrevious(view);
+    if (!view || !findQuery) return;
+    findPrevious(view);
+    setMatchInfo(findMatchInfo(view, findQuery));
   }, [findQuery]);
 
   const handleFindClose = useCallback(() => {
     setFindOpen(false);
     setFindQuery('');
+    setMatchInfo(null);
     const view = viewRef.current;
     if (view) {
       closeSearchPanel(view);
@@ -856,6 +922,7 @@ export function QueryEditor({
             onPrev={handleFindPrev}
             onClose={handleFindClose}
             inputRef={findInputRef}
+            matchInfo={matchInfo}
           />
         )}
       </div>
