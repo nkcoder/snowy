@@ -1,12 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CompletionEntry } from './QueryEditor';
+import type { CompletionEntry, MatchInfo } from './QueryEditor';
 import {
   applyFuzzyMatch,
   buildCompletionOptions,
   detectSqlContext,
   extractAliasMap,
   extractFromTables,
+  FindBar,
+  findMatchInfo,
   isAfterStringClose,
   isInsideString,
   makeKeyTypeBadge,
@@ -16,19 +19,41 @@ import {
 // CodeMirror uses complex DOM APIs (contenteditable, ResizeObserver, etc.)
 // that jsdom doesn't implement. Mock the entire @codemirror/* stack so we can
 // test toolbar behaviour without a real editor instance.
+
+// vi.hoisted ensures these are available inside the hoisted vi.mock factory.
+const cmMockState = vi.hoisted(() => ({
+  capturedKeyHandlers: [] as Array<{ key: string; run: (v: unknown) => boolean }>,
+  lastView: null as {
+    dispatch: ReturnType<typeof vi.fn>;
+    focus: ReturnType<typeof vi.fn>;
+    state: { doc: { toString: () => string }; selection: { main: { from: number } } };
+  } | null,
+}));
+
 vi.mock('@codemirror/view', () => ({
   EditorView: class {
     static theme = () => ({});
     static updateListener = { of: () => ({}) };
     dom = document.createElement('div');
-    state = { doc: { toString: () => 'SELECT 1;', length: 9 } };
+    state = {
+      doc: { toString: () => 'SELECT 1;', length: 9 },
+      selection: { main: { from: 0, to: 0, empty: true } },
+    };
     dispatch = vi.fn();
     destroy = vi.fn();
+    focus = vi.fn();
     constructor({ parent }: { parent?: Element }) {
       if (parent) parent.appendChild(this.dom);
+      // biome-ignore lint/suspicious/noExplicitAny: store ref for tests
+      cmMockState.lastView = this as any;
     }
   },
-  keymap: { of: () => ({}) },
+  keymap: {
+    of: (handlers: Array<{ key: string; run: (v: unknown) => boolean }>) => {
+      cmMockState.capturedKeyHandlers.push(...handlers);
+      return {};
+    },
+  },
   lineNumbers: () => ({}),
   highlightActiveLine: () => ({}),
   highlightActiveLineGutter: () => ({}),
@@ -62,6 +87,17 @@ vi.mock('@codemirror/language', () => ({
   syntaxHighlighting: () => ({}),
 }));
 
+vi.mock('@codemirror/search', () => ({
+  search: () => ({}),
+  searchKeymap: [],
+  SearchQuery: class {},
+  setSearchQuery: { of: vi.fn() },
+  findNext: vi.fn(),
+  findPrevious: vi.fn(),
+  openSearchPanel: vi.fn(),
+  closeSearchPanel: vi.fn(),
+}));
+
 describe('QueryEditor', () => {
   const defaultProps = {
     sql: 'SELECT 1;',
@@ -73,6 +109,8 @@ describe('QueryEditor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cmMockState.capturedKeyHandlers.length = 0;
+    cmMockState.lastView = null;
   });
 
   it('renders toolbar', () => {
@@ -107,6 +145,194 @@ describe('QueryEditor', () => {
   it('shows keyboard shortcut hint', () => {
     render(<QueryEditor {...defaultProps} />);
     expect(screen.getByText(/⌘↵ run/i)).toBeInTheDocument();
+  });
+
+  it('does not show find bar initially', () => {
+    render(<QueryEditor {...defaultProps} />);
+    expect(screen.queryByTestId('find-bar')).not.toBeInTheDocument();
+  });
+
+  describe('find bar integration', () => {
+    function openFindBar() {
+      render(<QueryEditor {...defaultProps} />);
+      act(() => {
+        const modF = cmMockState.capturedKeyHandlers.find((h) => h.key === 'Mod-f');
+        modF?.run(cmMockState.lastView!);
+      });
+    }
+
+    it('opens find bar when Mod-f keymap handler is invoked', () => {
+      openFindBar();
+      expect(screen.getByTestId('find-bar')).toBeInTheDocument();
+    });
+
+    it('handleFindChange updates query and dispatches search effect', async () => {
+      openFindBar();
+      await userEvent.type(screen.getByTestId('find-input'), 'sel');
+      expect(cmMockState.lastView!.dispatch).toHaveBeenCalled();
+    });
+
+    it('handleFindNext dispatches after find-next click', async () => {
+      openFindBar();
+      await userEvent.type(screen.getByTestId('find-input'), 'sel');
+      await userEvent.click(screen.getByTestId('find-next'));
+      expect(cmMockState.lastView!.dispatch).toHaveBeenCalled();
+    });
+
+    it('handleFindPrev dispatches after find-prev click', async () => {
+      openFindBar();
+      await userEvent.type(screen.getByTestId('find-input'), 'sel');
+      await userEvent.click(screen.getByTestId('find-prev'));
+      expect(cmMockState.lastView!.dispatch).toHaveBeenCalled();
+    });
+
+    it('handleFindClose hides bar and focuses editor', async () => {
+      openFindBar();
+      await userEvent.click(screen.getByTestId('find-close'));
+      expect(screen.queryByTestId('find-bar')).not.toBeInTheDocument();
+      expect(cmMockState.lastView!.focus).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('FindBar', () => {
+  function renderFindBar(query = '', overrides: Partial<Parameters<typeof FindBar>[0]> = {}) {
+    const onQueryChange = vi.fn();
+    const onNext = vi.fn();
+    const onPrev = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <FindBar
+        query={query}
+        onQueryChange={onQueryChange}
+        onNext={onNext}
+        onPrev={onPrev}
+        onClose={onClose}
+        {...overrides}
+      />
+    );
+    return { onQueryChange, onNext, onPrev, onClose };
+  }
+
+  it('renders input, navigation buttons, and close button', () => {
+    renderFindBar();
+    expect(screen.getByTestId('find-input')).toBeInTheDocument();
+    expect(screen.getByTestId('find-prev')).toBeInTheDocument();
+    expect(screen.getByTestId('find-next')).toBeInTheDocument();
+    expect(screen.getByTestId('find-close')).toBeInTheDocument();
+  });
+
+  it('prev/next buttons are disabled when query is empty', () => {
+    renderFindBar('');
+    expect(screen.getByTestId('find-prev')).toBeDisabled();
+    expect(screen.getByTestId('find-next')).toBeDisabled();
+  });
+
+  it('prev/next buttons are enabled when query is non-empty', () => {
+    renderFindBar('select');
+    expect(screen.getByTestId('find-prev')).not.toBeDisabled();
+    expect(screen.getByTestId('find-next')).not.toBeDisabled();
+  });
+
+  it('calls onQueryChange when input changes', async () => {
+    const { onQueryChange } = renderFindBar('');
+    await userEvent.type(screen.getByTestId('find-input'), 'a');
+    expect(onQueryChange).toHaveBeenCalledWith('a');
+  });
+
+  it('calls onNext when next button clicked', async () => {
+    const { onNext } = renderFindBar('select');
+    await userEvent.click(screen.getByTestId('find-next'));
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('calls onPrev when prev button clicked', async () => {
+    const { onPrev } = renderFindBar('select');
+    await userEvent.click(screen.getByTestId('find-prev'));
+    expect(onPrev).toHaveBeenCalledOnce();
+  });
+
+  it('calls onNext on Enter key in input', async () => {
+    const { onNext } = renderFindBar('sel');
+    await userEvent.type(screen.getByTestId('find-input'), '{Enter}');
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('calls onPrev on Shift+Enter key in input', async () => {
+    const { onPrev } = renderFindBar('sel');
+    const input = screen.getByTestId('find-input');
+    await userEvent.click(input);
+    await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+    expect(onPrev).toHaveBeenCalledOnce();
+  });
+
+  it('calls onClose on Escape key in input', async () => {
+    const { onClose } = renderFindBar('sel');
+    await userEvent.type(screen.getByTestId('find-input'), '{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('calls onClose when close button clicked', async () => {
+    const { onClose } = renderFindBar('sel');
+    await userEvent.click(screen.getByTestId('find-close'));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('does not show match count when matchInfo is null', () => {
+    renderFindBar('sel', { matchInfo: null });
+    expect(screen.queryByTestId('find-match-count')).not.toBeInTheDocument();
+  });
+
+  it('shows "No matches" when matchInfo.total is 0', () => {
+    const matchInfo: MatchInfo = { current: 0, total: 0 };
+    renderFindBar('xyz', { matchInfo });
+    expect(screen.getByTestId('find-match-count')).toHaveTextContent('No matches');
+  });
+
+  it('shows "N of M" when matchInfo has matches', () => {
+    const matchInfo: MatchInfo = { current: 2, total: 5 };
+    renderFindBar('sel', { matchInfo });
+    expect(screen.getByTestId('find-match-count')).toHaveTextContent('2 of 5');
+  });
+});
+
+// Minimal EditorView stub for findMatchInfo tests
+function makeView(docText: string, selFrom = 0) {
+  return {
+    state: {
+      doc: { toString: () => docText },
+      selection: { main: { from: selFrom } },
+    },
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+  } as any;
+}
+
+describe('findMatchInfo', () => {
+  it('returns null for empty search', () => {
+    expect(findMatchInfo(makeView('SELECT 1'), '')).toBeNull();
+  });
+
+  it('returns { current: 0, total: 0 } when no matches', () => {
+    expect(findMatchInfo(makeView('SELECT 1'), 'xyz')).toEqual({ current: 0, total: 0 });
+  });
+
+  it('returns correct total and current when selection is on a match', () => {
+    const doc = 'SELECT select SELECT';
+    // "select" matches at index 0, 7, 14 (case-insensitive)
+    const result = findMatchInfo(makeView(doc, 7), 'select');
+    expect(result?.total).toBe(3);
+    expect(result?.current).toBe(2);
+  });
+
+  it('returns current 1 for the first match', () => {
+    const result = findMatchInfo(makeView('foo bar foo', 0), 'foo');
+    expect(result).toEqual({ current: 1, total: 2 });
+  });
+
+  it('returns current 0 when selection is not on any match', () => {
+    // selection at position 3 which is between matches
+    const result = findMatchInfo(makeView('foo bar foo', 3), 'foo');
+    expect(result).toEqual({ current: 0, total: 2 });
   });
 });
 

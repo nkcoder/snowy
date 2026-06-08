@@ -7,6 +7,15 @@ import {
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import {
+  closeSearchPanel,
+  findNext,
+  findPrevious,
+  openSearchPanel,
+  SearchQuery,
+  search,
+  setSearchQuery,
+} from '@codemirror/search';
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
@@ -18,8 +27,8 @@ import {
 } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import Fuse from 'fuse.js';
-import { Clock, Play, Save, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, Clock, Play, Save, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { T } from '../lib/tokens';
 
 export interface CompletionEntry {
@@ -466,6 +475,175 @@ export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlConte
   return keywordOptions;
 }
 
+export interface MatchInfo {
+  current: number;
+  total: number;
+}
+
+export interface FindBarProps {
+  query: string;
+  onQueryChange: (val: string) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onClose: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  matchInfo?: MatchInfo | null;
+}
+
+export function findMatchInfo(view: EditorView, searchStr: string): MatchInfo | null {
+  if (!searchStr) return null;
+  const docText = view.state.doc.toString();
+  const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let re: RegExp;
+  try {
+    re = new RegExp(escaped, 'gi');
+  } catch {
+    return null;
+  }
+  const starts: number[] = [];
+  let m: RegExpExecArray | null;
+  for (;;) {
+    m = re.exec(docText);
+    if (m === null) break;
+    starts.push(m.index);
+    if (m[0].length === 0) re.lastIndex++;
+  }
+  const total = starts.length;
+  if (total === 0) return { current: 0, total: 0 };
+  const selFrom = view.state.selection.main.from;
+  const idx = starts.indexOf(selFrom);
+  return { current: idx === -1 ? 0 : idx + 1, total };
+}
+
+export function FindBar({
+  query,
+  onQueryChange,
+  onNext,
+  onPrev,
+  onClose,
+  inputRef,
+  matchInfo,
+}: FindBarProps) {
+  return (
+    <div
+      data-testid="find-bar"
+      style={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: T.chrome,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: '3px 4px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+      }}
+    >
+      <input
+        ref={inputRef}
+        data-testid="find-input"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            onNext();
+            e.preventDefault();
+          } else if (e.key === 'Enter' && e.shiftKey) {
+            onPrev();
+            e.preventDefault();
+          } else if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+        placeholder="Find…"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        style={{
+          background: T.panel,
+          border: `1px solid ${T.border}`,
+          borderRadius: 4,
+          color: T.text,
+          fontFamily: T.mono,
+          fontSize: 12,
+          padding: '2px 6px',
+          width: 160,
+          outline: 'none',
+        }}
+      />
+      {matchInfo != null && (
+        <span
+          data-testid="find-match-count"
+          style={{
+            fontSize: 11,
+            color: matchInfo.total === 0 ? T.err : T.textDim,
+            minWidth: 52,
+            textAlign: 'center',
+            padding: '0 4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {matchInfo.total === 0 ? 'No matches' : `${matchInfo.current} of ${matchInfo.total}`}
+        </span>
+      )}
+      <button
+        type="button"
+        data-testid="find-prev"
+        onClick={onPrev}
+        disabled={!query}
+        title="Previous match (Shift+Enter)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: query ? 'pointer' : 'default',
+          padding: '2px 3px',
+          borderRadius: 3,
+        }}
+      >
+        <ChevronUp size={14} />
+      </button>
+      <button
+        type="button"
+        data-testid="find-next"
+        onClick={onNext}
+        disabled={!query}
+        title="Next match (Enter)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: query ? 'pointer' : 'default',
+          padding: '2px 3px',
+          borderRadius: 3,
+        }}
+      >
+        <ChevronDown size={14} />
+      </button>
+      <button
+        type="button"
+        data-testid="find-close"
+        onClick={onClose}
+        title="Close (Esc)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '2px 4px',
+          borderRadius: 3,
+          marginLeft: 2,
+        }}
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
+
 export function QueryEditor({
   sql: sqlValue,
   onChange,
@@ -481,6 +659,11 @@ export function QueryEditor({
   const onSaveRef = useRef(onSave);
   const onChangeRef = useRef(onChange);
   const entriesRef = useRef<CompletionEntry[]>(completions ?? []);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const findHasNavigated = useRef(false);
   onRunRef.current = onRun;
   onSaveRef.current = onSave;
   onChangeRef.current = onChange;
@@ -502,6 +685,12 @@ export function QueryEditor({
 
     const saveCmd = (_view: EditorView) => {
       onSaveRef.current();
+      return true;
+    };
+
+    const openFindCmd = (view: EditorView) => {
+      openSearchPanel(view);
+      setFindOpen(true);
       return true;
     };
 
@@ -551,11 +740,14 @@ export function QueryEditor({
           ],
         }),
         sql({ dialect: PostgreSQL }),
+        // No-op panel suppresses the default CM search UI while keeping match highlighting active.
+        search({ createPanel: () => ({ dom: document.createElement('div') }) }),
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         editorTheme,
         Prec.high(keymap.of([{ key: 'Enter', run: insertNewline }])),
         keymap.of([
+          { key: 'Mod-f', run: openFindCmd },
           { key: 'Mod-Enter', run: runCmd },
           { key: 'Ctrl-Enter', run: runCmd },
           { key: 'Mod-s', run: saveCmd, preventDefault: true },
@@ -605,6 +797,58 @@ export function QueryEditor({
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
+  }, []);
+
+  useEffect(() => {
+    if (findOpen) findInputRef.current?.focus();
+  }, [findOpen]);
+
+  const handleFindChange = (val: string) => {
+    setFindQuery(val);
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
+    });
+    if (val) {
+      // Navigate to first match only when the query goes from empty to non-empty,
+      // so typing subsequent characters doesn't jump the cursor on every keystroke.
+      if (!findHasNavigated.current) {
+        findNext(view);
+        findHasNavigated.current = true;
+      }
+      setMatchInfo(findMatchInfo(view, val));
+    } else {
+      findHasNavigated.current = false;
+      setMatchInfo(null);
+    }
+  };
+
+  const handleFindNext = useCallback(() => {
+    const view = viewRef.current;
+    if (!view || !findQuery) return;
+    findNext(view);
+    setMatchInfo(findMatchInfo(view, findQuery));
+  }, [findQuery]);
+
+  const handleFindPrev = useCallback(() => {
+    const view = viewRef.current;
+    if (!view || !findQuery) return;
+    findPrevious(view);
+    setMatchInfo(findMatchInfo(view, findQuery));
+  }, [findQuery]);
+
+  const handleFindClose = useCallback(() => {
+    setFindOpen(false);
+    setFindQuery('');
+    setMatchInfo(null);
+    findHasNavigated.current = false;
+    const view = viewRef.current;
+    if (view) {
+      closeSearchPanel(view);
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) });
+      view.focus();
+    }
   }, []);
 
   return (
@@ -674,8 +918,21 @@ export function QueryEditor({
         </div>
       </div>
 
-      {/* CodeMirror */}
-      <div ref={containerRef} className="flex-1 overflow-hidden" data-testid="cm-editor" />
+      {/* CodeMirror + find bar */}
+      <div className="flex-1 overflow-hidden relative">
+        <div ref={containerRef} style={{ height: '100%' }} data-testid="cm-editor" />
+        {findOpen && (
+          <FindBar
+            query={findQuery}
+            onQueryChange={handleFindChange}
+            onNext={handleFindNext}
+            onPrev={handleFindPrev}
+            onClose={handleFindClose}
+            inputRef={findInputRef}
+            matchInfo={matchInfo}
+          />
+        )}
+      </div>
     </div>
   );
 }
