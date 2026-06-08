@@ -467,6 +467,101 @@ export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlConte
   return keywordOptions;
 }
 
+export interface FindBarProps {
+  query: string;
+  onQueryChange: (val: string) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onClose: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+}
+
+export function FindBar({ query, onQueryChange, onNext, onPrev, onClose, inputRef }: FindBarProps) {
+  return (
+    <div
+      data-testid="find-bar"
+      style={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: T.chrome,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: '3px 4px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+      }}
+    >
+      <input
+        ref={inputRef}
+        data-testid="find-input"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            onNext();
+            e.preventDefault();
+          } else if (e.key === 'Enter' && e.shiftKey) {
+            onPrev();
+            e.preventDefault();
+          } else if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+        placeholder="Find…"
+        style={{
+          background: T.panel,
+          border: `1px solid ${T.border}`,
+          borderRadius: 4,
+          color: T.text,
+          fontFamily: T.mono,
+          fontSize: 12,
+          padding: '2px 6px',
+          width: 160,
+          outline: 'none',
+        }}
+      />
+      <button
+        type="button"
+        data-testid="find-prev"
+        onClick={onPrev}
+        disabled={!query}
+        title="Previous match (Shift+Enter)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: query ? 'pointer' : 'default',
+          padding: '2px 3px',
+          borderRadius: 3,
+        }}
+      >
+        <ChevronUp size={14} />
+      </button>
+      <button
+        type="button"
+        data-testid="find-next"
+        onClick={onNext}
+        disabled={!query}
+        title="Next match (Enter)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: query ? 'pointer' : 'default',
+          padding: '2px 3px',
+          borderRadius: 3,
+        }}
+      >
+        <ChevronDown size={14} />
+      </button>
+    </div>
+  );
+}
+
 export function QueryEditor({
   sql: sqlValue,
   onChange,
@@ -722,87 +817,14 @@ export function QueryEditor({
       <div className="flex-1 overflow-hidden relative">
         <div ref={containerRef} style={{ height: '100%' }} data-testid="cm-editor" />
         {findOpen && (
-          <div
-            data-testid="find-bar"
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              zIndex: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              background: T.chrome,
-              border: `1px solid ${T.border}`,
-              borderRadius: 6,
-              padding: '3px 4px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            }}
-          >
-            <input
-              ref={findInputRef}
-              data-testid="find-input"
-              value={findQuery}
-              onChange={(e) => handleFindChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  handleFindNext();
-                  e.preventDefault();
-                } else if (e.key === 'Enter' && e.shiftKey) {
-                  handleFindPrev();
-                  e.preventDefault();
-                } else if (e.key === 'Escape') {
-                  handleFindClose();
-                }
-              }}
-              placeholder="Find…"
-              style={{
-                background: T.panel,
-                border: `1px solid ${T.border}`,
-                borderRadius: 4,
-                color: T.text,
-                fontFamily: T.mono,
-                fontSize: 12,
-                padding: '2px 6px',
-                width: 160,
-                outline: 'none',
-              }}
-            />
-            <button
-              type="button"
-              data-testid="find-prev"
-              onClick={handleFindPrev}
-              disabled={!findQuery}
-              title="Previous match (Shift+Enter)"
-              style={{
-                color: T.textDim,
-                background: 'none',
-                border: 'none',
-                cursor: findQuery ? 'pointer' : 'default',
-                padding: '2px 3px',
-                borderRadius: 3,
-              }}
-            >
-              <ChevronUp size={14} />
-            </button>
-            <button
-              type="button"
-              data-testid="find-next"
-              onClick={handleFindNext}
-              disabled={!findQuery}
-              title="Next match (Enter)"
-              style={{
-                color: T.textDim,
-                background: 'none',
-                border: 'none',
-                cursor: findQuery ? 'pointer' : 'default',
-                padding: '2px 3px',
-                borderRadius: 3,
-              }}
-            >
-              <ChevronDown size={14} />
-            </button>
-          </div>
+          <FindBar
+            query={findQuery}
+            onQueryChange={handleFindChange}
+            onNext={handleFindNext}
+            onPrev={handleFindPrev}
+            onClose={handleFindClose}
+            inputRef={findInputRef}
+          />
         )}
       </div>
     </div>

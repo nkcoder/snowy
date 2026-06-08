@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompletionEntry } from './QueryEditor';
 import {
@@ -7,6 +8,7 @@ import {
   detectSqlContext,
   extractAliasMap,
   extractFromTables,
+  FindBar,
   isAfterStringClose,
   isInsideString,
   makeKeyTypeBadge,
@@ -65,9 +67,7 @@ vi.mock('@codemirror/language', () => ({
 vi.mock('@codemirror/search', () => ({
   search: () => ({}),
   searchKeymap: [],
-  SearchQuery: class {
-    constructor(public spec: unknown) {}
-  },
+  SearchQuery: class {},
   setSearchQuery: { of: vi.fn() },
   findNext: vi.fn(),
   findPrevious: vi.fn(),
@@ -118,6 +118,88 @@ describe('QueryEditor', () => {
   it('shows keyboard shortcut hint', () => {
     render(<QueryEditor {...defaultProps} />);
     expect(screen.getByText(/⌘↵ run/i)).toBeInTheDocument();
+  });
+
+  it('does not show find bar initially', () => {
+    render(<QueryEditor {...defaultProps} />);
+    expect(screen.queryByTestId('find-bar')).not.toBeInTheDocument();
+  });
+});
+
+describe('FindBar', () => {
+  function renderFindBar(query = '', overrides: Partial<Parameters<typeof FindBar>[0]> = {}) {
+    const onQueryChange = vi.fn();
+    const onNext = vi.fn();
+    const onPrev = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <FindBar
+        query={query}
+        onQueryChange={onQueryChange}
+        onNext={onNext}
+        onPrev={onPrev}
+        onClose={onClose}
+        {...overrides}
+      />
+    );
+    return { onQueryChange, onNext, onPrev, onClose };
+  }
+
+  it('renders input and navigation buttons', () => {
+    renderFindBar();
+    expect(screen.getByTestId('find-input')).toBeInTheDocument();
+    expect(screen.getByTestId('find-prev')).toBeInTheDocument();
+    expect(screen.getByTestId('find-next')).toBeInTheDocument();
+  });
+
+  it('prev/next buttons are disabled when query is empty', () => {
+    renderFindBar('');
+    expect(screen.getByTestId('find-prev')).toBeDisabled();
+    expect(screen.getByTestId('find-next')).toBeDisabled();
+  });
+
+  it('prev/next buttons are enabled when query is non-empty', () => {
+    renderFindBar('select');
+    expect(screen.getByTestId('find-prev')).not.toBeDisabled();
+    expect(screen.getByTestId('find-next')).not.toBeDisabled();
+  });
+
+  it('calls onQueryChange when input changes', async () => {
+    const { onQueryChange } = renderFindBar('');
+    await userEvent.type(screen.getByTestId('find-input'), 'a');
+    expect(onQueryChange).toHaveBeenCalledWith('a');
+  });
+
+  it('calls onNext when next button clicked', async () => {
+    const { onNext } = renderFindBar('select');
+    await userEvent.click(screen.getByTestId('find-next'));
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('calls onPrev when prev button clicked', async () => {
+    const { onPrev } = renderFindBar('select');
+    await userEvent.click(screen.getByTestId('find-prev'));
+    expect(onPrev).toHaveBeenCalledOnce();
+  });
+
+  it('calls onNext on Enter key in input', async () => {
+    const { onNext } = renderFindBar('sel');
+    await userEvent.type(screen.getByTestId('find-input'), '{Enter}');
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('calls onPrev on Shift+Enter key in input', async () => {
+    const { onPrev } = renderFindBar('sel');
+    const input = screen.getByTestId('find-input');
+    await userEvent.click(input);
+    await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+    expect(onPrev).toHaveBeenCalledOnce();
+  });
+
+  it('calls onClose on Escape key in input', async () => {
+    const { onClose } = renderFindBar('sel');
+    await userEvent.type(screen.getByTestId('find-input'), '{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
 
