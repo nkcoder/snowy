@@ -7,7 +7,15 @@ import {
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands';
 import { PostgreSQL, sql } from '@codemirror/lang-sql';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { findNext, findPrevious, SearchQuery, search, setSearchQuery } from '@codemirror/search';
+import {
+  closeSearchPanel,
+  findNext,
+  findPrevious,
+  openSearchPanel,
+  SearchQuery,
+  search,
+  setSearchQuery,
+} from '@codemirror/search';
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
@@ -512,6 +520,9 @@ export function FindBar({ query, onQueryChange, onNext, onPrev, onClose, inputRe
           }
         }}
         placeholder="Find…"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         style={{
           background: T.panel,
           border: `1px solid ${T.border}`,
@@ -557,6 +568,25 @@ export function FindBar({ query, onQueryChange, onNext, onPrev, onClose, inputRe
         }}
       >
         <ChevronDown size={14} />
+      </button>
+      <button
+        type="button"
+        data-testid="find-close"
+        onClick={onClose}
+        title="Close (Esc)"
+        style={{
+          color: T.textDim,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '2px 4px',
+          borderRadius: 3,
+          fontSize: 14,
+          lineHeight: 1,
+          marginLeft: 2,
+        }}
+      >
+        ×
       </button>
     </div>
   );
@@ -604,7 +634,8 @@ export function QueryEditor({
       return true;
     };
 
-    const openFindCmd = () => {
+    const openFindCmd = (view: EditorView) => {
+      openSearchPanel(view);
       setFindOpen(true);
       return true;
     };
@@ -741,6 +772,7 @@ export function QueryEditor({
     setFindQuery('');
     const view = viewRef.current;
     if (view) {
+      closeSearchPanel(view);
       view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) });
       view.focus();
     }

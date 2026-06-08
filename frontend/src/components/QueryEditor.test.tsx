@@ -71,6 +71,8 @@ vi.mock('@codemirror/search', () => ({
   setSearchQuery: { of: vi.fn() },
   findNext: vi.fn(),
   findPrevious: vi.fn(),
+  openSearchPanel: vi.fn(),
+  closeSearchPanel: vi.fn(),
 }));
 
 describe('QueryEditor', () => {
@@ -145,11 +147,12 @@ describe('FindBar', () => {
     return { onQueryChange, onNext, onPrev, onClose };
   }
 
-  it('renders input and navigation buttons', () => {
+  it('renders input, navigation buttons, and close button', () => {
     renderFindBar();
     expect(screen.getByTestId('find-input')).toBeInTheDocument();
     expect(screen.getByTestId('find-prev')).toBeInTheDocument();
     expect(screen.getByTestId('find-next')).toBeInTheDocument();
+    expect(screen.getByTestId('find-close')).toBeInTheDocument();
   });
 
   it('prev/next buttons are disabled when query is empty', () => {
@@ -199,6 +202,12 @@ describe('FindBar', () => {
   it('calls onClose on Escape key in input', async () => {
     const { onClose } = renderFindBar('sel');
     await userEvent.type(screen.getByTestId('find-input'), '{Escape}');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('calls onClose when close button clicked', async () => {
+    const { onClose } = renderFindBar('sel');
+    await userEvent.click(screen.getByTestId('find-close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
