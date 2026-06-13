@@ -54,14 +54,19 @@ func TestApp_Startup_SetsContext(t *testing.T) {
 
 func TestApp_GetAppVersion(t *testing.T) {
 	app := newAppForTest(t)
-	Version = "1.2.3"
 	BuildDate = "2025-01-01"
-	v := app.GetAppVersion()
-	if v["version"] != "1.2.3" {
-		t.Errorf("version: got %q, want %q", v["version"], "1.2.3")
+
+	Version = "1.2.3" // no prefix → should gain one
+	if v := app.GetAppVersion()["version"]; v != "v1.2.3" {
+		t.Errorf("version without prefix: got %q, want %q", v, "v1.2.3")
 	}
-	if v["buildDate"] != "2025-01-01" {
-		t.Errorf("buildDate: got %q, want %q", v["buildDate"], "2025-01-01")
+
+	Version = "v1.2.3" // already has prefix → should not double it
+	if v := app.GetAppVersion()["version"]; v != "v1.2.3" {
+		t.Errorf("version with prefix: got %q, want %q", v, "v1.2.3")
+	}
+	if v := app.GetAppVersion()["buildDate"]; v != "2025-01-01" {
+		t.Errorf("buildDate: got %q, want %q", v, "2025-01-01")
 	}
 }
 

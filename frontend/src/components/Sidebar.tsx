@@ -1588,7 +1588,7 @@ export function Sidebar({
               Snowy
             </span>
             <span style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono, opacity: 0.7 }}>
-              v{appVersion}
+              {appVersion}
             </span>
           </div>
         )}

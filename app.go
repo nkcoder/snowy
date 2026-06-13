@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -87,8 +88,13 @@ func (a *App) ExportCSV(csvContent, defaultFilename string) error {
 }
 
 // GetAppVersion returns the app version and build date.
+// The version always has a "v" prefix regardless of whether the build system injected one.
 func (a *App) GetAppVersion() map[string]string {
-	return map[string]string{"version": Version, "buildDate": BuildDate}
+	v := Version
+	if !strings.HasPrefix(v, "v") {
+		v = "v" + v
+	}
+	return map[string]string{"version": v, "buildDate": BuildDate}
 }
 
 // GetConfig returns the full configuration
