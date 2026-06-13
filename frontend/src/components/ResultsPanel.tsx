@@ -1,4 +1,5 @@
 import { History, PanelBottomClose, PanelBottomOpen, Pin, X } from 'lucide-react';
+import { ExportCSV } from '../../wailsjs/go/main/App';
 import { T } from '../lib/tokens';
 import { ResultsTable } from './ResultsTable';
 
@@ -31,7 +32,7 @@ interface ResultsPanelProps {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: CSV cells can be any DB value
-function downloadCSV(columns: string[], rows: any[][], filename = 'results.csv') {
+function buildCSV(columns: string[], rows: any[][]): string {
   const escapeCsvCell = (cell: unknown) => {
     if (cell === null || cell === undefined) return '';
     const s = String(cell);
@@ -42,16 +43,7 @@ function downloadCSV(columns: string[], rows: any[][], filename = 'results.csv')
   };
   // biome-ignore lint/suspicious/noExplicitAny: rows are untyped DB values
   const body = rows.map((r: any[]) => r.map(escapeCsvCell).join(',')).join('\n');
-  const csv = `${columns.join(',')}\n${body}`;
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  return `${columns.join(',')}\n${body}`;
 }
 
 export function ResultsPanel({
@@ -75,7 +67,7 @@ export function ResultsPanel({
 
   const handleExport = () => {
     if (!activeTab?.data) return;
-    downloadCSV(activeTab.data.columns, activeTab.data.rows, `${activeTab.label}.csv`);
+    ExportCSV(buildCSV(activeTab.data.columns, activeTab.data.rows), `${activeTab.label}.csv`);
   };
 
   return (

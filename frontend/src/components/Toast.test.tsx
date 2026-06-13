@@ -57,6 +57,13 @@ describe('Toast', () => {
     expect(screen.getByTestId('toast-error')).toBeInTheDocument();
   });
 
+  it('displays a success notification with success styling', () => {
+    render(<Toast />);
+    act(() => emit({ level: 'success', message: 'CSV exported' }));
+    expect(screen.getByTestId('toast-success')).toBeInTheDocument();
+    expect(screen.getByText('CSV exported')).toBeInTheDocument();
+  });
+
   it('defaults unknown levels to warning', () => {
     render(<Toast />);
     act(() => emit({ level: 'info', message: 'hello' }));

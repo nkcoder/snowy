@@ -1,7 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as GoApp from '../../wailsjs/go/main/App';
 import type { ResultTab } from './ResultsPanel';
 import { ResultsPanel } from './ResultsPanel';
+
+vi.mock('../../wailsjs/go/main/App', () => ({
+  ExportCSV: vi.fn().mockResolvedValue(undefined),
+}));
 
 function makeLiveTab(overrides: Partial<ResultTab> = {}): ResultTab {
   return {
@@ -44,6 +49,10 @@ const defaultProps = {
 };
 
 describe('ResultsPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders tab strip with live tab label', () => {
     render(<ResultsPanel resultTabs={[makeLiveTab()]} {...defaultProps} />);
     expect(screen.getByText('Result 1')).toBeTruthy();
@@ -165,12 +174,7 @@ describe('ResultsPanel', () => {
     expect(screen.queryByText('Fetching data...')).toBeNull();
   });
 
-  it('triggers export download when export button is clicked on a tab with data', () => {
-    const createObjectURL = vi.fn().mockReturnValue('blob:test');
-    const revokeObjectURL = vi.fn();
-    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-
+  it('calls ExportCSV with correct CSV content and filename when export button clicked', () => {
     const liveTab = makeLiveTab({
       data: {
         columns: ['id', 'name'],
@@ -183,24 +187,14 @@ describe('ResultsPanel', () => {
     });
 
     render(<ResultsPanel resultTabs={[liveTab]} {...defaultProps} />);
-
     fireEvent.click(screen.getByTitle('Export CSV'));
 
-    expect(createObjectURL).toHaveBeenCalled();
-    expect(clickSpy).toHaveBeenCalled();
-
-    clickSpy.mockRestore();
-    vi.unstubAllGlobals();
+    expect(vi.mocked(GoApp.ExportCSV)).toHaveBeenCalledWith('id,name\n1,Alice\n2,', 'Result 1.csv');
   });
 
-  it('does not download when no active tab data', () => {
-    const createObjectURL = vi.fn();
-    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
-
+  it('does not call ExportCSV when no active tab data', () => {
     render(<ResultsPanel resultTabs={[makeLiveTab({ data: null })]} {...defaultProps} />);
-
-    // Export button should be disabled when no data (ResultsTable renders it disabled)
-    expect(createObjectURL).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+    // Export button is disabled when no data — ExportCSV must not be called
+    expect(vi.mocked(GoApp.ExportCSV)).not.toHaveBeenCalled();
   });
 });

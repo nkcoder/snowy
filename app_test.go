@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func newAppForTest(t *testing.T) *App {
@@ -226,6 +230,38 @@ func TestApp_TestDatasource_DefaultsSSLMode(t *testing.T) {
 	result := app.TestDatasource("127.0.0.1", 1, "db", "user", "pass", "")
 	if result.Success {
 		t.Error("expected failure")
+	}
+}
+
+// ── ExportCSV ─────────────────────────────────────────────────────────────────
+
+func TestApp_ExportCSV_CancelDoesNothing(t *testing.T) {
+	app := newAppForTest(t)
+	app.saveDialog = func(_ context.Context, _ wruntime.SaveDialogOptions) (string, error) {
+		return "", nil // user cancelled
+	}
+	if err := app.ExportCSV("col\nval", "out.csv"); err != nil {
+		t.Fatalf("expected no error on cancel, got: %v", err)
+	}
+}
+
+func TestApp_ExportCSV_WritesFile(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "out.csv")
+	app.saveDialog = func(_ context.Context, _ wruntime.SaveDialogOptions) (string, error) {
+		return dest, nil
+	}
+	content := "id,name\n1,Alice\n"
+	if err := app.ExportCSV(content, "out.csv"); err != nil {
+		t.Fatalf("ExportCSV: %v", err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != content {
+		t.Errorf("file content: got %q, want %q", string(got), content)
 	}
 }
 

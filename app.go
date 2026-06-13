@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -20,6 +22,7 @@ type App struct {
 	ctx           context.Context
 	configManager *ConfigManager
 	dbService     *DbService
+	saveDialog    func(context.Context, wruntime.SaveDialogOptions) (string, error)
 }
 
 // NewApp creates a new App application struct
@@ -41,6 +44,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.saveDialog = wruntime.SaveFileDialog
 	// Surface non-fatal config/Keychain warnings to the frontend as toasts.
 	a.configManager.notify = func(level, message string) {
 		wruntime.EventsEmit(ctx, "snowy:notification", map[string]string{
@@ -48,6 +52,38 @@ func (a *App) startup(ctx context.Context) {
 			"message": message,
 		})
 	}
+}
+
+// ExportCSV opens a native Save As dialog and writes csvContent to the chosen path.
+// Returns nil if the user cancels. Emits a snowy:notification event on success or write error.
+func (a *App) ExportCSV(csvContent, defaultFilename string) error {
+	path, err := a.saveDialog(a.ctx, wruntime.SaveDialogOptions{
+		DefaultFilename: defaultFilename,
+		Title:           "Export CSV",
+		Filters:         []wruntime.FileFilter{{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"}},
+	})
+	if err != nil {
+		return err
+	}
+	if path == "" {
+		return nil
+	}
+	if err := os.WriteFile(path, []byte(csvContent), 0o644); err != nil {
+		if a.ctx != nil {
+			wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
+				"level":   "error",
+				"message": "CSV export failed: " + err.Error(),
+			})
+		}
+		return err
+	}
+	if a.ctx != nil {
+		wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
+			"level":   "success",
+			"message": "Exported " + filepath.Base(path),
+		})
+	}
+	return nil
 }
 
 // GetAppVersion returns the app version and build date.

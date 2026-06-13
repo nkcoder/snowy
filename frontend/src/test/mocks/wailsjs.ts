@@ -25,3 +25,4 @@ export const GetCachedMetadata = vi.fn().mockResolvedValue({ schemas: [] });
 export const RefreshMetadata = vi.fn().mockResolvedValue({ schemas: [] });
 export const RecordHistory = vi.fn().mockResolvedValue(undefined);
 export const GetQueryHistory = vi.fn().mockResolvedValue([]);
+export const ExportCSV = vi.fn().mockResolvedValue(undefined);
