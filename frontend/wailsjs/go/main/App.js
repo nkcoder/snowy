@@ -14,6 +14,10 @@ export function ExecuteQuery(arg1, arg2) {
   return window['go']['main']['App']['ExecuteQuery'](arg1, arg2);
 }
 
+export function ExportCSV(arg1, arg2) {
+  return window['go']['main']['App']['ExportCSV'](arg1, arg2);
+}
+
 export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
 }
