@@ -1,4 +1,5 @@
 import { History, PanelBottomClose, PanelBottomOpen, Pin, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { ExportCSV } from '../../wailsjs/go/main/App';
 import { T } from '../lib/tokens';
 import { ResultsTable } from './ResultsTable';
@@ -64,6 +65,41 @@ export function ResultsPanel({
   const canPin = !!liveTab?.data && !loading;
   const activeTabPinned = activeTab?.pinned ?? false;
   const pinActive = activeTabPinned || canPin;
+
+  // Per-tab filter state keyed by tab id
+  const [filterTextByTab, setFilterTextByTab] = useState<Record<string, string>>({});
+  const [filterOpenByTab, setFilterOpenByTab] = useState<Record<string, boolean>>({});
+  const tabId = activeTab?.id;
+  const filterText = tabId ? (filterTextByTab[tabId] ?? '') : '';
+  const filterOpen = tabId ? (filterOpenByTab[tabId] ?? false) : false;
+
+  // Reset filter only when the SAME tab gets a new query result (timestamp changes).
+  // A ref tracks the last-seen timestamp per tab so tab-switching doesn't clear filter state.
+  const seenTimestampByTab = useRef<Record<string, string>>({});
+  useEffect(() => {
+    if (!tabId) return;
+    const ts = activeTab?.timestamp?.toISOString() ?? '';
+    const prev = seenTimestampByTab.current[tabId] ?? '';
+    if (prev && prev !== ts) {
+      setFilterTextByTab((p) => ({ ...p, [tabId]: '' }));
+      setFilterOpenByTab((p) => ({ ...p, [tabId]: false }));
+    }
+    seenTimestampByTab.current[tabId] = ts;
+  }, [activeTab?.timestamp, tabId]);
+
+  const handleFilterToggle = () => {
+    if (!tabId) return;
+    setFilterOpenByTab((prev) => {
+      const next = !prev[tabId];
+      if (!next) setFilterTextByTab((p) => ({ ...p, [tabId]: '' }));
+      return { ...prev, [tabId]: next };
+    });
+  };
+
+  const handleFilterChange = (text: string) => {
+    if (!tabId) return;
+    setFilterTextByTab((prev) => ({ ...prev, [tabId]: text }));
+  };
 
   const handleExport = () => {
     if (!activeTab?.data) return;
@@ -181,6 +217,10 @@ export function ResultsPanel({
               onUnpin={onUnpin}
               activeTabId={activeTab?.id}
               onExport={activeTab?.data ? handleExport : undefined}
+              filterText={filterText}
+              filterOpen={filterOpen}
+              onFilterChange={handleFilterChange}
+              onFilterToggle={handleFilterToggle}
             />
           )}
           {/* Overlay is rendered after content in the tree so it sits on top in the
