@@ -177,6 +177,10 @@ export function ResultsTable({
             placeholder="Filter rows…"
             value={filterText}
             onChange={(e) => onFilterChange?.(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             style={{
               background: 'transparent',
               border: 'none',
