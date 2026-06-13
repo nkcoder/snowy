@@ -104,6 +104,7 @@ describe('QueryEditor', () => {
     onChange: vi.fn(),
     onRun: vi.fn(),
     onSave: vi.fn(),
+    onOpenHistory: vi.fn(),
     loading: false,
   };
 
@@ -135,6 +136,12 @@ describe('QueryEditor', () => {
     render(<QueryEditor {...defaultProps} />);
     fireEvent.click(screen.getByTestId('save-button'));
     expect(defaultProps.onSave).toHaveBeenCalledOnce();
+  });
+
+  it('calls onOpenHistory when History button clicked', () => {
+    render(<QueryEditor {...defaultProps} />);
+    fireEvent.click(screen.getByTitle('History'));
+    expect(defaultProps.onOpenHistory).toHaveBeenCalledOnce();
   });
 
   it('renders CodeMirror container', () => {

@@ -45,6 +45,7 @@ interface QueryEditorProps {
   onChange: (sql: string) => void;
   onRun: (sql: string) => void;
   onSave: () => void;
+  onOpenHistory: () => void;
   loading: boolean;
   completions?: CompletionEntry[];
 }
@@ -649,6 +650,7 @@ export function QueryEditor({
   onChange,
   onRun,
   onSave,
+  onOpenHistory,
   loading,
   completions,
 }: QueryEditorProps) {
@@ -905,6 +907,7 @@ export function QueryEditor({
         <button
           type="button"
           title="History"
+          onClick={onOpenHistory}
           style={{ color: T.textSec }}
           className="p-1.5 bg-transparent border-none cursor-pointer flex items-center rounded"
         >

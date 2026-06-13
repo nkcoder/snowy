@@ -484,6 +484,7 @@ function App() {
                       onChange={(sql) => updateActiveTab({ sql, dirty: true })}
                       onRun={handleRunQuery}
                       onSave={handleSaveQuery}
+                      onOpenHistory={handleOpenHistory}
                       loading={queryLoading}
                       completions={completions}
                     />
