@@ -16,6 +16,10 @@ interface ResultsTableProps {
   onUnpin?: (id: string) => void;
   activeTabId?: string;
   onExport?: () => void;
+  filterText?: string;
+  filterOpen?: boolean;
+  onFilterChange?: (text: string) => void;
+  onFilterToggle?: () => void;
 }
 
 export function ResultsTable({
@@ -27,6 +31,10 @@ export function ResultsTable({
   onUnpin,
   activeTabId,
   onExport,
+  filterText = '',
+  filterOpen = false,
+  onFilterChange,
+  onFilterToggle,
 }: ResultsTableProps) {
   const [colWidths, setColWidths] = useState<number[]>([]);
   const [hoveredResizeCol, setHoveredResizeCol] = useState<number | null>(null);
@@ -94,7 +102,9 @@ export function ResultsTable({
       >
         <button
           type="button"
-          style={{ color: T.textSec }}
+          title="Toggle filter"
+          onClick={onFilterToggle}
+          style={{ color: filterOpen ? T.accent : T.textSec }}
           className="p-1 bg-transparent border-none cursor-pointer flex items-center"
         >
           <Filter size={14} />
@@ -149,6 +159,55 @@ export function ResultsTable({
           Read-only
         </div>
       </div>
+
+      {/* Filter bar */}
+      {filterOpen && (
+        <div
+          style={{
+            background: T.chrome,
+            borderBottom: `1px solid ${T.border}`,
+          }}
+          className="flex items-center gap-2 px-2 py-1 shrink-0"
+        >
+          <Filter size={12} style={{ color: T.accent, flexShrink: 0 }} />
+          <input
+            // biome-ignore lint/a11y/noAutofocus: filter bar is user-initiated via button click
+            autoFocus
+            type="text"
+            placeholder="Filter rows…"
+            value={filterText}
+            onChange={(e) => onFilterChange?.(e.target.value)}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: T.text,
+              fontFamily: T.mono,
+              fontSize: 12,
+              flex: 1,
+            }}
+          />
+          {data && (
+            <span style={{ color: T.textDim, fontFamily: T.mono, fontSize: 11, flexShrink: 0 }}>
+              {filterText
+                ? `${
+                    data.rows.filter((row) =>
+                      row.some((cell) =>
+                        String(cell ?? '')
+                          .toLowerCase()
+                          .includes(filterText.toLowerCase())
+                      )
+                    ).length
+                  } / ${data.rows.length}`
+                : `${data.rows.length}`}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Truncation notice */}
       {truncated && (
@@ -249,42 +308,53 @@ export function ResultsTable({
                 </td>
               </tr>
             ) : (
-              data.rows.map((row, rowIndex) => (
-                <tr
-                  key={rowIndex}
-                  style={{ borderBottom: `1px solid ${T.divider}` }}
-                  className="snowy-grid-row"
-                >
-                  <td
-                    style={{
-                      background: T.gridHeader,
-                      borderRight: `1px solid ${T.border}`,
-                      color: T.textDim,
-                    }}
-                    className="px-1 py-0.5 text-[10px] text-center select-none"
+              data.rows
+                .map((row, originalIndex) => ({ row, originalIndex }))
+                .filter(({ row }) =>
+                  filterText
+                    ? row.some((cell) =>
+                        String(cell ?? '')
+                          .toLowerCase()
+                          .includes(filterText.toLowerCase())
+                      )
+                    : true
+                )
+                .map(({ row, originalIndex }) => (
+                  <tr
+                    key={originalIndex}
+                    style={{ borderBottom: `1px solid ${T.divider}` }}
+                    className="snowy-grid-row"
                   >
-                    {rowIndex + 1}
-                  </td>
-                  {row.map((cell, cellIndex) => (
                     <td
-                      key={cellIndex}
                       style={{
-                        borderRight: `1px solid ${T.divider}`,
-                        color: T.text,
+                        background: T.gridHeader,
+                        borderRight: `1px solid ${T.border}`,
+                        color: T.textDim,
                       }}
-                      className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                      className="px-1 py-0.5 text-[10px] text-center select-none"
                     >
-                      {cell === null ? (
-                        <span style={{ color: T.textDim }} className="italic">
-                          null
-                        </span>
-                      ) : (
-                        String(cell)
-                      )}
+                      {originalIndex + 1}
                     </td>
-                  ))}
-                </tr>
-              ))
+                    {row.map((cell, cellIndex) => (
+                      <td
+                        key={cellIndex}
+                        style={{
+                          borderRight: `1px solid ${T.divider}`,
+                          color: T.text,
+                        }}
+                        className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                      >
+                        {cell === null ? (
+                          <span style={{ color: T.textDim }} className="italic">
+                            null
+                          </span>
+                        ) : (
+                          String(cell)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))
             )}
           </tbody>
         </table>

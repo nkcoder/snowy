@@ -197,4 +197,63 @@ describe('ResultsPanel', () => {
     // Export button is disabled when no data — ExportCSV must not be called
     expect(vi.mocked(GoApp.ExportCSV)).not.toHaveBeenCalled();
   });
+
+  it('shows filter input when Filter button is clicked', () => {
+    const tab = makeLiveTab({ data: { columns: ['name'], rows: [['Alice']] } });
+    render(<ResultsPanel resultTabs={[tab]} {...defaultProps} />);
+    fireEvent.click(screen.getByTitle('Toggle filter'));
+    expect(screen.getByPlaceholderText('Filter rows…')).toBeTruthy();
+  });
+
+  it('filter state is independent per tab', () => {
+    const tab1 = makeLiveTab({
+      id: 'live',
+      label: 'T1',
+      data: { columns: ['name'], rows: [['Alice'], ['Bob']] },
+    });
+    const tab2 = makePinnedTab({
+      id: 'pin-1',
+      label: 'T2',
+      data: { columns: ['name'], rows: [['Carol']] },
+    });
+    const { rerender } = render(
+      <ResultsPanel resultTabs={[tab1, tab2]} {...defaultProps} activeResultTabId="live" />
+    );
+    // Open filter on tab1 and type
+    fireEvent.click(screen.getByTitle('Toggle filter'));
+    fireEvent.change(screen.getByPlaceholderText('Filter rows…'), { target: { value: 'alice' } });
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.queryByText('Bob')).toBeNull();
+
+    // Switch to tab2 — filter bar should be closed, Bob visible, Alice visible (Carol tab)
+    rerender(
+      <ResultsPanel resultTabs={[tab1, tab2]} {...defaultProps} activeResultTabId="pin-1" />
+    );
+    expect(screen.queryByPlaceholderText('Filter rows…')).toBeNull();
+    expect(screen.getByText('Carol')).toBeTruthy();
+
+    // Switch back to tab1 — filter still active
+    rerender(<ResultsPanel resultTabs={[tab1, tab2]} {...defaultProps} activeResultTabId="live" />);
+    expect(screen.getByPlaceholderText('Filter rows…')).toBeTruthy();
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.queryByText('Bob')).toBeNull();
+  });
+
+  it('filter resets when new query result loads on active tab', () => {
+    const tab = makeLiveTab({ data: { columns: ['name'], rows: [['Alice'], ['Bob']] } });
+    const { rerender } = render(<ResultsPanel resultTabs={[tab]} {...defaultProps} />);
+    fireEvent.click(screen.getByTitle('Toggle filter'));
+    fireEvent.change(screen.getByPlaceholderText('Filter rows…'), { target: { value: 'alice' } });
+    expect(screen.queryByText('Bob')).toBeNull();
+
+    // Simulate new query: same tab id, new data + new timestamp
+    const updatedTab = {
+      ...tab,
+      data: { columns: ['name'], rows: [['Alice'], ['Bob']] },
+      timestamp: new Date(Date.now() + 1000),
+    };
+    rerender(<ResultsPanel resultTabs={[updatedTab]} {...defaultProps} />);
+    expect(screen.queryByPlaceholderText('Filter rows…')).toBeNull();
+    expect(screen.getByText('Bob')).toBeTruthy();
+  });
 });

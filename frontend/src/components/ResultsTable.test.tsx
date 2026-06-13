@@ -84,6 +84,75 @@ describe('ResultsTable', () => {
     expect(onUnpin).toHaveBeenCalledWith('pin-1');
   });
 
+  it('calls onFilterToggle when Filter button clicked', () => {
+    const onFilterToggle = vi.fn();
+    render(
+      <ResultsTable data={{ columns: ['id'], rows: [[1]] }} onFilterToggle={onFilterToggle} />
+    );
+    fireEvent.click(screen.getByTitle('Toggle filter'));
+    expect(onFilterToggle).toHaveBeenCalled();
+  });
+
+  it('shows filter input when filterOpen=true', () => {
+    render(
+      <ResultsTable
+        data={{ columns: ['id'], rows: [[1]] }}
+        filterOpen={true}
+        onFilterChange={vi.fn()}
+        onFilterToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByPlaceholderText('Filter rows…')).toBeTruthy();
+  });
+
+  it('hides filter input when filterOpen=false', () => {
+    render(<ResultsTable data={{ columns: ['id'], rows: [[1]] }} />);
+    expect(screen.queryByPlaceholderText('Filter rows…')).toBeNull();
+  });
+
+  it('filters rows by filterText (case-insensitive)', () => {
+    render(
+      <ResultsTable
+        data={{ columns: ['name'], rows: [['Alice'], ['Bob'], ['alice smith']] }}
+        filterOpen={true}
+        filterText="alice"
+        onFilterChange={vi.fn()}
+        onFilterToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.getByText('alice smith')).toBeTruthy();
+    expect(screen.queryByText('Bob')).toBeNull();
+  });
+
+  it('shows original row numbers when filtered', () => {
+    render(
+      <ResultsTable
+        data={{ columns: ['name'], rows: [['Alice'], ['Bob'], ['Carol']] }}
+        filterOpen={true}
+        filterText="carol"
+        onFilterChange={vi.fn()}
+        onFilterToggle={vi.fn()}
+      />
+    );
+    // Carol is at original index 3 — that number must appear, not 1
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.queryByText('1')).toBeNull();
+  });
+
+  it('shows match count when filter is active', () => {
+    render(
+      <ResultsTable
+        data={{ columns: ['name'], rows: [['Alice'], ['Bob'], ['Alan']] }}
+        filterOpen={true}
+        filterText="al"
+        onFilterChange={vi.fn()}
+        onFilterToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByText('2 / 3')).toBeTruthy();
+  });
+
   it('calls onExport when export button is clicked', () => {
     const onExport = vi.fn();
     render(<ResultsTable data={{ columns: ['id'], rows: [[1]] }} onExport={onExport} />);
