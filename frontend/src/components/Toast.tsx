@@ -1,9 +1,9 @@
-import { AlertCircle, AlertTriangle, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EventsOff, EventsOn } from '../../wailsjs/runtime/runtime';
 import { T } from '../lib/tokens';
 
-type Level = 'warning' | 'error';
+type Level = 'success' | 'warning' | 'error';
 interface Notification {
   id: number;
   level: Level;
@@ -18,7 +18,8 @@ export function Toast() {
   useEffect(() => {
     let nextId = 1;
     const handler = (payload: { level?: string; message?: string }) => {
-      const level: Level = payload?.level === 'error' ? 'error' : 'warning';
+      const level: Level =
+        payload?.level === 'error' ? 'error' : payload?.level === 'success' ? 'success' : 'warning';
       const message = payload?.message ?? '';
       if (!message) return;
       const id = nextId++;
@@ -46,8 +47,9 @@ export function Toast() {
       }}
     >
       {items.map((n) => {
-        const accent = n.level === 'error' ? T.err : T.warn;
-        const Icon = n.level === 'error' ? AlertCircle : AlertTriangle;
+        const accent = n.level === 'error' ? T.err : n.level === 'success' ? T.ok : T.warn;
+        const Icon =
+          n.level === 'error' ? AlertCircle : n.level === 'success' ? CheckCircle : AlertTriangle;
         return (
           <div
             key={n.id}

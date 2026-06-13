@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -54,7 +55,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // ExportCSV opens a native Save As dialog and writes csvContent to the chosen path.
-// Returns nil if the user cancels.
+// Returns nil if the user cancels. Emits a snowy:notification event on success or write error.
 func (a *App) ExportCSV(csvContent, defaultFilename string) error {
 	path, err := a.saveDialog(a.ctx, wruntime.SaveDialogOptions{
 		DefaultFilename: defaultFilename,
@@ -67,7 +68,22 @@ func (a *App) ExportCSV(csvContent, defaultFilename string) error {
 	if path == "" {
 		return nil
 	}
-	return os.WriteFile(path, []byte(csvContent), 0o644)
+	if err := os.WriteFile(path, []byte(csvContent), 0o644); err != nil {
+		if a.ctx != nil {
+			wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
+				"level":   "error",
+				"message": "CSV export failed: " + err.Error(),
+			})
+		}
+		return err
+	}
+	if a.ctx != nil {
+		wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
+			"level":   "success",
+			"message": "Exported " + filepath.Base(path),
+		})
+	}
+	return nil
 }
 
 // GetAppVersion returns the app version and build date.
