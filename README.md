@@ -2,7 +2,7 @@
 
 [![Website](https://img.shields.io/badge/website-nkcoder.github.io%2Fsnowy-blue)](https://nkcoder.github.io/snowy/)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://github.com/nkcoder/snowy/releases)
-[![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 
 A native macOS PostgreSQL GUI client — fast, keyboard-friendly, DataGrip-inspired.
 
@@ -23,7 +23,7 @@ Built with [Wails v2](https://wails.io/) (Go + React/TypeScript) so it ships as 
 ## Requirements
 
 - macOS (primary target)
-- [Go 1.25+](https://go.dev/)
+- [Go 1.26+](https://go.dev/)
 - [Node.js 18+](https://nodejs.org/)
 - [Wails v2](https://wails.io/docs/gettingstarted/installation) — `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
 - PostgreSQL (local or remote) — a Docker demo DB is included
@@ -105,8 +105,8 @@ snowy/
 | Layer | Technology |
 |-------|-----------|
 | Desktop shell | [Wails v2](https://wails.io/) |
-| Backend | Go 1.25, [pgx v5](https://github.com/jackc/pgx) |
-| Frontend | React 18, TypeScript, Tailwind CSS |
+| Backend | Go 1.26, [pgx v5](https://github.com/jackc/pgx) |
+| Frontend | React 19, TypeScript, Tailwind CSS |
 | Editor | [CodeMirror 6](https://codemirror.net/) |
 | Unit tests | vitest + Testing Library (frontend), Go test (backend) |
 | E2E tests | [Playwright](https://playwright.dev/) |
