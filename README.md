@@ -8,7 +8,7 @@ A native macOS PostgreSQL GUI client — fast, keyboard-friendly, DataGrip-inspi
 
 Built with [Wails v2](https://wails.io/) (Go + React/TypeScript) so it ships as a single binary with no Electron overhead.
 
-![Hero Screenshot](./docs/images/hreo.jpeg)
+![Hero Screenshot](./docs/images/hero.jpeg)
 
 ## Features
 
