@@ -1,5 +1,9 @@
 # Snowy
 
+[![Website](https://img.shields.io/badge/website-nkcoder.github.io%2Fsnowy-blue)](https://nkcoder.github.io/snowy/)
+[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://github.com/nkcoder/snowy/releases)
+[![Go](https://img.shields.io/badge/go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+
 A native macOS PostgreSQL GUI client — fast, keyboard-friendly, DataGrip-inspired.
 
 Built with [Wails v2](https://wails.io/) (Go + React/TypeScript) so it ships as a single binary with no Electron overhead.
