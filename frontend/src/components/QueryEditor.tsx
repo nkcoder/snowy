@@ -389,26 +389,67 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   return { kind: 'keyword' };
 }
 
-export function isInsideString(text: string): boolean {
+// Walks `text` and invokes `cb` for each character that is NOT inside a
+// string literal ('…' or "…"), a -- line comment, or a /* … */ block comment.
+// Returning false from `cb` stops the scan early.
+function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefined): boolean {
   let inSingle = false;
   let inDouble = false;
+  let inLineComment = false;
+  let inBlockComment = false;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (ch === "'" && !inDouble) {
-      if (text[i + 1] === "'") {
-        i++;
-      } else {
-        inSingle = !inSingle;
-      }
-    } else if (ch === '"' && !inSingle) {
-      if (text[i + 1] === '"') {
-        i++;
-      } else {
-        inDouble = !inDouble;
-      }
+    const next = text[i + 1];
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      continue;
     }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') {
+        inBlockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (inSingle) {
+      if (ch === "'") {
+        if (next === "'") i++;
+        else inSingle = false;
+      }
+      continue;
+    }
+    if (inDouble) {
+      if (ch === '"') {
+        if (next === '"') i++;
+        else inDouble = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      continue;
+    }
+    if (ch === '-' && next === '-') {
+      inLineComment = true;
+      i++;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      inBlockComment = true;
+      i++;
+      continue;
+    }
+    if (cb && cb(i, ch) === false) return inSingle || inDouble;
   }
   return inSingle || inDouble;
+}
+
+export function isInsideString(text: string): boolean {
+  return scanSql(text);
 }
 
 export function isAfterStringClose(text: string): boolean {
@@ -421,65 +462,52 @@ export function findStatementBounds(
   text: string,
   pos: number
 ): { stmtStart: number; stmtEnd: number } {
-  let inSingle = false;
-  let inDouble = false;
   let stmtStart = 0;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === "'" && !inDouble) {
-      if (text[i + 1] === "'") {
-        i++;
-        continue;
-      }
-      inSingle = !inSingle;
-    } else if (ch === '"' && !inSingle) {
-      if (text[i + 1] === '"') {
-        i++;
-        continue;
-      }
-      inDouble = !inDouble;
-    } else if (ch === ';' && !inSingle && !inDouble) {
-      if (i < pos) {
-        stmtStart = i + 1;
-      } else {
-        return { stmtStart, stmtEnd: i + 1 };
-      }
+  let stmtEnd = text.length;
+  scanSql(text, (i, ch) => {
+    if (ch !== ';') return;
+    if (i < pos) {
+      stmtStart = i + 1;
+    } else {
+      stmtEnd = i + 1;
+      return false;
     }
-  }
-  return { stmtStart, stmtEnd: text.length };
+  });
+  return { stmtStart, stmtEnd };
 }
 
 export function innerSubqueryContext(
   beforeWord: string,
   stmtFull: string
 ): { innerBefore: string; innerFull: string } | null {
-  let inSingle = false;
-  let inDouble = false;
   const stack: number[] = [];
-  for (let i = 0; i < beforeWord.length; i++) {
-    const ch = beforeWord[i];
-    if (ch === "'" && !inDouble) {
-      if (beforeWord[i + 1] === "'") {
-        i++;
-        continue;
-      }
-      inSingle = !inSingle;
-    } else if (ch === '"' && !inSingle) {
-      if (beforeWord[i + 1] === '"') {
-        i++;
-        continue;
-      }
-      inDouble = !inDouble;
-    } else if (!inSingle && !inDouble) {
-      if (ch === '(') stack.push(i);
-      else if (ch === ')') stack.pop();
-    }
-  }
+  scanSql(beforeWord, (i, ch) => {
+    if (ch === '(') stack.push(i);
+    else if (ch === ')') stack.pop();
+  });
   if (stack.length === 0) return null;
   const lastOpenPos = stack[stack.length - 1];
+
+  // Find the matching `)` in stmtFull starting from the cursor; clip innerFull
+  // there so outer-query content past the subquery (e.g. trailing JOINs) does
+  // not leak into completion context.
+  let depth = stack.length;
+  let closePos = stmtFull.length;
+  scanSql(stmtFull.slice(beforeWord.length), (i, ch) => {
+    if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
+      depth--;
+      if (depth === stack.length - 1) {
+        closePos = beforeWord.length + i;
+        return false;
+      }
+    }
+  });
+
   return {
     innerBefore: beforeWord.slice(lastOpenPos + 1),
-    innerFull: stmtFull.slice(lastOpenPos + 1),
+    innerFull: stmtFull.slice(lastOpenPos + 1, closePos),
   };
 }
 
@@ -766,17 +794,14 @@ export function QueryEditor({
       const word = context.matchBefore(/\w*/);
       if (!word) return null;
       const fullText = context.state.doc.toString();
+      const bounds = findStatementBounds(fullText, context.pos);
       const sel = context.state.selection.main;
-      let stmtStart: number;
-      let stmtFull: string;
-      if (!sel.empty) {
-        stmtStart = sel.from;
-        stmtFull = fullText.slice(sel.from, sel.to);
-      } else {
-        const bounds = findStatementBounds(fullText, context.pos);
-        stmtStart = bounds.stmtStart;
-        stmtFull = fullText.slice(bounds.stmtStart, bounds.stmtEnd);
-      }
+      // Selection acts as an additional boundary on top of `;`. Clamping
+      // composes both: a selection that spans multiple statements still
+      // resolves to the statement containing the cursor.
+      const stmtStart = sel.empty ? bounds.stmtStart : Math.max(bounds.stmtStart, sel.from);
+      const stmtEnd = sel.empty ? bounds.stmtEnd : Math.min(bounds.stmtEnd, sel.to);
+      const stmtFull = fullText.slice(stmtStart, stmtEnd);
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord) || isAfterStringClose(beforeWord)) return null;
       const sub = innerSubqueryContext(beforeWord, stmtFull);
