@@ -417,6 +417,72 @@ export function isAfterStringClose(text: string): boolean {
   return (last === "'" || last === '"') && !isInsideString(text);
 }
 
+export function findStatementBounds(
+  text: string,
+  pos: number
+): { stmtStart: number; stmtEnd: number } {
+  let inSingle = false;
+  let inDouble = false;
+  let stmtStart = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "'" && !inDouble) {
+      if (text[i + 1] === "'") {
+        i++;
+        continue;
+      }
+      inSingle = !inSingle;
+    } else if (ch === '"' && !inSingle) {
+      if (text[i + 1] === '"') {
+        i++;
+        continue;
+      }
+      inDouble = !inDouble;
+    } else if (ch === ';' && !inSingle && !inDouble) {
+      if (i < pos) {
+        stmtStart = i + 1;
+      } else {
+        return { stmtStart, stmtEnd: i + 1 };
+      }
+    }
+  }
+  return { stmtStart, stmtEnd: text.length };
+}
+
+export function innerSubqueryContext(
+  beforeWord: string,
+  stmtFull: string
+): { innerBefore: string; innerFull: string } | null {
+  let inSingle = false;
+  let inDouble = false;
+  const stack: number[] = [];
+  for (let i = 0; i < beforeWord.length; i++) {
+    const ch = beforeWord[i];
+    if (ch === "'" && !inDouble) {
+      if (beforeWord[i + 1] === "'") {
+        i++;
+        continue;
+      }
+      inSingle = !inSingle;
+    } else if (ch === '"' && !inSingle) {
+      if (beforeWord[i + 1] === '"') {
+        i++;
+        continue;
+      }
+      inDouble = !inDouble;
+    } else if (!inSingle && !inDouble) {
+      if (ch === '(') stack.push(i);
+      else if (ch === ')') stack.pop();
+    }
+  }
+  if (stack.length === 0) return null;
+  const lastOpenPos = stack[stack.length - 1];
+  return {
+    innerBefore: beforeWord.slice(lastOpenPos + 1),
+    innerFull: stmtFull.slice(lastOpenPos + 1),
+  };
+}
+
 type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
@@ -700,15 +766,21 @@ export function QueryEditor({
       const word = context.matchBefore(/\w*/);
       if (!word) return null;
       const fullText = context.state.doc.toString();
-      const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
-      const stmtEndIdx = fullText.indexOf(';', context.pos);
-      const stmtFull = fullText.slice(
-        stmtStart,
-        stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1
-      );
+      const sel = context.state.selection.main;
+      let stmtStart: number;
+      let stmtFull: string;
+      if (!sel.empty) {
+        stmtStart = sel.from;
+        stmtFull = fullText.slice(sel.from, sel.to);
+      } else {
+        const bounds = findStatementBounds(fullText, context.pos);
+        stmtStart = bounds.stmtStart;
+        stmtFull = fullText.slice(bounds.stmtStart, bounds.stmtEnd);
+      }
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord) || isAfterStringClose(beforeWord)) return null;
-      const ctx = detectSqlContext(beforeWord, stmtFull);
+      const sub = innerSubqueryContext(beforeWord, stmtFull);
+      const ctx = detectSqlContext(sub?.innerBefore ?? beforeWord, sub?.innerFull ?? stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
       const options = applyFuzzyMatch(buildCompletionOptions(entriesRef.current, ctx), word.text);
       if (options.length === 0) return null;
