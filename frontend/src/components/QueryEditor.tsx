@@ -389,32 +389,126 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   return { kind: 'keyword' };
 }
 
-export function isInsideString(text: string): boolean {
+// Walks `text` and invokes `cb` for each character that is NOT inside a
+// string literal ('…' or "…"), a -- line comment, or a /* … */ block comment.
+// Returning false from `cb` stops the scan early.
+function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefined): boolean {
   let inSingle = false;
   let inDouble = false;
+  let inLineComment = false;
+  let inBlockComment = false;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (ch === "'" && !inDouble) {
-      if (text[i + 1] === "'") {
-        i++;
-      } else {
-        inSingle = !inSingle;
-      }
-    } else if (ch === '"' && !inSingle) {
-      if (text[i + 1] === '"') {
-        i++;
-      } else {
-        inDouble = !inDouble;
-      }
+    const next = text[i + 1];
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      continue;
     }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') {
+        inBlockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (inSingle) {
+      if (ch === "'") {
+        if (next === "'") i++;
+        else inSingle = false;
+      }
+      continue;
+    }
+    if (inDouble) {
+      if (ch === '"') {
+        if (next === '"') i++;
+        else inDouble = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      continue;
+    }
+    if (ch === '-' && next === '-') {
+      inLineComment = true;
+      i++;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      inBlockComment = true;
+      i++;
+      continue;
+    }
+    if (cb && cb(i, ch) === false) return inSingle || inDouble;
   }
   return inSingle || inDouble;
+}
+
+export function isInsideString(text: string): boolean {
+  return scanSql(text);
 }
 
 export function isAfterStringClose(text: string): boolean {
   if (!text) return false;
   const last = text[text.length - 1];
   return (last === "'" || last === '"') && !isInsideString(text);
+}
+
+export function findStatementBounds(
+  text: string,
+  pos: number
+): { stmtStart: number; stmtEnd: number } {
+  let stmtStart = 0;
+  let stmtEnd = text.length;
+  scanSql(text, (i, ch) => {
+    if (ch !== ';') return;
+    if (i < pos) {
+      stmtStart = i + 1;
+    } else {
+      stmtEnd = i + 1;
+      return false;
+    }
+  });
+  return { stmtStart, stmtEnd };
+}
+
+export function innerSubqueryContext(
+  beforeWord: string,
+  stmtFull: string
+): { innerBefore: string; innerFull: string } | null {
+  const stack: number[] = [];
+  scanSql(beforeWord, (i, ch) => {
+    if (ch === '(') stack.push(i);
+    else if (ch === ')') stack.pop();
+  });
+  if (stack.length === 0) return null;
+  const lastOpenPos = stack[stack.length - 1];
+
+  // Find the matching `)` in stmtFull starting from the cursor; clip innerFull
+  // there so outer-query content past the subquery (e.g. trailing JOINs) does
+  // not leak into completion context.
+  let depth = stack.length;
+  let closePos = stmtFull.length;
+  scanSql(stmtFull.slice(beforeWord.length), (i, ch) => {
+    if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
+      depth--;
+      if (depth === stack.length - 1) {
+        closePos = beforeWord.length + i;
+        return false;
+      }
+    }
+  });
+
+  return {
+    innerBefore: beforeWord.slice(lastOpenPos + 1),
+    innerFull: stmtFull.slice(lastOpenPos + 1, closePos),
+  };
 }
 
 type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
@@ -700,15 +794,18 @@ export function QueryEditor({
       const word = context.matchBefore(/\w*/);
       if (!word) return null;
       const fullText = context.state.doc.toString();
-      const stmtStart = fullText.lastIndexOf(';', context.pos - 1) + 1;
-      const stmtEndIdx = fullText.indexOf(';', context.pos);
-      const stmtFull = fullText.slice(
-        stmtStart,
-        stmtEndIdx === -1 ? fullText.length : stmtEndIdx + 1
-      );
+      const bounds = findStatementBounds(fullText, context.pos);
+      const sel = context.state.selection.main;
+      // Selection acts as an additional boundary on top of `;`. Clamping
+      // composes both: a selection that spans multiple statements still
+      // resolves to the statement containing the cursor.
+      const stmtStart = sel.empty ? bounds.stmtStart : Math.max(bounds.stmtStart, sel.from);
+      const stmtEnd = sel.empty ? bounds.stmtEnd : Math.min(bounds.stmtEnd, sel.to);
+      const stmtFull = fullText.slice(stmtStart, stmtEnd);
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord) || isAfterStringClose(beforeWord)) return null;
-      const ctx = detectSqlContext(beforeWord, stmtFull);
+      const sub = innerSubqueryContext(beforeWord, stmtFull);
+      const ctx = detectSqlContext(sub?.innerBefore ?? beforeWord, sub?.innerFull ?? stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
       const options = applyFuzzyMatch(buildCompletionOptions(entriesRef.current, ctx), word.text);
       if (options.length === 0) return null;

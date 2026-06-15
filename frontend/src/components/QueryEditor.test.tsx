@@ -10,6 +10,8 @@ import {
   extractFromTables,
   FindBar,
   findMatchInfo,
+  findStatementBounds,
+  innerSubqueryContext,
   isAfterStringClose,
   isInsideString,
   makeKeyTypeBadge,
@@ -894,5 +896,207 @@ describe('isInsideString', () => {
     // Replicates the bug from the screenshot: "where from_account_id = 'd"
     // beforeWord is everything up to (but not including) 'd'
     expect(isInsideString("SELECT *\nfrom transactions\nwhere from_account_id = '")).toBe(true);
+  });
+});
+
+describe('findStatementBounds', () => {
+  it('returns full doc when no semicolons', () => {
+    const text = 'SELECT * FROM users';
+    expect(findStatementBounds(text, 10)).toEqual({ stmtStart: 0, stmtEnd: text.length });
+  });
+
+  it('second statement starts after first semicolon', () => {
+    const text = 'SELECT 1; SELECT * FROM users WHERE ';
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 9, stmtEnd: text.length });
+  });
+
+  it('first statement ends at semicolon (inclusive)', () => {
+    const text = 'SELECT 1; SELECT 2';
+    expect(findStatementBounds(text, 7)).toEqual({ stmtStart: 0, stmtEnd: 9 });
+  });
+
+  it('does not use semicolon inside a single-quoted string as boundary', () => {
+    const text = "SELECT * FROM users WHERE comment = 'end; of story' AND ";
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 0, stmtEnd: text.length });
+  });
+
+  it('uses real semicolon before string, ignores semicolon inside string', () => {
+    const text = "SELECT 1; SELECT * FROM users WHERE comment = 'end; of story' AND ";
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 9, stmtEnd: text.length });
+  });
+
+  it('cursor at semicolon position uses it as end boundary', () => {
+    const text = 'SELECT 1;SELECT 2';
+    // cursor at 8 (the ';'): ';' is NOT < 8, so it's the stmtEnd
+    expect(findStatementBounds(text, 8)).toEqual({ stmtStart: 0, stmtEnd: 9 });
+  });
+});
+
+describe('innerSubqueryContext', () => {
+  it('returns null when cursor is not inside parens', () => {
+    const before = 'SELECT * FROM users WHERE ';
+    const full = 'SELECT * FROM users WHERE id = 1';
+    expect(innerSubqueryContext(before, full)).toBeNull();
+  });
+
+  it('returns inner context when cursor is inside a subquery', () => {
+    const before = 'SELECT * FROM users WHERE id IN (SELECT ';
+    const full = 'SELECT * FROM users WHERE id IN (SELECT id FROM orders)';
+    const result = innerSubqueryContext(before, full);
+    expect(result).not.toBeNull();
+    expect(result!.innerBefore).toBe('SELECT ');
+    expect(result!.innerFull).toBe('SELECT id FROM orders');
+  });
+
+  it('isolates innermost subquery for nested parens', () => {
+    const before = 'SELECT * FROM users WHERE a IN (SELECT * FROM t WHERE b IN (SELECT ';
+    const full = 'SELECT * FROM users WHERE a IN (SELECT * FROM t WHERE b IN (SELECT id FROM s))';
+    const result = innerSubqueryContext(before, full);
+    expect(result).not.toBeNull();
+    expect(result!.innerBefore).toBe('SELECT ');
+    expect(result!.innerFull).toBe('SELECT id FROM s');
+  });
+
+  it('clips innerFull at matching ) so outer JOIN does not leak in', () => {
+    const before = 'SELECT * FROM a WHERE id IN (SELECT ';
+    const full = 'SELECT * FROM a WHERE id IN (SELECT x FROM b) JOIN d ON b.id = d.id';
+    const result = innerSubqueryContext(before, full);
+    expect(result).not.toBeNull();
+    expect(result!.innerFull).toBe('SELECT x FROM b');
+    const ctx = detectSqlContext(result!.innerBefore, result!.innerFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toEqual(['b']);
+      expect(ctx.fromTables).not.toContain('d');
+    }
+  });
+
+  it('clips innerFull at matching ) for nested subqueries', () => {
+    const before = 'SELECT * FROM users WHERE a IN (SELECT * FROM t WHERE b IN (SELECT ';
+    const full =
+      'SELECT * FROM users WHERE a IN (SELECT * FROM t WHERE b IN (SELECT id FROM s)) AND foo = 1';
+    const result = innerSubqueryContext(before, full);
+    expect(result).not.toBeNull();
+    expect(result!.innerFull).toBe('SELECT id FROM s');
+  });
+
+  it('ignores parens inside string literals', () => {
+    const before = "SELECT * FROM users WHERE name = '(not a subquery' AND ";
+    const full = "SELECT * FROM users WHERE name = '(not a subquery' AND id = 1";
+    expect(innerSubqueryContext(before, full)).toBeNull();
+  });
+
+  it('correctly resolves to outer paren when inner paren is closed', () => {
+    const before = 'WHERE a IN (SELECT * FROM t WHERE b = (1 + 2) AND c = ';
+    const full = 'WHERE a IN (SELECT * FROM t WHERE b = (1 + 2) AND c = 3)';
+    const result = innerSubqueryContext(before, full);
+    expect(result).not.toBeNull();
+    expect(result!.innerBefore).toBe('SELECT * FROM t WHERE b = (1 + 2) AND c = ');
+  });
+
+  it('combined with detectSqlContext: uses inner FROM tables not outer', () => {
+    const before = 'SELECT * FROM users WHERE id IN (SELECT ';
+    const full = 'SELECT * FROM users WHERE id IN (SELECT id FROM orders)';
+    const sub = innerSubqueryContext(before, full);
+    expect(sub).not.toBeNull();
+    const ctx = detectSqlContext(sub!.innerBefore, sub!.innerFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toEqual(['orders']);
+      expect(ctx.fromTables).not.toContain('users');
+      expect(ctx.isSelectList).toBe(true);
+    }
+  });
+
+  it('combined with detectSqlContext: WHERE in subquery uses inner FROM', () => {
+    const before = 'SELECT * FROM users WHERE id IN (SELECT id FROM orders WHERE ';
+    const full = 'SELECT * FROM users WHERE id IN (SELECT id FROM orders WHERE id = 1)';
+    const sub = innerSubqueryContext(before, full);
+    expect(sub).not.toBeNull();
+    const ctx = detectSqlContext(sub!.innerBefore, sub!.innerFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toContain('orders');
+      expect(ctx.fromTables).not.toContain('users');
+    }
+  });
+});
+
+describe('findStatementBounds — SQL comments', () => {
+  it('ignores ; inside a -- line comment', () => {
+    const text = 'SELECT 1; -- discard;\nSELECT * FROM users WHERE ';
+    // semicolon at index 8 ends first statement; the ; inside the comment must NOT be a boundary
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 9, stmtEnd: text.length });
+  });
+
+  it('ignores ( and ; inside a -- line comment for paren tracking', () => {
+    const text = 'SELECT * FROM users WHERE -- (subq;\n id = 1';
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 0, stmtEnd: text.length });
+  });
+
+  it('ignores ; inside a /* */ block comment', () => {
+    const text = 'SELECT 1; /* a;b;c */ SELECT * FROM users WHERE ';
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 9, stmtEnd: text.length });
+  });
+
+  it('handles -- comment without trailing newline', () => {
+    const text = 'SELECT 1; SELECT * FROM users -- trailing;';
+    expect(findStatementBounds(text, text.length)).toEqual({ stmtStart: 9, stmtEnd: text.length });
+  });
+});
+
+describe('selection + findStatementBounds composition', () => {
+  // Mirrors the clamp logic in completionSource: when selection is non-empty,
+  // both `;` boundaries and the selection bound the statement.
+  function clampToSelection(
+    fullText: string,
+    pos: number,
+    sel: { from: number; to: number; empty: boolean }
+  ): { stmtStart: number; stmtEnd: number } {
+    const b = findStatementBounds(fullText, pos);
+    if (sel.empty) return b;
+    return { stmtStart: Math.max(b.stmtStart, sel.from), stmtEnd: Math.min(b.stmtEnd, sel.to) };
+  }
+
+  it('selection spanning two statements isolates the statement containing the cursor', () => {
+    // Full doc: two statements separated by ;
+    const text = 'SELECT * FROM orders; SELECT * FROM users WHERE ';
+    // Selection covers both statements; cursor at end (in second statement)
+    const sel = { from: 0, to: text.length, empty: false };
+    const { stmtStart, stmtEnd } = clampToSelection(text, text.length, sel);
+    // stmtStart should land at the second statement, not selection start
+    const stmtFull = text.slice(stmtStart, stmtEnd);
+    expect(extractFromTables(stmtFull)).toEqual(['users']);
+    expect(extractFromTables(stmtFull)).not.toContain('orders');
+  });
+
+  it('selection narrower than statement clips end at selection', () => {
+    const text = 'SELECT * FROM users WHERE id = 1';
+    const sel = { from: 0, to: 19, empty: false }; // up to "SELECT * FROM users"
+    const { stmtStart, stmtEnd } = clampToSelection(text, 19, sel);
+    expect(stmtStart).toBe(0);
+    expect(stmtEnd).toBe(19);
+  });
+
+  it('empty selection falls through to findStatementBounds', () => {
+    const text = 'SELECT 1; SELECT * FROM users WHERE ';
+    const sel = { from: 0, to: 0, empty: true };
+    const { stmtStart, stmtEnd } = clampToSelection(text, text.length, sel);
+    expect(stmtStart).toBe(9);
+    expect(stmtEnd).toBe(text.length);
+  });
+});
+
+describe('innerSubqueryContext — SQL comments', () => {
+  it('ignores ( inside a -- line comment', () => {
+    const before = 'SELECT * FROM users WHERE -- (\n id = ';
+    const full = 'SELECT * FROM users WHERE -- (\n id = 1';
+    expect(innerSubqueryContext(before, full)).toBeNull();
+  });
+
+  it('ignores ( inside a /* */ block comment', () => {
+    const before = 'SELECT * FROM users WHERE /* ( */ id = ';
+    const full = 'SELECT * FROM users WHERE /* ( */ id = 1';
+    expect(innerSubqueryContext(before, full)).toBeNull();
   });
 });
