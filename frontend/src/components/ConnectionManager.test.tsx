@@ -686,6 +686,19 @@ describe('ConnectionManager', () => {
     await waitFor(() => expect(screen.getByTestId('test-result')).toBeInTheDocument());
   });
 
+  it('Test connection on saved ds with blank password uses Keychain via PingDatasource', async () => {
+    const mockPing = vi.mocked(GoApp.PingDatasource);
+    const mockTest = vi.mocked(GoApp.TestDatasource);
+    mockPing.mockResolvedValueOnce({ Success: true, Message: 'ok from keychain' });
+    // Simulate post-restart state: LoadConfig strips passwords from on-disk records.
+    const ds = makeDs({ password: '' });
+    renderManager({ datasources: [ds] });
+    await userEvent.click(screen.getByTestId('ds-item-d1'));
+    await userEvent.click(screen.getByTestId('btn-test'));
+    await waitFor(() => expect(mockPing).toHaveBeenCalledWith('d1'));
+    expect(mockTest).not.toHaveBeenCalled();
+  });
+
   it('renders multiple datasources in list', () => {
     const ds1 = makeDs({ id: 'd1', name: 'alpha-conn' });
     const ds2 = makeDs({ id: 'd2', name: 'beta-conn', projectId: 'p2' });

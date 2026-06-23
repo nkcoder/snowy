@@ -486,7 +486,7 @@ export function ConnectionForm({
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
-    const r = await onTest(form);
+    const r = await onTest(buildDs());
     setTestResult(r);
     setTesting(false);
   };
@@ -1031,6 +1031,14 @@ export function ConnectionManager({
   // ── Datasource CRUD ──
   const handleTest = async (form: Partial<Datasource>): Promise<TestResult> => {
     try {
+      // For an existing saved connection with a blank password field, use the
+      // Keychain-backed PingDatasource — the placeholder tells the user the
+      // password is stored, so Test should honour that instead of sending "".
+      const isSaved = form.id && datasources.some((d) => d.id === form.id);
+      if (isSaved && !form.password) {
+        const r = await GoApp.PingDatasource(form.id as string);
+        return { success: r.Success, message: r.Message };
+      }
       const r = await GoApp.TestDatasource(
         form.host ?? '',
         form.port ?? 5432,
