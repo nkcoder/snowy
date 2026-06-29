@@ -347,6 +347,11 @@ type SqlContext =
   | { kind: 'table' }
   | { kind: 'column'; fromTables: string[]; isSelectList: boolean };
 
+// Clauses after which a table/view name is expected. Covers SELECT/JOIN, UPDATE,
+// and the DDL/DML statements that target a table directly.
+const TABLE_CONTEXT_RE =
+  /(?:\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*|\bUPDATE\s*|\b(?:DROP|ALTER)\s+TABLE\s+(?:\w+\s*,\s*)*|\bTRUNCATE\s+(?:TABLE\s+)?(?:\w+\s*,\s*)*|\bINSERT\s+INTO\s+(?:\w+\s*,\s*)*)$/;
+
 export function detectSqlContext(beforeWord: string, stmtFull: string): SqlContext {
   // Qualified reference: alias.col or schema.table — dispatch on position
   const qualifiedMatch = beforeWord.match(/(\w+)\.\s*$/i);
@@ -354,10 +359,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
     const upperBefore = beforeWord
       .slice(0, beforeWord.length - qualifiedMatch[0].length)
       .toUpperCase();
-    if (
-      /\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upperBefore) ||
-      /\bUPDATE\s*$/.test(upperBefore)
-    ) {
+    if (TABLE_CONTEXT_RE.test(upperBefore)) {
       return { kind: 'table' };
     }
     const qualifier = qualifiedMatch[1].toLowerCase();
@@ -366,7 +368,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   }
 
   const upper = beforeWord.toUpperCase();
-  if (/\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*$/.test(upper) || /\bUPDATE\s*$/.test(upper)) {
+  if (TABLE_CONTEXT_RE.test(upper)) {
     return { kind: 'table' };
   }
   // Strip trailing expression noise (parens, operators, partial operands) after the
