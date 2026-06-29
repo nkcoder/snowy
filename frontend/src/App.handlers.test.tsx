@@ -373,6 +373,20 @@ describe('App handlers (mocked children)', () => {
     warnSpy.mockRestore();
   });
 
+  it('shows a dismissible warning banner when the live connection fails', async () => {
+    vi.mocked(GoApp.RefreshMetadata).mockRejectedValueOnce(new Error('connection refused'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await connectToWorkspace();
+    const banner = await screen.findByTestId('connection-warning');
+    expect(banner.textContent).toContain('showing cached metadata');
+    expect(banner.textContent).toContain('connection refused');
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('connection-warning')).toBeNull();
+    });
+    warnSpy.mockRestore();
+  });
+
   it('handleTabClose opens confirm dialog for dirty tab', async () => {
     await connectToWorkspace();
     // Make the active tab dirty by triggering onChange

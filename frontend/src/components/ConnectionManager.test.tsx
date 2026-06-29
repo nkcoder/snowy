@@ -748,14 +748,7 @@ describe('ConnectionManager', () => {
 // ── Double-click to connect ────────────────────────────────────────────────────
 
 describe('ConnectionManager double-click connect', () => {
-  beforeEach(() => {
-    vi.mocked(GoApp.PingDatasource).mockResolvedValue({
-      Success: true,
-      Message: 'Connection successful',
-    });
-  });
-
-  it('calls onConnect when double-clicking a reachable connection', async () => {
+  it('calls onConnect when double-clicking a connection', async () => {
     const ds = makeDs();
     const onConnect = vi.fn();
     renderManager({ datasources: [ds], onConnect });
@@ -763,16 +756,14 @@ describe('ConnectionManager double-click connect', () => {
     await waitFor(() => expect(onConnect).toHaveBeenCalledWith(ds.id));
   });
 
-  it('shows inline error and does not call onConnect when ping fails', async () => {
-    vi.mocked(GoApp.PingDatasource).mockResolvedValue({
-      Success: false,
-      Message: 'connection refused',
-    });
+  it('enters the workspace even when the connection is unreachable', async () => {
+    // Double-click no longer pings up front; it always enters so cached metadata
+    // can be shown and connection errors surface at query time.
     const ds = makeDs();
     const onConnect = vi.fn();
     renderManager({ datasources: [ds], onConnect });
     await userEvent.dblClick(screen.getByTestId(`ds-item-${ds.id}`));
-    await waitFor(() => expect(screen.getByText('connection refused')).toBeInTheDocument());
-    expect(onConnect).not.toHaveBeenCalled();
+    await waitFor(() => expect(onConnect).toHaveBeenCalledWith(ds.id));
+    expect(GoApp.PingDatasource).not.toHaveBeenCalled();
   });
 });
