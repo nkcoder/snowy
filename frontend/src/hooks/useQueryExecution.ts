@@ -35,7 +35,11 @@ export function useQueryExecution(activeDatasourceId: string | null) {
     setQueryLoading(true);
     try {
       const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
-      const rowCount = result.rowCount ?? result.rows?.length ?? 0;
+      // SELECT reports rows returned; non-SELECT (no columns) reports rows affected.
+      const isResultSet = (result.columns?.length ?? 0) > 0;
+      const rowCount = isResultSet
+        ? (result.rowCount ?? result.rows?.length ?? 0)
+        : (result.rowsAffected ?? 0);
       const durationMs = result.durationMs ?? 0;
       const truncated = result.truncated ?? false;
       seqRef.current++;

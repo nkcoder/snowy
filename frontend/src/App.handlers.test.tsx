@@ -203,6 +203,8 @@ beforeEach(() => {
     rowCount: 0,
     durationMs: 0,
     truncated: false,
+    rowsAffected: 0,
+    command: '',
   });
   vi.mocked(GoApp.RecordHistory).mockResolvedValue(undefined);
 });

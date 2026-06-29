@@ -36,6 +36,8 @@ describe('useQueryExecution', () => {
       rowCount: 1,
       durationMs: 10,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -86,7 +88,15 @@ describe('useQueryExecution', () => {
     expect(result.current.queryLoading).toBe(true);
 
     await act(async () => {
-      resolveQuery({ columns: [], rows: [], rowCount: 0, durationMs: 0, truncated: false });
+      resolveQuery({
+        columns: [],
+        rows: [],
+        rowCount: 0,
+        durationMs: 0,
+        truncated: false,
+        rowsAffected: 0,
+        command: '',
+      });
     });
 
     expect(result.current.queryLoading).toBe(false);
@@ -106,6 +116,8 @@ describe('useQueryExecution', () => {
       rowCount: 1,
       durationMs: 5,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -133,6 +145,8 @@ describe('useQueryExecution', () => {
       rowCount: 0,
       durationMs: 0,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -159,6 +173,8 @@ describe('useQueryExecution', () => {
       rowCount: 1,
       durationMs: 1,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -195,6 +211,8 @@ describe('useQueryExecution', () => {
       rowCount: 1,
       durationMs: 5,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -236,6 +254,8 @@ describe('useQueryExecution', () => {
       rowCount: undefined as unknown as number,
       durationMs: 0,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -256,6 +276,8 @@ describe('useQueryExecution', () => {
       rowCount: undefined as unknown as number,
       durationMs: undefined as unknown as number,
       truncated: undefined as unknown as boolean,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
 
@@ -291,6 +313,8 @@ describe('useQueryExecution', () => {
       rowCount: 0,
       durationMs: 0,
       truncated: false,
+      rowsAffected: 0,
+      command: '',
     });
     vi.mocked(GoApp.RecordHistory).mockRejectedValueOnce(new Error('history write failed'));
 

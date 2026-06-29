@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -585,11 +586,21 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		return nil, err
 	}
 
+	// CommandTag is valid once the rows are exhausted; it carries the affected-row
+	// count for DML and the command verb for any statement (SELECT/DDL/DML).
+	tag := rows.CommandTag()
+	command := ""
+	if parts := strings.Fields(tag.String()); len(parts) > 0 {
+		command = parts[0]
+	}
+
 	return &QueryResult{
-		Columns:    columns,
-		Rows:       results,
-		DurationMs: time.Since(start).Milliseconds(),
-		RowCount:   len(results),
-		Truncated:  truncated,
+		Columns:      columns,
+		Rows:         results,
+		DurationMs:   time.Since(start).Milliseconds(),
+		RowCount:     len(results),
+		Truncated:    truncated,
+		RowsAffected: tag.RowsAffected(),
+		Command:      command,
 	}, nil
 }

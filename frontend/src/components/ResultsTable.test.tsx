@@ -40,9 +40,19 @@ describe('ResultsTable', () => {
     expect(nullEl.className).toContain('italic');
   });
 
-  it('renders "Success. 0 rows affected." for empty rows', () => {
+  it('renders "No rows." for an empty SELECT result', () => {
     render(<ResultsTable data={{ columns: ['id'], rows: [] }} />);
-    expect(screen.getByText('Success. 0 rows affected.')).toBeTruthy();
+    expect(screen.getByText('No rows.')).toBeTruthy();
+  });
+
+  it('reports affected rows for DML statements', () => {
+    render(<ResultsTable data={{ columns: [], rows: [], command: 'UPDATE', rowsAffected: 3 }} />);
+    expect(screen.getByText('Success. 3 rows affected.')).toBeTruthy();
+  });
+
+  it('reports "Statement executed." for DDL statements', () => {
+    render(<ResultsTable data={{ columns: [], rows: [], command: 'DROP', rowsAffected: 0 }} />);
+    expect(screen.getByText('Statement executed.')).toBeTruthy();
   });
 
   it('shows truncation notice when truncated=true', () => {

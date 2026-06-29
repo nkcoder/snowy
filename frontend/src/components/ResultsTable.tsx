@@ -6,9 +6,29 @@ import { T } from '../lib/tokens';
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 40;
 
+const DML_COMMANDS = new Set(['INSERT', 'UPDATE', 'DELETE']);
+
+// Message shown when a statement returns no result rows. DML reports the affected
+// count; DDL (CREATE/DROP/TRUNCATE/ALTER) just confirms execution; an empty SELECT
+// (has columns) reports no rows.
+function emptyResultMessage(data: {
+  columns: string[];
+  command?: string;
+  rowsAffected?: number;
+}): string {
+  if (data.columns.length === 0) {
+    const command = (data.command ?? '').toUpperCase();
+    if (DML_COMMANDS.has(command)) {
+      return `Success. ${data.rowsAffected ?? 0} rows affected.`;
+    }
+    return 'Statement executed.';
+  }
+  return 'No rows.';
+}
+
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
-  data: { columns: string[]; rows: any[][] } | null;
+  data: { columns: string[]; rows: any[][]; rowsAffected?: number; command?: string } | null;
   truncated?: boolean;
   activeTabPinned?: boolean;
   pinActive?: boolean;
@@ -304,7 +324,7 @@ export function ResultsTable({
                   style={{ color: T.textDim }}
                   className="py-8 px-4 text-center italic"
                 >
-                  Success. 0 rows affected.
+                  {emptyResultMessage(data)}
                 </td>
               </tr>
             ) : (
