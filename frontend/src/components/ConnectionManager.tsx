@@ -21,6 +21,8 @@ export interface ConnectionManagerProps {
   onUpdateDs: (ds: Datasource) => Promise<void>;
   startInAddMode?: boolean;
   onAddModeConsumed?: () => void;
+  openEditDsId?: string | null;
+  onEditModeConsumed?: () => void;
   appVersion?: string;
   appBuildDate?: string;
 }
@@ -1002,6 +1004,8 @@ export function ConnectionManager({
   onUpdateDs,
   startInAddMode,
   onAddModeConsumed,
+  openEditDsId,
+  onEditModeConsumed,
   appVersion,
   appBuildDate: _appBuildDate,
 }: ConnectionManagerProps) {
@@ -1024,6 +1028,14 @@ export function ConnectionManager({
       onAddModeConsumed?.();
     }
   }, [startInAddMode, onAddModeConsumed]);
+
+  useEffect(() => {
+    if (openEditDsId) {
+      setSelectedDsId(openEditDsId);
+      setFormMode('edit');
+      onEditModeConsumed?.();
+    }
+  }, [openEditDsId, onEditModeConsumed]);
 
   const selectedDs = datasources.find((d) => d.id === selectedDsId) ?? null;
   const defaultProjectId = projects[0]?.id ?? 'default';
