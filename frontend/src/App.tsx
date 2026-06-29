@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import * as GoApp from '../wailsjs/go/main/App';
 import type { main } from '../wailsjs/go/models';
@@ -80,6 +80,10 @@ function App() {
   const [appVersion, setAppVersion] = useState({ version: '0.0.1', buildDate: '' });
   const [cmAddMode, setCmAddMode] = useState(false);
   const [cmEditDsId, setCmEditDsId] = useState<string | null>(null);
+  const [connectionWarning, setConnectionWarning] = useState<{
+    dsId: string;
+    message: string;
+  } | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   // ── Resize handle hover ───────────────────────────────────────────────────
@@ -195,8 +199,11 @@ function App() {
     try {
       const fresh = await GoApp.RefreshMetadata(dsId);
       setMetadataByDs((prev) => ({ ...prev, [dsId]: fresh }));
+      setConnectionWarning((prev) => (prev?.dsId === dsId ? null : prev));
     } catch (err) {
       console.warn('RefreshMetadata failed', err);
+      const message = err instanceof Error ? err.message : String(err);
+      setConnectionWarning({ dsId, message });
       return;
     }
     // RefreshMetadata rebuilt the backend completion cache; fetch it to sync the editor.
@@ -417,6 +424,33 @@ function App() {
               Connections
             </button>
           </div>
+
+          {/* Connection warning banner — live connection failed, showing cached metadata */}
+          {connectionWarning && connectionWarning.dsId === activeDatasourceId && (
+            <div
+              data-testid="connection-warning"
+              style={{
+                background: 'rgba(229,192,123,0.1)',
+                borderBottom: '1px solid rgba(229,192,123,0.3)',
+                color: '#e5c07b',
+                fontFamily: T.ui,
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[11.5px] shrink-0"
+            >
+              <span style={{ flex: 1, minWidth: 0 }}>
+                Live connection failed — showing cached metadata. {connectionWarning.message}
+              </span>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => setConnectionWarning(null)}
+                style={{ color: 'inherit' }}
+                className="p-0.5 bg-transparent border-none cursor-pointer flex items-center"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
 
           {/* Main row */}
           <div className="flex-1 flex min-h-0" style={{ minHeight: 0 }}>
