@@ -473,6 +473,32 @@ describe('detectSqlContext', () => {
     });
   });
 
+  it('returns table context after DROP TABLE', () => {
+    expect(detectSqlContext('DROP TABLE ', 'DROP TABLE ')).toEqual({ kind: 'table' });
+  });
+
+  it('returns table context after ALTER TABLE', () => {
+    expect(detectSqlContext('ALTER TABLE ', 'ALTER TABLE ')).toEqual({ kind: 'table' });
+  });
+
+  it('returns table context after TRUNCATE', () => {
+    expect(detectSqlContext('TRUNCATE ', 'TRUNCATE ')).toEqual({ kind: 'table' });
+  });
+
+  it('returns table context after TRUNCATE TABLE', () => {
+    expect(detectSqlContext('TRUNCATE TABLE ', 'TRUNCATE TABLE ')).toEqual({ kind: 'table' });
+  });
+
+  it('returns table context after INSERT INTO', () => {
+    expect(detectSqlContext('INSERT INTO ', 'INSERT INTO ')).toEqual({ kind: 'table' });
+  });
+
+  it('returns table context after DROP TABLE schema-qualified prefix', () => {
+    expect(detectSqlContext('DROP TABLE public.', 'DROP TABLE public.')).toEqual({
+      kind: 'table',
+    });
+  });
+
   it('returns column context after WHERE', () => {
     const ctx = detectSqlContext('SELECT * FROM users WHERE ', 'SELECT * FROM users WHERE ');
     expect(ctx.kind).toBe('column');
