@@ -20,11 +20,13 @@ type ColumnItem struct {
 }
 
 type QueryResult struct {
-	Columns    []string        `json:"columns"`
-	Rows       [][]interface{} `json:"rows"`
-	DurationMs int64           `json:"durationMs"`
-	RowCount   int             `json:"rowCount"`
-	Truncated  bool            `json:"truncated"`
+	Columns      []string        `json:"columns"`
+	Rows         [][]interface{} `json:"rows"`
+	DurationMs   int64           `json:"durationMs"`
+	RowCount     int             `json:"rowCount"`
+	Truncated    bool            `json:"truncated"`
+	RowsAffected int64           `json:"rowsAffected"` // from CommandTag, for non-SELECT statements
+	Command      string          `json:"command"`      // command verb, e.g. "UPDATE", "DROP" (empty for SELECT)
 }
 
 // CompletionEntry represents a single autocomplete item (schema, table, view, or column).

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -585,11 +586,25 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		return nil, err
 	}
 
+	// CommandTag carries the affected-row count for DML and the command verb for any
+	// statement, but it is only reliable once the result is fully consumed. That holds
+	// for DML/DDL (no result rows, so the command completed when rows.Next() returned
+	// false) and for a fully-read SELECT. A truncated SELECT breaks out of the loop
+	// early, leaving the tag possibly empty — acceptable because RowsAffected/Command
+	// are only consumed for non-result-set statements (empty Columns), never for SELECT.
+	tag := rows.CommandTag()
+	command := ""
+	if parts := strings.Fields(tag.String()); len(parts) > 0 {
+		command = parts[0]
+	}
+
 	return &QueryResult{
-		Columns:    columns,
-		Rows:       results,
-		DurationMs: time.Since(start).Milliseconds(),
-		RowCount:   len(results),
-		Truncated:  truncated,
+		Columns:      columns,
+		Rows:         results,
+		DurationMs:   time.Since(start).Milliseconds(),
+		RowCount:     len(results),
+		Truncated:    truncated,
+		RowsAffected: tag.RowsAffected(),
+		Command:      command,
 	}, nil
 }

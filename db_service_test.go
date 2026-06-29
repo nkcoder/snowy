@@ -296,6 +296,53 @@ func TestAcquireRetryOnDeadPool(t *testing.T) {
 	}
 }
 
+func TestExecuteQuery_RowsAffected_Integration(t *testing.T) {
+	app, dsID := newTestApp(t)
+
+	tbl := "snowy_rows_affected_test"
+	// Clean up regardless of where the test stops.
+	t.Cleanup(func() { _, _ = app.ExecuteQuery(dsID, "DROP TABLE IF EXISTS "+tbl) })
+
+	mustExec := func(sql string) *QueryResult {
+		t.Helper()
+		r, err := app.ExecuteQuery(dsID, sql)
+		if err != nil {
+			t.Fatalf("ExecuteQuery(%q): %v", sql, err)
+		}
+		return r
+	}
+
+	create := mustExec("CREATE TABLE " + tbl + " (id int primary key, n int)")
+	if create.Command != "CREATE" {
+		t.Errorf("CREATE: command = %q, want CREATE", create.Command)
+	}
+
+	ins := mustExec("INSERT INTO " + tbl + " (id, n) VALUES (1, 10), (2, 20), (3, 30)")
+	if ins.Command != "INSERT" || ins.RowsAffected != 3 {
+		t.Errorf("INSERT: command=%q rowsAffected=%d, want INSERT/3", ins.Command, ins.RowsAffected)
+	}
+
+	upd := mustExec("UPDATE " + tbl + " SET n = n + 1 WHERE id <= 2")
+	if upd.Command != "UPDATE" || upd.RowsAffected != 2 {
+		t.Errorf("UPDATE: command=%q rowsAffected=%d, want UPDATE/2", upd.Command, upd.RowsAffected)
+	}
+
+	del := mustExec("DELETE FROM " + tbl + " WHERE id = 3")
+	if del.Command != "DELETE" || del.RowsAffected != 1 {
+		t.Errorf("DELETE: command=%q rowsAffected=%d, want DELETE/1", del.Command, del.RowsAffected)
+	}
+
+	sel := mustExec("SELECT id, n FROM " + tbl + " ORDER BY id")
+	if len(sel.Columns) != 2 || sel.RowCount != 2 {
+		t.Errorf("SELECT: columns=%d rowCount=%d, want 2/2", len(sel.Columns), sel.RowCount)
+	}
+
+	drop := mustExec("DROP TABLE " + tbl)
+	if drop.Command != "DROP" {
+		t.Errorf("DROP: command = %q, want DROP", drop.Command)
+	}
+}
+
 func TestListTableKeys_EmptyTable(t *testing.T) {
 	app, dsID := newTestApp(t)
 
