@@ -56,6 +56,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const onRenameQuery = overrides.onRenameQuery ?? vi.fn();
   const onNewConsole = overrides.onNewConsole ?? vi.fn();
   const onDisconnect = overrides.onDisconnect ?? vi.fn();
+  const onShowProperties = overrides.onShowProperties ?? vi.fn();
   render(
     <Sidebar
       datasources={overrides.datasources ?? [DS1]}
@@ -69,6 +70,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       onRenameQuery={onRenameQuery}
       onNewConsole={onNewConsole}
       onDisconnect={onDisconnect}
+      onShowProperties={onShowProperties}
     />
   );
   return {
@@ -80,6 +82,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
     onRenameQuery,
     onNewConsole,
     onDisconnect,
+    onShowProperties,
   };
 }
 
@@ -641,6 +644,24 @@ describe('Sidebar — context menu', () => {
     expect(screen.getByTestId('ctx-menu-ds1')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('sidebar-search'));
     expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"Properties" calls onShowProperties with the ds id and closes menu', async () => {
+    const { onShowProperties } = renderSidebar({ activeDatasourceId: 'ds1' });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Properties'));
+    expect(onShowProperties).toHaveBeenCalledWith('ds1');
+    expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+
+  it('"Properties" is enabled even when ds is inactive', async () => {
+    const { onShowProperties } = renderSidebar({
+      datasources: [DS1, DS2],
+      activeDatasourceId: 'ds2',
+    });
+    fireEvent.contextMenu(screen.getByTestId('conn-node-ds1'));
+    await userEvent.click(screen.getByText('Properties'));
+    expect(onShowProperties).toHaveBeenCalledWith('ds1');
   });
 
   it('"New Query Console" calls onNewConsole and closes menu when ds is active', async () => {

@@ -50,6 +50,7 @@ interface SidebarProps {
   onAddConnection?: () => void;
   onNewConsole?: () => void;
   onDisconnect?: () => void;
+  onShowProperties?: (dsId: string) => void;
   savedQueries?: { filename: string }[];
   onLoadQuery?: (filename: string) => void;
   onDeleteQuery?: (filename: string) => void;
@@ -372,6 +373,7 @@ export function Sidebar({
   onAddConnection,
   onNewConsole,
   onDisconnect,
+  onShowProperties,
   savedQueries: savedQueriesProp,
   onLoadQuery,
   onDeleteQuery,
@@ -1548,6 +1550,10 @@ export function Sidebar({
             fontFamily: T.ui,
           }}
         >
+          <CtxMenuItem
+            label="Properties"
+            onClick={() => closeMenu(() => onShowProperties?.(ctxMenu.dsId))}
+          />
           <CtxMenuItem
             label="New Query Console"
             disabled={!ctxIsActive}

@@ -79,6 +79,7 @@ function App() {
   const [metadataByDs, setMetadataByDs] = useState<Record<string, main.DatabaseMetadata>>({});
   const [appVersion, setAppVersion] = useState({ version: '0.0.1', buildDate: '' });
   const [cmAddMode, setCmAddMode] = useState(false);
+  const [cmEditDsId, setCmEditDsId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   // ── Resize handle hover ───────────────────────────────────────────────────
@@ -440,6 +441,10 @@ function App() {
               appBuildDate={appVersion.buildDate}
               onNewConsole={handleNewTab}
               onDisconnect={handleDisconnect}
+              onShowProperties={(dsId) => {
+                setCmEditDsId(dsId);
+                setView('connections');
+              }}
               width={sidebarVisible ? sidebarWidth : 0}
               preloadedMetadata={
                 activeDatasourceId ? (metadataByDs[activeDatasourceId] ?? null) : null
@@ -625,6 +630,8 @@ function App() {
         onUpdateDs={handleUpdateDs}
         startInAddMode={cmAddMode}
         onAddModeConsumed={() => setCmAddMode(false)}
+        openEditDsId={cmEditDsId}
+        onEditModeConsumed={() => setCmEditDsId(null)}
         appVersion={appVersion.version}
         appBuildDate={appVersion.buildDate}
       />
