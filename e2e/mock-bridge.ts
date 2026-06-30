@@ -19,6 +19,30 @@ export const mockConfig = {
       env: 'local',
       sslMode: 'disable',
     },
+    {
+      id: 'ds-2',
+      name: 'Reporting DB',
+      host: 'localhost',
+      port: 5432,
+      database: 'reporting',
+      username: 'myuser',
+      password: 'mypassword',
+      projectId: 'proj-1',
+      env: 'local',
+      sslMode: 'disable',
+    },
+    {
+      id: 'ds-3',
+      name: 'Cold DB',
+      host: 'localhost',
+      port: 5432,
+      database: 'cold',
+      username: 'myuser',
+      password: 'mypassword',
+      projectId: 'proj-1',
+      env: 'local',
+      sslMode: 'disable',
+    },
   ],
 };
 
@@ -73,6 +97,20 @@ const mockMetadata = {
           foreignKeys: [], indexes: [], checks: [],
         },
         { name: 'audit_logs', type: 'BASE TABLE', columns: [], keys: [], foreignKeys: [], indexes: [], checks: [] },
+      ],
+    },
+  ],
+};
+
+// Cached metadata for the non-active ds-2. Uses a distinct schema name so its
+// tree rows don't collide with the active connection's `public` schema when a
+// test single-clicks ds-2 to browse it from cache.
+const mockMetadataDs2 = {
+  schemas: [
+    {
+      name: 'reporting',
+      tables: [
+        { name: 'sales', type: 'BASE TABLE', columns: [], keys: [], foreignKeys: [], indexes: [], checks: [] },
       ],
     },
   ],
@@ -138,6 +176,7 @@ export function buildMockBridgeScript(
     const _queryResult = ${JSON.stringify(queryResult)};
     const _historyEntries = ${JSON.stringify(historyEntries)};
     const _metadata = ${JSON.stringify(mockMetadata)};
+    const _metadataDs2 = ${JSON.stringify(mockMetadataDs2)};
     const _savedQueries = [];
     const _savedQueryData = {};
     const _recordedHistory = [];
@@ -154,7 +193,7 @@ export function buildMockBridgeScript(
         App: {
           GetConfig: () => Promise.resolve(_config),
           GetAppVersion: () => Promise.resolve({ version: 'dev', buildDate: '' }),
-          GetCachedMetadata: () => Promise.resolve(null),
+          GetCachedMetadata: (dsId) => Promise.resolve(dsId === 'ds-2' ? _metadataDs2 : null),
           RefreshMetadata: () => Promise.resolve(_metadata),
           SaveConfig: () => Promise.resolve(),
           UpdateDatasource: () => Promise.resolve(),
