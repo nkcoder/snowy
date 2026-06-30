@@ -17,9 +17,16 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   UpdateDatasource: vi.fn().mockResolvedValue(undefined),
   TestDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'ok' }),
   ExecuteQuery: vi.fn().mockResolvedValue({ Columns: [], Rows: [] }),
+  GetCachedMetadata: vi.fn().mockResolvedValue({ schemas: [] }),
 }));
 
 import * as GoApp from '../../wailsjs/go/main/App';
+import type { main } from '../../wailsjs/go/models';
+
+// Build a DatabaseMetadata for GetCachedMetadata mocks, casting past the
+// generated class shape (only the fields the Sidebar reads are provided).
+const cachedMeta = (schemas: unknown[]): main.DatabaseMetadata =>
+  ({ schemas }) as unknown as main.DatabaseMetadata;
 
 const DS1: Datasource = {
   id: 'ds1',
@@ -599,22 +606,95 @@ describe('Sidebar — multi-connection', () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([]);
   });
 
-  it('clicking inactive connection calls onConnect', async () => {
+  it('double-clicking inactive connection calls onConnect', async () => {
     const onConnect = vi.fn();
     renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1', onConnect });
-    expect(screen.getByTestId('conn-node-ds2')).toBeInTheDocument();
-    await userEvent.click(screen.getByTestId('conn-node-ds2'));
+    await userEvent.dblClick(screen.getByTestId('conn-node-ds2'));
     expect(onConnect).toHaveBeenCalledWith('ds2');
   });
 
-  it('clicking active connection toggles expansion', async () => {
-    renderSidebar({ datasources: [DS1], activeDatasourceId: 'ds1' });
-    // Active connection starts expanded; click should collapse
-    const node = screen.getByTestId('conn-node-ds1');
-    // Initial state shows it expanded (database row visible)
-    await userEvent.click(node);
-    // Click again to verify toggle works without errors
-    await userEvent.click(node);
+  it('single-clicking inactive connection expands from cache without connecting', async () => {
+    const onConnect = vi.fn();
+    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValueOnce(
+      cachedMeta([
+        {
+          name: 'public',
+          tables: [
+            {
+              name: 'orders',
+              type: 'BASE TABLE',
+              columns: [],
+              keys: [],
+              foreignKeys: [],
+              indexes: [],
+              checks: [],
+            },
+          ],
+        },
+      ])
+    );
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1', onConnect });
+    await userEvent.click(screen.getByTestId('conn-node-ds2'));
+    expect(await screen.findByTestId('schema-row-public')).toBeInTheDocument();
+    expect(GoApp.GetCachedMetadata).toHaveBeenCalledWith('ds2');
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('re-expanding an inactive connection does not re-fetch cached metadata', async () => {
+    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue(
+      cachedMeta([{ name: 'public', tables: [] }])
+    );
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1' });
+    const node = screen.getByTestId('conn-node-ds2');
+    await userEvent.click(node); // expand → fetch
+    await screen.findByTestId('schema-row-public');
+    await userEvent.click(node); // collapse
+    await userEvent.click(node); // re-expand → cached
+    expect(GoApp.GetCachedMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it('inactive connection with empty cache shows "not connected" placeholder', async () => {
+    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValueOnce(cachedMeta([]));
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1' });
+    await userEvent.click(screen.getByTestId('conn-node-ds2'));
+    expect(await screen.findByText(/Not connected — double-click to connect/i)).toBeInTheDocument();
+  });
+
+  it('double-clicking the active connection does not call onConnect', async () => {
+    const onConnect = vi.fn();
+    renderSidebar({ datasources: [DS1], activeDatasourceId: 'ds1', onConnect });
+    await userEvent.dblClick(screen.getByTestId('conn-node-ds1'));
+    expect(onConnect).not.toHaveBeenCalled();
+  });
+
+  it('double-clicking a table in an inactive connection does not call onTableSelect', async () => {
+    const onTableSelect = vi.fn();
+    vi.mocked(GoApp.GetCachedMetadata).mockResolvedValueOnce(
+      cachedMeta([
+        {
+          name: 'public',
+          tables: [
+            {
+              name: 'orders',
+              type: 'BASE TABLE',
+              columns: [],
+              keys: [],
+              foreignKeys: [],
+              indexes: [],
+              checks: [],
+            },
+          ],
+        },
+      ])
+    );
+    renderSidebar({ datasources: [DS1, DS2], activeDatasourceId: 'ds1', onTableSelect });
+    await userEvent.click(screen.getByTestId('conn-node-ds2'));
+    await userEvent.click(await screen.findByTestId('schema-row-public'));
+    await userEvent.dblClick(screen.getByTestId('table-row-public-orders'));
+    expect(onTableSelect).not.toHaveBeenCalled();
+    // and no live table/column fetch happened for the inactive connection
+    expect(GoApp.ListTables).not.toHaveBeenCalled();
+    expect(GoApp.ListColumns).not.toHaveBeenCalled();
   });
 });
 
