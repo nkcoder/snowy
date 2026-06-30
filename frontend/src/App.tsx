@@ -364,7 +364,7 @@ function App() {
               // @ts-expect-error Wails drag region
               '--wails-draggable': 'drag',
             }}
-            className="flex items-center shrink-0 gap-3.5 px-4"
+            className="flex items-center shrink-0 gap-3.5 pl-5 pr-4"
             data-wails-drag
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -585,7 +585,7 @@ function App() {
                   color: T.textSec,
                   fontFamily: T.mono,
                 }}
-                className="h-[22px] flex items-center px-3.5 gap-3.5 text-[10.5px] shrink-0"
+                className="h-[22px] flex items-center pl-3.5 pr-5 gap-3.5 text-[10.5px] shrink-0"
               >
                 <div className="flex items-center gap-1">
                   <div
@@ -602,9 +602,12 @@ function App() {
                 <span>utf-8</span>
                 <div className="flex-1" />
                 {durationMs > 0 && (
-                  <span>
-                    {rowCount} rows · {durationMs}ms
-                  </span>
+                  <>
+                    <span>
+                      {rowCount} rows · {durationMs}ms
+                    </span>
+                    <span style={{ color: T.textDim }}>·</span>
+                  </>
                 )}
                 <span style={{ color: T.textDim }}>UTC</span>
               </div>
