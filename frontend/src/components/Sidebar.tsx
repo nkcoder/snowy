@@ -69,6 +69,12 @@ interface SchemaNode {
   loaded: boolean;
 }
 
+// A lazily-loaded sub-section under a table node (columns, keys, foreign keys,
+// indexes, checks). `loaded` is the cache flag: the first expansion fetches
+// `items` from the backend and flips `loaded` true; every later open/close just
+// toggles `open` and reads the cached `items` — no re-fetch. When metadata is
+// preloaded from the cache, sub-folders are created already-loaded (see the
+// `loaded: true` assignments in the metadata-hydration path below).
 interface SubFolder<T> {
   open: boolean;
   items: T[];

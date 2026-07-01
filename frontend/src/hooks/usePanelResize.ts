@@ -1,6 +1,12 @@
 import type React from 'react';
 import { useState } from 'react';
 
+// Drag-to-resize for the sidebar (width) and bottom results panel (height).
+// Sizes persist to localStorage and are clamped on read so a stale/corrupt
+// value can never produce an unusable panel. The drag itself uses imperative
+// document-level mousemove/mouseup listeners (rather than React state per move)
+// so a fast drag stays smooth; the final value is written to localStorage on
+// mouseup via the `latest` closure variable.
 export function usePanelResize() {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const v = localStorage.getItem('snowy.sidebarWidth');

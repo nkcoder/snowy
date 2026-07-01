@@ -17,7 +17,13 @@ function makeLiveResultTab(): ResultTab {
   };
 }
 
+// Result-tab model: there is always exactly ONE "live" tab (`pinned === false`)
+// plus zero or more pinned tabs. Each query overwrites the live tab in place;
+// pinning snapshots the live tab and spawns a fresh empty live tab. This
+// `!t.pinned` invariant is load-bearing — it's how every handler below finds
+// "the tab to write the next result into" without tracking a separate id.
 export function useQueryExecution(activeDatasourceId: string | null) {
+  // Monotonic counter for "Result N" labels; reset by resetResults on connect.
   const seqRef = useRef(0);
   const [queryLoading, setQueryLoading] = useState(false);
   const [resultTabs, setResultTabs] = useState<ResultTab[]>([makeLiveResultTab()]);
@@ -35,7 +41,8 @@ export function useQueryExecution(activeDatasourceId: string | null) {
     setQueryLoading(true);
     try {
       const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
-      // SELECT reports rows returned; non-SELECT (no columns) reports rows affected.
+      // A result set (SELECT) has columns and reports rows returned; a non-SELECT
+      // (INSERT/UPDATE/DDL) has no columns, so we surface rows *affected* instead.
       const isResultSet = (result.columns?.length ?? 0) > 0;
       const rowCount = isResultSet
         ? (result.rowCount ?? result.rows?.length ?? 0)
@@ -89,6 +96,8 @@ export function useQueryExecution(activeDatasourceId: string | null) {
     }
   };
 
+  // Pin: freeze the current live result under a stable id, then append a new
+  // empty live tab so the next query has somewhere to land.
   const handlePinResult = () => {
     const liveTab = resultTabs.find((t) => !t.pinned);
     if (!liveTab?.data) return;

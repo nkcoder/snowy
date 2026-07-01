@@ -230,6 +230,10 @@ function App() {
     GoApp.GetCompletions(dsId)
       .then((data) => setCompletions((data?.entries ?? []) as CompletionEntry[]))
       .catch((err) => console.warn('GetCompletions failed', err));
+    // Resilience flow (see ADR-0006): show last-known structure from the on-disk
+    // cache *immediately* so the sidebar/autocomplete are usable at once, then
+    // refresh from the live DB in the background. If the live refresh fails,
+    // refreshMetadata sets a warning banner and we keep showing the cache.
     GoApp.GetCachedMetadata(dsId)
       .then((cached) => {
         if (cached?.schemas?.length > 0) {

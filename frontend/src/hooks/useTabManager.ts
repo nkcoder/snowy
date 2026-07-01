@@ -25,6 +25,9 @@ export function useTabManager() {
     setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, ...patch } : t)));
   };
 
+  // Close a tab. If it was the active one, fall back to the neighbour on its
+  // left (clamped) so focus lands somewhere sensible rather than jumping to the
+  // end; closing the last tab clears the active id.
   const doCloseTab = (id: string) => {
     setTabs((prev) => {
       const next = prev.filter((t) => t.id !== id);
