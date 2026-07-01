@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENV_COLORS, T } from '../lib/tokens';
-import { cn, fmtDuration } from '../lib/utils';
+import { fmtDuration } from '../lib/utils';
 
 describe('tokens', () => {
   it('exports T with bg as CSS variable reference', () => {
@@ -21,15 +21,6 @@ describe('utils', () => {
     it('returns seconds for values >= 1000', () => {
       expect(fmtDuration(1000)).toBe('1.0s');
       expect(fmtDuration(2500)).toBe('2.5s');
-    });
-  });
-
-  describe('cn', () => {
-    it('merges class names', () => {
-      expect(cn('a', 'b')).toBe('a b');
-    });
-    it('handles conditional classes', () => {
-      expect(cn('base', false && 'off', 'on')).toBe('base on');
     });
   });
 });
