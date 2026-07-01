@@ -56,8 +56,9 @@ Our designs are: @spec/design, referenced DataGrip designs are: @spec/design/dat
 ### Backend (Go)
 - `main.go` — Wails bootstrap; embeds `frontend/dist` at compile time
 - `app.go` — `App` struct with all exported methods bound to the frontend; thin wrappers that delegate to services
-- `config.go` — `ConfigManager` reads/writes `~/.snowy/config.json` via `sync.RWMutex`; holds `Project` and `Datasource` structs (passwords stored plain text)
-- `db_service.go` — `DbService` opens a fresh `pgx` connection per call (no pooling); schema/table/column/key/FK/index/check introspection and query execution; completion cache via `sync.Map`
+- `config.go` — `ConfigManager` reads/writes `~/.snowy/config.json` via `sync.RWMutex`; holds `Project` and `Datasource` structs. Passwords are **not** written to the config file — they live in the macOS Keychain (see `keychain.go` / ADR-0003); the on-disk `datasourceRecord` has no password field
+- `keychain.go` — `KeyringStore` interface over the macOS Keychain (service `app.snowy.connections`), keyed by datasource ID; mocked in tests
+- `db_service.go` — `DbService` keeps one `pgxpool.Pool` per datasource (lazy, cached in a `sync.Map`) with a stale-pool retry in `acquire()` (see ADR-0002); schema/table/column/key/FK/index/check introspection and query execution; completion cache via `sync.Map`
 - `query_service.go` — saves/loads/lists/renames `.sql` files under `~/.snowy/queries/<dsId>/`
 - `history_service.go` — appends query history to `~/.snowy/history/<dsId>.jsonl`, newest-first on read
 
@@ -94,8 +95,8 @@ Use /playwright-cli for testing.
 Use caveman mode if possible.
 
 ## Key constraints
-- Each DB call creates and closes its own `pgx.Conn` — no connection pool
-- Config is written atomically but passwords stored in plaintext in `~/.snowy/config.json`
+- One `pgxpool.Pool` per datasource, created lazily and cached; `acquire()` retries once on a stale pool after long idle (see `docs/adr/0002-connection-pooling.md`)
+- Config is written atomically (file first, then Keychain); passwords are stored in the macOS Keychain, never in `~/.snowy/config.json` (see `docs/adr/0003-keychain-password-storage.md`)
 - `frontend/dist` must exist before `wails build` (embed fails otherwise); `wails build` handles this automatically; manual `go build` does not
 - **Tailwind v4** (`@tailwindcss/postcss`): `frontend/src/style.css` must start with `@import "tailwindcss";` — the v3 `@tailwind base/components/utilities` directives don't load the default theme in v4, so `--spacing` stays undefined and every spacing/typography utility (`px-*`, `pl-*`, `gap-*`, `w-1.5`, `text-xs`, `h-[22px]`, …) silently compiles to nothing while static ones (`flex`, `shrink-0`) still work. `tailwind.config.js` is not auto-loaded in v4 (content is auto-detected); reference it with `@config` if ever needed. If a spacing class has no visible effect, grep the built CSS in `frontend/dist/assets/*.css` for the rule before assuming the class name is wrong.
 
