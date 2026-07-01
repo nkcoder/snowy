@@ -10,6 +10,21 @@ Built with [Wails v2](https://wails.io/) (Go + React/TypeScript) so it ships as 
 
 ![Hero Screenshot](./docs/images/hero.jpeg)
 
+## Why another PostgreSQL client?
+
+The tools in this space are genuinely good — this isn't a list of complaints, it's an explanation of a gap. Each of the popular clients is excellent at what it does, but none of them is, at the same time, **beautiful, easy to use, open-source, and focused on the everyday needs of a developer or DevOps engineer**:
+
+- **[DataGrip](https://www.jetbrains.com/datagrip/)** — beautiful, powerful, and the UX reference Snowy admires. But it's commercial: the free tier is non-commercial only, so it can't be used at work without a paid license. Being a full multi-database IDE, it's also heavier than most people need for daily Postgres work.
+- **[pgAdmin](https://www.pgadmin.org/)** — the open-source standard, and comprehensive. But it's heavy, its web-app UX feels dated, and most of its surface area (server administration, dashboards, backup tooling) is rarely touched in a developer's day-to-day.
+- **[Postico 2](https://eggerapps.at/postico2/)** — a lovely, native macOS app with great taste. But it's commercial software, and the free tier is limited enough that real use needs a paid license.
+- **[Navicat for PostgreSQL](https://www.navicat.com/en/products/navicat-for-postgresql)** — feature-rich and polished. But it's proprietary and expensive, priced for teams rather than an individual developer.
+- **[TablePlus](https://tableplus.com/)** — fast and gorgeous, arguably the closest in spirit. But it's closed-source and the free tier is deliberately limited (open-tab and connection caps); unlocking it is a paid license.
+- **[DBeaver](https://dbeaver.io/)** — free, open-source, and supports every database under the sun. But that universality is the cost: it's a large Java/Eclipse application, and its broad, do-everything UI isn't a focused Postgres experience. The polished extras live in the paid Pro edition.
+
+For the terminal-inclined, **[psql](https://www.postgresql.org/docs/current/app-psql.html)** and **[pgcli](https://www.pgcli.com/)** are excellent and free — but they're CLI tools, not a GUI for browsing structure and eyeballing result sets.
+
+So the gap is real: a client that is **beautiful, easy to use, open-source, and covers the core features a developer or DevOps engineer reaches for every day** — connections, schema browsing, a good SQL editor with autocomplete, readable results, history, and saved queries — without the weight, the license wall, or the everything-and-the-kitchen-sink surface area. That's why Snowy exists.
+
 ## Features
 
 - **Connection manager** — add, edit, duplicate and delete PostgreSQL connections; per-connection environment tags (local / dev / staging / prod); test connection before saving
