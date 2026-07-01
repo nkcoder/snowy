@@ -148,6 +148,46 @@ func TestGetQueryHistory_CrossesChunkBoundary(t *testing.T) {
 	}
 }
 
+// TestGetQueryHistory_SkipsMalformedTail ensures a corrupt trailing line (e.g.
+// from an interrupted write) is skipped without counting toward limit, so valid
+// older entries still fill the request.
+func TestGetQueryHistory_SkipsMalformedTail(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	dsID := "malformed-ds"
+
+	for i := 1; i <= 3; i++ {
+		if err := RecordHistory(dsID, fmt.Sprintf("SELECT %d", i), i, int64(i)); err != nil {
+			t.Fatalf("RecordHistory %d: %v", i, err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	// Append a corrupt trailing line, as an interrupted append would leave behind.
+	path, err := historyFile(dsID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("{not valid json\n"); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// Requesting 2 must skip the malformed newest line and still return the 2
+	// newest valid entries.
+	got, err := GetQueryHistory(dsID, 2)
+	if err != nil {
+		t.Fatalf("GetQueryHistory: %v", err)
+	}
+	if len(got) != 2 || got[0].SQL != "SELECT 3" || got[1].SQL != "SELECT 2" {
+		t.Errorf("got %d entries (%q, %q), want 2: SELECT 3 / SELECT 2", len(got), first(got), second(got))
+	}
+}
+
 func first(e []HistoryEntry) string {
 	if len(e) == 0 {
 		return ""
