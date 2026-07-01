@@ -97,5 +97,6 @@ Use caveman mode if possible.
 - Each DB call creates and closes its own `pgx.Conn` — no connection pool
 - Config is written atomically but passwords stored in plaintext in `~/.snowy/config.json`
 - `frontend/dist` must exist before `wails build` (embed fails otherwise); `wails build` handles this automatically; manual `go build` does not
+- **Tailwind v4** (`@tailwindcss/postcss`): `frontend/src/style.css` must start with `@import "tailwindcss";` — the v3 `@tailwind base/components/utilities` directives don't load the default theme in v4, so `--spacing` stays undefined and every spacing/typography utility (`px-*`, `pl-*`, `gap-*`, `w-1.5`, `text-xs`, `h-[22px]`, …) silently compiles to nothing while static ones (`flex`, `shrink-0`) still work. `tailwind.config.js` is not auto-loaded in v4 (content is auto-detected); reference it with `@config` if ever needed. If a spacing class has no visible effect, grep the built CSS in `frontend/dist/assets/*.css` for the rule before assuming the class name is wrong.
 
 
