@@ -24,13 +24,10 @@
     "@codemirror/view": "^6.41.1",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
     "fuse.js": "^7.3.0",
     "lucide-react": "^1.9.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "tailwind-merge": "^3.5.0"
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx-development": "^7.27.1",
