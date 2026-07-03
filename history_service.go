@@ -33,6 +33,9 @@ func historyDir() (string, error) {
 }
 
 func historyFile(dsID string) (string, error) {
+	if err := validateDsID(dsID); err != nil {
+		return "", err
+	}
 	dir, err := historyDir()
 	if err != nil {
 		return "", err

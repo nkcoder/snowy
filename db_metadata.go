@@ -47,6 +47,9 @@ const columnClassificationSQL = `
 
 // metadataCachePath returns ~/.snowy/cache/<dsID>.json, creating the dir if needed.
 func metadataCachePath(dsID string) (string, error) {
+	if err := validateDsID(dsID); err != nil {
+		return "", err
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
