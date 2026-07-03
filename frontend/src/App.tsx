@@ -5,14 +5,15 @@ import type { main } from '../wailsjs/go/models';
 import { ConnectionManager } from './components/ConnectionManager';
 import { ConfirmDialog, InputDialog } from './components/Dialog';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import type { CompletionEntry } from './components/QueryEditor';
 import { QueryEditor } from './components/QueryEditor';
 import { ResultsPanel } from './components/ResultsPanel';
 import { Sidebar } from './components/Sidebar';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
+import { useDatasourceSession } from './hooks/useDatasourceSession';
 import { usePanelResize } from './hooks/usePanelResize';
 import { useQueryExecution } from './hooks/useQueryExecution';
+import { useQueryHistory } from './hooks/useQueryHistory';
 import { useTabManager } from './hooks/useTabManager';
 import { T } from './lib/tokens';
 import type { Datasource, Project } from './types';
@@ -72,17 +73,9 @@ function App() {
   const [view, setView] = useState<AppView>('connections');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
-  const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
-  const [savedQueries, setSavedQueries] = useState<{ filename: string }[]>([]);
-  const [completions, setCompletions] = useState<CompletionEntry[]>([]);
-  const [metadataByDs, setMetadataByDs] = useState<Record<string, main.DatabaseMetadata>>({});
   const [appVersion, setAppVersion] = useState({ version: '0.0.1', buildDate: '' });
   const [cmAddMode, setCmAddMode] = useState(false);
   const [cmEditDsId, setCmEditDsId] = useState<string | null>(null);
-  const [connectionWarning, setConnectionWarning] = useState<{
-    dsId: string;
-    message: string;
-  } | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   // ── Resize handle hover ───────────────────────────────────────────────────
@@ -93,12 +86,19 @@ function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [bottomVisible, setBottomVisible] = useState(true);
 
-  // ── History drawer ────────────────────────────────────────────────────────
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyEntries, setHistoryEntries] = useState<main.HistoryEntry[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
   // ── Hooks ─────────────────────────────────────────────────────────────────
+  const {
+    activeDatasourceId,
+    savedQueries,
+    setSavedQueries,
+    completions,
+    metadata,
+    connectionWarning,
+    setConnectionWarning,
+    refreshMetadata,
+    connect,
+    disconnect,
+  } = useDatasourceSession();
   const {
     tabs,
     setTabs,
@@ -132,6 +132,9 @@ function App() {
     handleUnpinResult,
     resetResults,
   } = useQueryExecution(activeDatasourceId);
+
+  const { historyOpen, historyEntries, historyLoading, openHistory, closeHistory } =
+    useQueryHistory(activeDatasourceId);
 
   const handleRunQuery = (sql: string) => {
     setBottomVisible(true);
@@ -194,60 +197,19 @@ function App() {
   };
 
   // ── Connect ───────────────────────────────────────────────────────────────
-  const refreshMetadata = async (dsId: string) => {
-    try {
-      const fresh = await GoApp.RefreshMetadata(dsId);
-      setMetadataByDs((prev) => ({ ...prev, [dsId]: fresh }));
-      setConnectionWarning((prev) => (prev?.dsId === dsId ? null : prev));
-    } catch (err) {
-      console.warn('RefreshMetadata failed', err);
-      const message = err instanceof Error ? err.message : String(err);
-      setConnectionWarning({ dsId, message });
-      return;
-    }
-    // RefreshMetadata rebuilt the backend completion cache; fetch it to sync the editor.
-    try {
-      const data = await GoApp.GetCompletions(dsId);
-      setCompletions((data?.entries ?? []) as CompletionEntry[]);
-    } catch (err) {
-      console.warn('GetCompletions refresh failed', err);
-    }
-  };
-
+  // useDatasourceSession owns the connection/metadata data; App orchestrates the
+  // surrounding tab/results/view reset.
   const handleConnect = (dsId: string) => {
-    setActiveDatasourceId(dsId);
-    setSavedQueries([]);
-    setCompletions([]);
+    connect(dsId);
     resetResults();
     const initial = makeTab();
     setTabs([initial]);
     handleTabSelect(initial.id);
     setView('workspace');
-    GoApp.ListSavedQueries(dsId)
-      .then((data) => setSavedQueries(data ?? []))
-      .catch(() => {});
-    GoApp.GetCompletions(dsId)
-      .then((data) => setCompletions((data?.entries ?? []) as CompletionEntry[]))
-      .catch((err) => console.warn('GetCompletions failed', err));
-    // Resilience flow (see ADR-0006): show last-known structure from the on-disk
-    // cache *immediately* so the sidebar/autocomplete are usable at once, then
-    // refresh from the live DB in the background. If the live refresh fails,
-    // refreshMetadata sets a warning banner and we keep showing the cache.
-    GoApp.GetCachedMetadata(dsId)
-      .then((cached) => {
-        if (cached?.schemas?.length > 0) {
-          setMetadataByDs((prev) => ({ ...prev, [dsId]: cached }));
-        }
-      })
-      .catch(() => {});
-    refreshMetadata(dsId);
   };
 
   const handleDisconnect = () => {
-    if (activeDatasourceId) {
-      GoApp.ClosePool(activeDatasourceId).catch(() => {});
-    }
-    setActiveDatasourceId(null);
+    disconnect();
     setView('connections');
   };
 
@@ -320,23 +282,8 @@ function App() {
   };
 
   // ── History ───────────────────────────────────────────────────────────────
-  const handleOpenHistory = async () => {
-    if (!activeDatasourceId) return;
-    setHistoryOpen(true);
-    setHistoryLoading(true);
-    try {
-      const entries = await GoApp.GetQueryHistory(activeDatasourceId, 100);
-      setHistoryEntries(entries ?? []);
-    } catch (err) {
-      console.warn('GetQueryHistory failed', err);
-      setHistoryEntries([]);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
   const handleHistorySelect = (sql: string) => {
-    setHistoryOpen(false);
+    closeHistory();
     if (activeTab) {
       updateActiveTab({ sql, dirty: true });
     } else {
@@ -483,9 +430,7 @@ function App() {
                 setView('connections');
               }}
               width={sidebarVisible ? sidebarWidth : 0}
-              preloadedMetadata={
-                activeDatasourceId ? (metadataByDs[activeDatasourceId] ?? null) : null
-              }
+              preloadedMetadata={metadata}
               onRefreshMetadata={
                 activeDatasourceId ? () => refreshMetadata(activeDatasourceId) : undefined
               }
@@ -526,7 +471,7 @@ function App() {
                       onChange={(sql) => updateActiveTab({ sql, dirty: true })}
                       onRun={handleRunQuery}
                       onSave={handleSaveQuery}
-                      onOpenHistory={handleOpenHistory}
+                      onOpenHistory={openHistory}
                       loading={queryLoading}
                       completions={completions}
                     />
@@ -572,7 +517,7 @@ function App() {
                     onPin={handlePinResult}
                     onUnpin={handleUnpinResult}
                     onCloseTab={handleCloseResultTab}
-                    onOpenHistory={handleOpenHistory}
+                    onOpenHistory={openHistory}
                     onTogglePanel={() => setBottomVisible((v) => !v)}
                     bottomVisible={bottomVisible}
                     collapsed={!bottomVisible}
@@ -621,7 +566,7 @@ function App() {
               <HistoryDrawer
                 entries={historyEntries}
                 loading={historyLoading}
-                onClose={() => setHistoryOpen(false)}
+                onClose={closeHistory}
                 onSelect={handleHistorySelect}
               />
             )}
