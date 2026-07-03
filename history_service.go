@@ -26,7 +26,7 @@ func historyDir() (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(home, ".snowy", "history")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -57,7 +57,7 @@ func RecordHistory(dsID, sql string, rowCount int, durationMs int64) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
