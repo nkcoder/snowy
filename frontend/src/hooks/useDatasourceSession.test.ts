@@ -82,6 +82,26 @@ describe('useDatasourceSession', () => {
     await waitFor(() => expect(result.current.metadata).toEqual(cached));
   });
 
+  it('does not let a late cache overwrite a fresh live refresh', async () => {
+    const fresh = main.DatabaseMetadata.createFrom({ schemas: [{ name: 'live', tables: [] }] });
+    const cached = main.DatabaseMetadata.createFrom({ schemas: [{ name: 'stale', tables: [] }] });
+    vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(fresh);
+    // Cache resolves on a later macrotask, after the live refresh has landed.
+    vi.mocked(GoApp.GetCachedMetadata).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(cached), 10))
+    );
+
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.connect('ds-1');
+    });
+
+    await waitFor(() => expect(result.current.metadata).toEqual(fresh));
+    // Let the delayed cache promise resolve; it must not clobber the fresh metadata.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.metadata).toEqual(fresh);
+  });
+
   it('disconnect closes the pool and clears the active datasource', async () => {
     const { result } = renderHook(() => useDatasourceSession());
     act(() => {

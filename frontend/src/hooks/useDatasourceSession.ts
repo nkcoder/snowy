@@ -56,7 +56,9 @@ export function useDatasourceSession() {
     GoApp.GetCachedMetadata(dsId)
       .then((cached) => {
         if (cached?.schemas?.length > 0) {
-          setMetadataByDs((prev) => ({ ...prev, [dsId]: cached }));
+          // Only fill in when nothing has landed yet — if the live refresh has
+          // already resolved first, don't clobber fresh metadata with the cache.
+          setMetadataByDs((prev) => (prev[dsId] ? prev : { ...prev, [dsId]: cached }));
         }
       })
       .catch(() => {});
