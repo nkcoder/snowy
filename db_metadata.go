@@ -9,6 +9,42 @@ import (
 	"time"
 )
 
+// columnClassificationSQL classifies each column as 'pk'/'fk'/” via a CTE +
+// LEFT JOIN (one pass, no correlated per-row subqueries). Shared by ListColumns
+// and FetchDatabaseMetadata so the rule has a single definition.
+//
+// $1 = schema, $2 = table. Passing NULL for both selects every user-schema
+// table (whole-DB mode) and excludes the system schemas; passing a concrete
+// schema/table scopes to exactly that table (per-table mode).
+const columnClassificationSQL = `
+	WITH pk_cols AS (
+		SELECT tc.table_schema, tc.table_name, kcu.column_name
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+			ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+		WHERE tc.constraint_type = 'PRIMARY KEY'
+	),
+	fk_cols AS (
+		SELECT tc.table_schema, tc.table_name, kcu.column_name
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+			ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+		WHERE tc.constraint_type = 'FOREIGN KEY'
+	)
+	SELECT c.table_schema, c.table_name, c.column_name, c.data_type, c.is_nullable,
+		CASE WHEN pk.column_name IS NOT NULL THEN 'pk'
+			 WHEN fk.column_name IS NOT NULL THEN 'fk'
+			 ELSE '' END AS key_type
+	FROM information_schema.columns c
+	LEFT JOIN pk_cols pk
+		ON pk.table_schema = c.table_schema AND pk.table_name = c.table_name AND pk.column_name = c.column_name
+	LEFT JOIN fk_cols fk
+		ON fk.table_schema = c.table_schema AND fk.table_name = c.table_name AND fk.column_name = c.column_name
+	WHERE ($1::text IS NULL OR c.table_schema = $1)
+	  AND ($2::text IS NULL OR c.table_name = $2)
+	  AND ($1::text IS NOT NULL OR c.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast'))
+	ORDER BY c.table_schema, c.table_name, c.ordinal_position`
+
 // metadataCachePath returns ~/.snowy/cache/<dsID>.json, creating the dir if needed.
 func metadataCachePath(dsID string) (string, error) {
 	home, err := os.UserHomeDir()
@@ -134,37 +170,9 @@ func (s *DbService) FetchDatabaseMetadata(dsID string) (DatabaseMetadata, error)
 	}
 	rows.Close()
 
-	// 3. Columns (CTE-based pk/fk detection avoids correlated subqueries per row)
-	const colSQL = `
-		WITH pk_cols AS (
-			SELECT tc.table_schema, tc.table_name, kcu.column_name
-			FROM information_schema.table_constraints tc
-			JOIN information_schema.key_column_usage kcu
-				ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-			WHERE tc.constraint_type = 'PRIMARY KEY'
-			  AND tc.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-		),
-		fk_cols AS (
-			SELECT tc.table_schema, tc.table_name, kcu.column_name
-			FROM information_schema.table_constraints tc
-			JOIN information_schema.key_column_usage kcu
-				ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-			WHERE tc.constraint_type = 'FOREIGN KEY'
-			  AND tc.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-		)
-		SELECT c.table_schema, c.table_name, c.column_name, c.data_type, c.is_nullable,
-			CASE WHEN pk.column_name IS NOT NULL THEN 'pk'
-				 WHEN fk.column_name IS NOT NULL THEN 'fk'
-				 ELSE '' END AS key_type
-		FROM information_schema.columns c
-		LEFT JOIN pk_cols pk
-			ON pk.table_schema = c.table_schema AND pk.table_name = c.table_name AND pk.column_name = c.column_name
-		LEFT JOIN fk_cols fk
-			ON fk.table_schema = c.table_schema AND fk.table_name = c.table_name AND fk.column_name = c.column_name
-		WHERE c.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-		ORDER BY c.table_schema, c.table_name, c.ordinal_position`
-
-	rows, err = conn.Query(ctx, colSQL)
+	// 3. Columns — shared CTE-based pk/fk classification (see columnClassificationSQL).
+	// Passing NULL for both params selects every user-schema table.
+	rows, err = conn.Query(ctx, columnClassificationSQL, nil, nil)
 	if err != nil {
 		return DatabaseMetadata{}, fmt.Errorf("columns: %w", err)
 	}

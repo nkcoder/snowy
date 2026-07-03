@@ -199,33 +199,9 @@ func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem
 	}
 	defer conn.Release()
 
-	const colSQL = `
-		SELECT
-			c.column_name,
-			c.data_type,
-			c.is_nullable,
-			CASE
-				WHEN EXISTS (
-					SELECT 1 FROM information_schema.table_constraints tc
-					JOIN information_schema.key_column_usage ku
-						ON tc.constraint_name = ku.constraint_name AND tc.table_schema = ku.table_schema
-					WHERE tc.table_schema = $1 AND tc.table_name = $2
-						AND tc.constraint_type = 'PRIMARY KEY' AND ku.column_name = c.column_name
-				) THEN 'pk'
-				WHEN EXISTS (
-					SELECT 1 FROM information_schema.table_constraints tc
-					JOIN information_schema.key_column_usage ku
-						ON tc.constraint_name = ku.constraint_name AND tc.table_schema = ku.table_schema
-					WHERE tc.table_schema = $1 AND tc.table_name = $2
-						AND tc.constraint_type = 'FOREIGN KEY' AND ku.column_name = c.column_name
-				) THEN 'fk'
-				ELSE ''
-			END AS key_type
-		FROM information_schema.columns c
-		WHERE c.table_schema = $1 AND c.table_name = $2
-		ORDER BY c.ordinal_position`
-
-	rows, err := conn.Query(ctx, colSQL, schema, table)
+	// Shared CTE-based pk/fk classification (see columnClassificationSQL), scoped
+	// to this one table via the schema/table params.
+	rows, err := conn.Query(ctx, columnClassificationSQL, schema, table)
 	if err != nil {
 		return nil, err
 	}
@@ -233,8 +209,8 @@ func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem
 
 	columns := make([]ColumnItem, 0)
 	for rows.Next() {
-		var name, dataType, isNullable, keyType string
-		if err := rows.Scan(&name, &dataType, &isNullable, &keyType); err != nil {
+		var colSchema, colTable, name, dataType, isNullable, keyType string
+		if err := rows.Scan(&colSchema, &colTable, &name, &dataType, &isNullable, &keyType); err != nil {
 			return nil, err
 		}
 		columns = append(columns, ColumnItem{Name: name, DataType: dataType, IsNullable: isNullable, KeyType: keyType})
