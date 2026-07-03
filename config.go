@@ -73,7 +73,7 @@ func NewConfigManager() (*ConfigManager, error) {
 		return nil, err
 	}
 	configDir := filepath.Join(home, ".snowy")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return nil, err
 	}
 	configPath := filepath.Join(configDir, "config.json")
@@ -164,7 +164,7 @@ func (cm *ConfigManager) SaveConfig(config Config) error {
 	if err != nil {
 		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := os.WriteFile(cm.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(cm.configPath, data, 0600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
@@ -231,7 +231,7 @@ func (cm *ConfigManager) UpdateDatasource(ds Datasource) error {
 	if err != nil {
 		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := os.WriteFile(cm.configPath, out, 0644); err != nil {
+	if err := os.WriteFile(cm.configPath, out, 0600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 

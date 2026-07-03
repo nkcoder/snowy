@@ -14,7 +14,7 @@ func queriesDir(dsID string) (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(home, ".snowy", "queries", dsID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -38,7 +38,7 @@ func SaveQuery(dsID, filename, sql string) error {
 	if !strings.HasSuffix(filename, ".sql") {
 		filename += ".sql"
 	}
-	return os.WriteFile(filepath.Join(dir, filename), []byte(sql), 0644)
+	return os.WriteFile(filepath.Join(dir, filename), []byte(sql), 0600)
 }
 
 // ListSavedQueries returns all .sql filenames for a datasource.
