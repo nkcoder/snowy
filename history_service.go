@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -81,31 +82,90 @@ func GetQueryHistory(dsID string, limit int) ([]HistoryEntry, error) {
 	}
 	defer f.Close()
 
-	var entries []HistoryEntry
-	scanner := bufio.NewScanner(f)
-	// Increase default buffer size to handle large SQL entries
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var entry HistoryEntry
-		if err := json.Unmarshal(line, &entry); err != nil {
-			continue // skip malformed lines
-		}
-		entries = append(entries, entry)
+	// For a positive limit, read only the file's tail rather than the whole file:
+	// history grows unbounded (append-only) but callers only ever want the last N.
+	if limit > 0 {
+		return tailEntries(f, limit)
 	}
-	if err := scanner.Err(); err != nil {
+
+	// limit <= 0: return every entry, newest first.
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	lines := bytes.Split(data, []byte("\n"))
+	entries := make([]HistoryEntry, 0, len(lines))
+	for i := len(lines) - 1; i >= 0; i-- {
+		if entry, ok := parseEntry(lines[i]); ok {
+			entries = append(entries, entry)
+		}
+	}
+	return entries, nil
+}
+
+// tailEntries returns up to limit history entries, newest first. It reads the
+// file backward in fixed chunks and stops once it has limit successfully-parsed
+// entries or reaches the start of the file, so a large history file is never
+// loaded whole. Malformed lines are skipped and do not count toward the limit,
+// so a corrupt trailing line (e.g. from an interrupted write) does not shrink
+// the result below limit while valid older entries remain.
+func tailEntries(f *os.File, limit int) ([]HistoryEntry, error) {
+	stat, err := f.Stat()
+	if err != nil {
 		return nil, err
 	}
 
-	// Reverse: newest first
-	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
-		entries[i], entries[j] = entries[j], entries[i]
-	}
-	if limit > 0 && len(entries) > limit {
-		entries = entries[:limit]
+	const chunk = 64 * 1024
+	entries := make([]HistoryEntry, 0, limit)
+	var pending []byte // leading partial line carried back to the previous chunk
+	offset := stat.Size()
+
+	for offset > 0 && len(entries) < limit {
+		readSize := int64(chunk)
+		if offset < readSize {
+			readSize = offset
+		}
+		offset -= readSize
+		block := make([]byte, readSize)
+		if _, err := f.ReadAt(block, offset); err != nil {
+			return nil, err
+		}
+		buf := append(block, pending...)
+
+		// Everything after the first newline is complete; the head up to it may be
+		// the tail of a line continuing into the previous chunk — unless we are now
+		// at the start of the file, where the head is complete too.
+		complete := buf
+		if offset > 0 {
+			nl := bytes.IndexByte(buf, '\n')
+			if nl < 0 {
+				pending = buf // no newline yet: whole buf is one partial line
+				continue
+			}
+			pending = buf[:nl]
+			complete = buf[nl+1:]
+		}
+
+		// Parse the complete lines newest-first until we reach the limit.
+		lines := bytes.Split(complete, []byte("\n"))
+		for i := len(lines) - 1; i >= 0 && len(entries) < limit; i-- {
+			if entry, ok := parseEntry(lines[i]); ok {
+				entries = append(entries, entry)
+			}
+		}
 	}
 	return entries, nil
+}
+
+// parseEntry unmarshals one JSONL line into a HistoryEntry, reporting ok=false
+// for empty or malformed lines so callers can skip them.
+func parseEntry(line []byte) (HistoryEntry, bool) {
+	if len(line) == 0 {
+		return HistoryEntry{}, false
+	}
+	var entry HistoryEntry
+	if err := json.Unmarshal(line, &entry); err != nil {
+		return HistoryEntry{}, false
+	}
+	return entry, true
 }

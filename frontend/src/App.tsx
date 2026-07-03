@@ -16,7 +16,6 @@ import { useQueryExecution } from './hooks/useQueryExecution';
 import { useTabManager } from './hooks/useTabManager';
 import { T } from './lib/tokens';
 import type { Datasource, Project } from './types';
-import './App.css';
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {

@@ -2,12 +2,25 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	// maxQueryRows caps rows returned by ExecuteQuery; extra rows set Truncated.
+	maxQueryRows = 1000
+	// poolMaxConns is the per-datasource pgxpool connection ceiling.
+	poolMaxConns = 5
+	// introspectTimeout bounds schema/table/column/key introspection queries.
+	introspectTimeout = 10 * time.Second
+	// queryTimeout bounds user-issued queries run through ExecuteQuery.
+	queryTimeout = 30 * time.Second
 )
 
 type DbService struct {
@@ -66,7 +79,7 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("no password stored in macOS Keychain for connection %q — open Connection Manager, re-enter the password, and click OK", ds.Name)
 	}
 	poolCfg.ConnConfig.Password = password
-	poolCfg.MaxConns = 5
+	poolCfg.MaxConns = poolMaxConns
 	poolCfg.MinConns = 0
 	poolCfg.MaxConnIdleTime = 5 * time.Minute
 	poolCfg.MaxConnLifetime = 30 * time.Minute
@@ -116,7 +129,7 @@ func (s *DbService) closePool(dsID string) {
 }
 
 func (s *DbService) ListSchemas(dsID string) ([]SchemaItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -147,7 +160,7 @@ func (s *DbService) ListSchemas(dsID string) ([]SchemaItem, error) {
 }
 
 func (s *DbService) ListTables(dsID string, schema string) ([]TableItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -178,7 +191,7 @@ func (s *DbService) ListTables(dsID string, schema string) ([]TableItem, error) 
 }
 
 func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -233,7 +246,7 @@ func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem
 }
 
 func (s *DbService) ListTableKeys(dsID, schema, table string) ([]TableKeyItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -273,7 +286,7 @@ func (s *DbService) ListTableKeys(dsID, schema, table string) ([]TableKeyItem, e
 }
 
 func (s *DbService) ListTableForeignKeys(dsID, schema, table string) ([]ForeignKeyItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -319,7 +332,7 @@ func (s *DbService) ListTableForeignKeys(dsID, schema, table string) ([]ForeignK
 }
 
 func (s *DbService) ListTableIndexes(dsID, schema, table string) ([]IndexItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -363,7 +376,7 @@ func (s *DbService) ListTableIndexes(dsID, schema, table string) ([]IndexItem, e
 }
 
 func (s *DbService) ListTableChecks(dsID, schema, table string) ([]CheckItem, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -437,7 +450,7 @@ func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {
 		return cached.(*CompletionSet), nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), introspectTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
@@ -540,21 +553,28 @@ func (s *DbService) GetCompletions(dsID string) (*CompletionSet, error) {
 	return result, nil
 }
 
-const maxQueryRows = 1000
+// queryTimeoutError rewrites the generic context-deadline error into a message
+// that names the queryTimeout budget; unrelated errors pass through unchanged.
+func queryTimeoutError(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("query exceeded the %s timeout", queryTimeout)
+	}
+	return err
+}
 
 func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 	conn, err := s.acquire(ctx, dsID)
 	if err != nil {
-		return nil, err
+		return nil, queryTimeoutError(err)
 	}
 	defer conn.Release()
 
 	start := time.Now()
 	rows, err := conn.Query(ctx, sql)
 	if err != nil {
-		return nil, err
+		return nil, queryTimeoutError(err)
 	}
 	defer rows.Close()
 
@@ -573,17 +593,19 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		}
 		values, err := rows.Values()
 		if err != nil {
-			return nil, err
+			return nil, queryTimeoutError(err)
 		}
 		for i, v := range values {
-			if b, ok := v.([16]byte); ok {
+			// pgx decodes a uuid column as [16]byte; format only those, matching on
+			// the column's type OID so an unrelated 16-byte value isn't misrendered.
+			if b, ok := v.([16]byte); ok && fieldDescs[i].DataTypeOID == pgtype.UUIDOID {
 				values[i] = fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 			}
 		}
 		results = append(results, values)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, queryTimeoutError(err)
 	}
 
 	// CommandTag carries the affected-row count for DML and the command verb for any

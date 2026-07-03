@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strconv"
@@ -293,6 +295,46 @@ func TestAcquireRetryOnDeadPool(t *testing.T) {
 	}
 	if newPool == pool {
 		t.Error("expected acquire() to replace the stale pool, but pool pointer is unchanged")
+	}
+}
+
+func TestQueryTimeoutError(t *testing.T) {
+	// A context deadline is rewritten to a message naming the timeout budget.
+	got := queryTimeoutError(context.DeadlineExceeded)
+	if got == nil || !strings.Contains(got.Error(), "30s") || !strings.Contains(got.Error(), "exceeded") {
+		t.Errorf("deadline: got %v, want message mentioning '30s' and 'exceeded'", got)
+	}
+
+	// A wrapped deadline is still detected.
+	wrapped := fmt.Errorf("acquire: %w", context.DeadlineExceeded)
+	if !strings.Contains(queryTimeoutError(wrapped).Error(), "30s") {
+		t.Errorf("wrapped deadline not rewritten: %v", queryTimeoutError(wrapped))
+	}
+
+	// Unrelated errors pass through unchanged (same instance).
+	orig := errors.New("syntax error")
+	if queryTimeoutError(orig) != orig {
+		t.Errorf("unrelated error should pass through unchanged, got %v", queryTimeoutError(orig))
+	}
+}
+
+func TestExecuteQuery_UUIDFormatting_Integration(t *testing.T) {
+	app, dsID := newTestApp(t)
+
+	const want = "12345678-1234-1234-1234-1234567890ab"
+	r, err := app.ExecuteQuery(dsID, "SELECT '"+want+"'::uuid AS id")
+	if err != nil {
+		t.Fatalf("ExecuteQuery: %v", err)
+	}
+	if r.RowCount != 1 {
+		t.Fatalf("expected 1 row, got %d", r.RowCount)
+	}
+	got, ok := r.Rows[0][0].(string)
+	if !ok {
+		t.Fatalf("uuid not formatted as string: %T", r.Rows[0][0])
+	}
+	if got != want {
+		t.Errorf("uuid = %q, want %q", got, want)
 	}
 }
 
