@@ -9,6 +9,9 @@ import (
 
 // queriesDir returns ~/.snowy/queries/<dsID>/
 func queriesDir(dsID string) (string, error) {
+	if err := validateDsID(dsID); err != nil {
+		return "", err
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
