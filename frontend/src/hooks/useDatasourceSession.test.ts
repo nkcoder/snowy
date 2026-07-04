@@ -135,6 +135,40 @@ describe('useDatasourceSession', () => {
     expect(result.current.connectionWarning).toBeNull();
   });
 
+  it('a successful refresh clears a prior warning for the same datasource', async () => {
+    // First connect fails -> warning set for ds-1; reconnecting successfully clears it.
+    vi.mocked(GoApp.RefreshMetadata).mockRejectedValueOnce(new Error('down'));
+
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.connect('ds-1');
+    });
+    await waitFor(() =>
+      expect(result.current.connectionWarning).toEqual({ dsId: 'ds-1', message: 'down' })
+    );
+
+    vi.mocked(GoApp.RefreshMetadata).mockResolvedValueOnce(
+      main.DatabaseMetadata.createFrom({ schemas: [{ name: 'public', tables: [] }] })
+    );
+    await act(async () => {
+      await result.current.refreshMetadata('ds-1');
+    });
+
+    expect(result.current.connectionWarning).toBeNull();
+  });
+
+  it('a refresh for one datasource leaves a warning for another intact', async () => {
+    const { result } = renderHook(() => useDatasourceSession());
+    // Seed a warning for ds-2 directly, then refresh ds-1 successfully.
+    act(() => {
+      result.current.setConnectionWarning({ dsId: 'ds-2', message: 'other down' });
+    });
+    await act(async () => {
+      await result.current.refreshMetadata('ds-1');
+    });
+    expect(result.current.connectionWarning).toEqual({ dsId: 'ds-2', message: 'other down' });
+  });
+
   it('disconnect is a no-op when nothing is connected', () => {
     const { result } = renderHook(() => useDatasourceSession());
     act(() => {
