@@ -117,4 +117,30 @@ describe('useDatasourceSession', () => {
     expect(result.current.activeDatasourceId).toBeNull();
     expect(result.current.metadata).toBeNull();
   });
+
+  it('swallows GetCompletions failure during connect and refresh without throwing', async () => {
+    // Both the initial connect() fetch and the post-refresh fetch reject; the
+    // hook must keep completions empty and still surface refreshed metadata.
+    const meta = main.DatabaseMetadata.createFrom({ schemas: [{ name: 'public', tables: [] }] });
+    vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(meta);
+    vi.mocked(GoApp.GetCompletions).mockRejectedValue(new Error('completions unavailable'));
+
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.connect('ds-1');
+    });
+
+    await waitFor(() => expect(result.current.metadata).toEqual(meta));
+    expect(result.current.completions).toEqual([]);
+    expect(result.current.connectionWarning).toBeNull();
+  });
+
+  it('disconnect is a no-op when nothing is connected', () => {
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.disconnect();
+    });
+    expect(GoApp.ClosePool).not.toHaveBeenCalled();
+    expect(result.current.activeDatasourceId).toBeNull();
+  });
 });

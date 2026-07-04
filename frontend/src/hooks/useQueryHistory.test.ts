@@ -43,6 +43,19 @@ describe('useQueryHistory', () => {
     expect(result.current.historyLoading).toBe(false);
   });
 
+  it('openHistory coerces a null result to an empty array', async () => {
+    // Go nil slices deserialize as JSON null; the hook must default to [].
+    vi.mocked(GoApp.GetQueryHistory).mockResolvedValue(null as unknown as main.HistoryEntry[]);
+
+    const { result } = renderHook(() => useQueryHistory('ds-1'));
+    await act(async () => {
+      await result.current.openHistory();
+    });
+
+    expect(result.current.historyEntries).toEqual([]);
+    expect(result.current.historyLoading).toBe(false);
+  });
+
   it('openHistory clears entries and stops loading on error', async () => {
     vi.mocked(GoApp.GetQueryHistory).mockRejectedValue(new Error('boom'));
 
