@@ -1,23 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { T } from '../lib/tokens';
 
-export function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: 0.3,
-        color: T.textDim,
-        textTransform: 'uppercase' as const,
-        marginBottom: 5,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function FieldInput({
   value,
   onChange,

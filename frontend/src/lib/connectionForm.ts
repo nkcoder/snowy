@@ -1,6 +1,9 @@
 import type { Datasource } from '../types';
 
-export function makeEmptyForm(): Omit<Datasource, 'id' | 'projectId'> {
+// The editable subset of a Datasource held in the connection form's local state.
+export type ConnectionFormState = Omit<Datasource, 'id' | 'projectId'>;
+
+export function makeEmptyForm(): ConnectionFormState {
   return {
     name: '',
     host: 'localhost',

@@ -1,11 +1,12 @@
 import { Copy, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as GoApp from '../../wailsjs/go/main/App';
-import { ENV_COLORS, T } from '../lib/tokens';
+import { T } from '../lib/tokens';
 import type { Datasource, Project } from '../types';
-import { ConfirmDialog, UnsavedChangesDialog } from './ConnectionDialogs';
+import { DeleteConfirmDialog, UnsavedChangesDialog } from './ConnectionDialogs';
 import { ConnectionForm, type TestResult } from './ConnectionForm';
 import { ElephantIcon } from './ConnectionFormFields';
+import { DatasourceListItem } from './DatasourceListItem';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type FormMode = null | 'add' | 'edit';
@@ -23,25 +24,6 @@ export interface ConnectionManagerProps {
   onEditModeConsumed?: () => void;
   appVersion?: string;
   appBuildDate?: string;
-}
-
-function _SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 0.5,
-          color: T.accent,
-          textTransform: 'uppercase' as const,
-        }}
-      >
-        {children}
-      </div>
-      <div style={{ flex: 1, height: 1, background: T.divider }} />
-    </div>
-  );
 }
 
 // ── ConnectionManager ────────────────────────────────────────────────────────
@@ -297,66 +279,23 @@ export function ConnectionManager({
         <div style={{ flex: 1, padding: '4px', overflowY: 'auto' }}>
           {[...datasources]
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-            .map((ds) => {
-              const envColor = ENV_COLORS[ds.env] ?? T.textSec;
-              const selected = ds.id === selectedDsId && formMode !== 'add';
-              return (
-                <div
-                  key={ds.id}
-                  data-testid={`ds-item-${ds.id}`}
-                  onClick={() => {
-                    if (formIsDirty) {
-                      setPendingSwitch({ dsId: ds.id, toMode: 'edit' });
-                    } else {
-                      setSelectedDsId(ds.id);
-                      setFormMode('edit');
-                    }
-                  }}
-                  onDoubleClick={() => handleDoubleClickConnect(ds.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '7px 10px',
-                    background: selected ? T.selected : 'transparent',
-                    borderLeft: `2px solid ${selected ? T.selectedBorder : 'transparent'}`,
-                    borderRadius: 4,
-                    marginBottom: 1,
-                    cursor: 'pointer',
-                    userSelect: 'none' as const,
-                  }}
-                >
-                  <ElephantIcon color={envColor} size={14} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: selected ? 600 : 500,
-                        color: T.text,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {ds.name}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: T.textDim, fontFamily: T.mono }}>
-                      {ds.host}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      flexShrink: 0,
-                      background: ds.id === activeDatasourceId ? T.ok : T.textDim,
-                      boxShadow: ds.id === activeDatasourceId ? `0 0 4px ${T.ok}` : 'none',
-                    }}
-                  />
-                </div>
-              );
-            })}
+            .map((ds) => (
+              <DatasourceListItem
+                key={ds.id}
+                ds={ds}
+                selected={ds.id === selectedDsId && formMode !== 'add'}
+                isActive={ds.id === activeDatasourceId}
+                onSelect={() => {
+                  if (formIsDirty) {
+                    setPendingSwitch({ dsId: ds.id, toMode: 'edit' });
+                  } else {
+                    setSelectedDsId(ds.id);
+                    setFormMode('edit');
+                  }
+                }}
+                onDoubleClick={() => handleDoubleClickConnect(ds.id)}
+              />
+            ))}
           {datasources.length === 0 && (
             <div
               style={{
@@ -464,7 +403,7 @@ export function ConnectionManager({
 
       {/* ── Confirm delete ─────────────────────────────────────────────── */}
       {confirmDelete && (
-        <ConfirmDialog
+        <DeleteConfirmDialog
           message={confirmDelete.message}
           onConfirm={handleConfirm}
           onCancel={() => setConfirmDelete(null)}
