@@ -117,4 +117,64 @@ describe('useDatasourceSession', () => {
     expect(result.current.activeDatasourceId).toBeNull();
     expect(result.current.metadata).toBeNull();
   });
+
+  it('swallows GetCompletions failure during connect and refresh without throwing', async () => {
+    // Both the initial connect() fetch and the post-refresh fetch reject; the
+    // hook must keep completions empty and still surface refreshed metadata.
+    const meta = main.DatabaseMetadata.createFrom({ schemas: [{ name: 'public', tables: [] }] });
+    vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(meta);
+    vi.mocked(GoApp.GetCompletions).mockRejectedValue(new Error('completions unavailable'));
+
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.connect('ds-1');
+    });
+
+    await waitFor(() => expect(result.current.metadata).toEqual(meta));
+    expect(result.current.completions).toEqual([]);
+    expect(result.current.connectionWarning).toBeNull();
+  });
+
+  it('a successful refresh clears a prior warning for the same datasource', async () => {
+    // First connect fails -> warning set for ds-1; reconnecting successfully clears it.
+    vi.mocked(GoApp.RefreshMetadata).mockRejectedValueOnce(new Error('down'));
+
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.connect('ds-1');
+    });
+    await waitFor(() =>
+      expect(result.current.connectionWarning).toEqual({ dsId: 'ds-1', message: 'down' })
+    );
+
+    vi.mocked(GoApp.RefreshMetadata).mockResolvedValueOnce(
+      main.DatabaseMetadata.createFrom({ schemas: [{ name: 'public', tables: [] }] })
+    );
+    await act(async () => {
+      await result.current.refreshMetadata('ds-1');
+    });
+
+    expect(result.current.connectionWarning).toBeNull();
+  });
+
+  it('a refresh for one datasource leaves a warning for another intact', async () => {
+    const { result } = renderHook(() => useDatasourceSession());
+    // Seed a warning for ds-2 directly, then refresh ds-1 successfully.
+    act(() => {
+      result.current.setConnectionWarning({ dsId: 'ds-2', message: 'other down' });
+    });
+    await act(async () => {
+      await result.current.refreshMetadata('ds-1');
+    });
+    expect(result.current.connectionWarning).toEqual({ dsId: 'ds-2', message: 'other down' });
+  });
+
+  it('disconnect is a no-op when nothing is connected', () => {
+    const { result } = renderHook(() => useDatasourceSession());
+    act(() => {
+      result.current.disconnect();
+    });
+    expect(GoApp.ClosePool).not.toHaveBeenCalled();
+    expect(result.current.activeDatasourceId).toBeNull();
+  });
 });

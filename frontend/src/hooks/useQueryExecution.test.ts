@@ -306,6 +306,112 @@ describe('useQueryExecution', () => {
     expect(liveTab?.error).toBeTruthy();
   });
 
+  it('reports rows affected for a non-result-set (INSERT/UPDATE/DDL) query', async () => {
+    // No columns -> not a result set -> rowCount comes from rowsAffected.
+    vi.mocked(GoApp.ExecuteQuery).mockResolvedValueOnce({
+      columns: [],
+      rows: [],
+      rowCount: 0,
+      durationMs: 3,
+      truncated: false,
+      rowsAffected: 7,
+      command: 'UPDATE',
+    });
+    vi.mocked(GoApp.RecordHistory).mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQueryExecution('ds-1'));
+    await act(async () => {
+      await result.current.handleRunQuery('UPDATE t SET x = 1');
+    });
+
+    const liveTab = result.current.resultTabs.find((t) => !t.pinned);
+    expect(liveTab?.rowCount).toBe(7);
+    expect(liveTab?.error).toBeNull();
+  });
+
+  it('a failing query leaves an existing pinned tab untouched', async () => {
+    vi.mocked(GoApp.ExecuteQuery).mockResolvedValueOnce({
+      columns: ['id'],
+      rows: [[1]],
+      rowCount: 1,
+      durationMs: 5,
+      truncated: false,
+      rowsAffected: 0,
+      command: '',
+    });
+    vi.mocked(GoApp.RecordHistory).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useQueryExecution('ds-1'));
+    await act(async () => {
+      await result.current.handleRunQuery('SELECT id FROM t');
+    });
+    act(() => result.current.handlePinResult());
+    const pinnedBefore = result.current.resultTabs.find((t) => t.pinned);
+
+    // Now a failing run: only the live tab should take the error; pinned stays.
+    vi.mocked(GoApp.ExecuteQuery).mockRejectedValueOnce(new Error('boom'));
+    await act(async () => {
+      await result.current.handleRunQuery('BAD');
+    });
+
+    const pinnedAfter = result.current.resultTabs.find((t) => t.pinned);
+    expect(pinnedAfter).toEqual(pinnedBefore);
+    expect(result.current.resultTabs.find((t) => !t.pinned)?.error).toBe('boom');
+  });
+
+  it('pinning a second time preserves the first pinned tab', async () => {
+    vi.mocked(GoApp.ExecuteQuery).mockResolvedValue({
+      columns: ['id'],
+      rows: [[1]],
+      rowCount: 1,
+      durationMs: 5,
+      truncated: false,
+      rowsAffected: 0,
+      command: '',
+    });
+    vi.mocked(GoApp.RecordHistory).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useQueryExecution('ds-1'));
+    await act(async () => {
+      await result.current.handleRunQuery('SELECT 1');
+    });
+    act(() => result.current.handlePinResult());
+    await act(async () => {
+      await result.current.handleRunQuery('SELECT 2');
+    });
+    act(() => result.current.handlePinResult());
+
+    expect(result.current.resultTabs.filter((t) => t.pinned)).toHaveLength(2);
+    expect(result.current.resultTabs.filter((t) => !t.pinned)).toHaveLength(1);
+  });
+
+  it('closing a non-active tab keeps the active selection', async () => {
+    vi.mocked(GoApp.ExecuteQuery).mockResolvedValue({
+      columns: ['id'],
+      rows: [[1]],
+      rowCount: 1,
+      durationMs: 5,
+      truncated: false,
+      rowsAffected: 0,
+      command: '',
+    });
+    vi.mocked(GoApp.RecordHistory).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useQueryExecution('ds-1'));
+    await act(async () => {
+      await result.current.handleRunQuery('SELECT 1');
+    });
+    act(() => result.current.handlePinResult());
+    const pinnedId = result.current.resultTabs.find((t) => t.pinned)!.id;
+
+    // select the live tab, then close the (non-active) pinned tab
+    act(() => result.current.setActiveResultTabId('live'));
+    act(() => result.current.handleCloseResultTab(pinnedId));
+
+    expect(result.current.resultTabs.find((t) => t.id === pinnedId)).toBeUndefined();
+    expect(result.current.activeResultTabId).toBe('live');
+  });
+
   it('RecordHistory failure is silently swallowed', async () => {
     vi.mocked(GoApp.ExecuteQuery).mockResolvedValueOnce({
       columns: [],
