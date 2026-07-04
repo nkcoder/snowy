@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import * as GoApp from '../../wailsjs/go/main/App';
 import type { main } from '../../wailsjs/go/models';
-import type { CompletionEntry } from '../components/QueryEditor';
+import type { CompletionEntry } from '../lib/sqlCompletion';
 
 // useDatasourceSession owns the connection + metadata lifecycle for the active
 // datasource: which datasource is live, its saved queries, editor completions,
