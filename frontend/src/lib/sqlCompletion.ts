@@ -242,7 +242,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
 // Walks `text` and invokes `cb` for each character that is NOT inside a
 // string literal ('…' or "…"), a -- line comment, or a /* … */ block comment.
 // Returning false from `cb` stops the scan early.
-function scanSql(text: string, cb?: (i: number, ch: string) => unknown): boolean {
+function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefined): boolean {
   let inSingle = false;
   let inDouble = false;
   let inLineComment = false;
@@ -334,6 +334,7 @@ export function innerSubqueryContext(
   scanSql(beforeWord, (i, ch) => {
     if (ch === '(') stack.push(i);
     else if (ch === ')') stack.pop();
+    return undefined; // never stops early; explicit undefined keeps the return type precise
   });
   if (stack.length === 0) return null;
   const lastOpenPos = stack[stack.length - 1];
