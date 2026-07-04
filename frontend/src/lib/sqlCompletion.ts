@@ -242,7 +242,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
 // Walks `text` and invokes `cb` for each character that is NOT inside a
 // string literal ('…' or "…"), a -- line comment, or a /* … */ block comment.
 // Returning false from `cb` stops the scan early.
-function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefined): boolean {
+function scanSql(text: string, cb?: (i: number, ch: string) => unknown): boolean {
   let inSingle = false;
   let inDouble = false;
   let inLineComment = false;
