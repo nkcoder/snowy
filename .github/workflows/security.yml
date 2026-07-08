@@ -37,8 +37,10 @@ jobs:
       - name: Run govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-  # CodeQL static analysis for Go and JS/TS. build-mode: none analyses source
-  # directly, sidestepping the go:embed build requirement.
+  # CodeQL static analysis for Go and JS/TS. JS/TS is analysed straight from
+  # source (build-mode: none). Go doesn't support build-mode: none, so it uses a
+  # manual build — the frontend is built first to satisfy main.go's go:embed,
+  # then `go build ./...` is traced by the extractor.
   codeql:
     name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
@@ -49,15 +51,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [go, javascript-typescript]
+        include:
+          - language: go
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - uses: actions/checkout@v6
+
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - if: matrix.language == 'go'
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Manual build for Go (frontend embed + go build)
+        if: matrix.language == 'go'
+        run: |
+          (cd frontend && npm ci && npm run build)
+          go build ./...
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
