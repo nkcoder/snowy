@@ -7,6 +7,35 @@ import (
 	"testing"
 )
 
+func TestAbbreviateType(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"character varying(20)", "varchar(20)"},
+		{"character varying", "varchar"},
+		{"character(5)", "char(5)"},
+		{"character", "char"},
+		// Types that must be left untouched.
+		{"timestamp with time zone", "timestamp with time zone"},
+		{"integer", "integer"},
+		{"bigint", "bigint"},
+		{"numeric(15,2)", "numeric(15,2)"},
+		{"boolean", "boolean"},
+		{"jsonb", "jsonb"},
+		{"uuid", "uuid"},
+		// User types/domains that merely start with the prefix must be left alone
+		// (no word boundary → not abbreviated).
+		{"characteristic", "characteristic"},
+		{"character_set", "character_set"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := abbreviateType(c.in); got != c.want {
+			t.Errorf("abbreviateType(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestLoadCachedMetadata_NoFile_ReturnsEmpty(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	s := &DbService{}

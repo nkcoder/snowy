@@ -18,6 +18,7 @@ export namespace main {
 	    name: string;
 	    dataType: string;
 	    isNullable: string;
+	    default: string;
 	    keyType: string;
 	
 	    static createFrom(source: any = {}) {
@@ -29,6 +30,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.dataType = source["dataType"];
 	        this.isNullable = source["isNullable"];
+	        this.default = source["default"];
 	        this.keyType = source["keyType"];
 	    }
 	}

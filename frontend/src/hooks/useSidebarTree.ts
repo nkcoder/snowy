@@ -229,6 +229,7 @@ export function useSidebarTree({
                                 name: c.name,
                                 dataType: c.dataType,
                                 isNullable: c.isNullable,
+                                default: c.default ?? '',
                                 keyType: c.keyType ?? '',
                               })),
                             },
