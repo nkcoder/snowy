@@ -23,7 +23,10 @@ func TestAbbreviateType(t *testing.T) {
 		{"boolean", "boolean"},
 		{"jsonb", "jsonb"},
 		{"uuid", "uuid"},
-		// "char varying" must not be mangled by the character->char rule.
+		// User types/domains that merely start with the prefix must be left alone
+		// (no word boundary → not abbreviated).
+		{"characteristic", "characteristic"},
+		{"character_set", "character_set"},
 		{"", ""},
 	}
 	for _, c := range cases {

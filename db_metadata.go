@@ -14,14 +14,24 @@ import (
 // shorthand DataGrip shows, preserving any modifier suffix (e.g. "(20)"). Only the
 // "character"/"character varying" families are abbreviated; everything else
 // (including "timestamp with time zone") is returned unchanged.
+//
+// The match requires a boundary after the prefix — end-of-string or a "(n)"
+// modifier — so a user-defined type or domain whose name merely starts with
+// "character" (e.g. "characteristic") is left untouched rather than mangled.
 func abbreviateType(t string) string {
-	if rest, ok := strings.CutPrefix(t, "character varying"); ok {
+	if rest, ok := strings.CutPrefix(t, "character varying"); ok && typeBoundary(rest) {
 		return "varchar" + rest
 	}
-	if rest, ok := strings.CutPrefix(t, "character"); ok {
+	if rest, ok := strings.CutPrefix(t, "character"); ok && typeBoundary(rest) {
 		return "char" + rest
 	}
 	return t
+}
+
+// typeBoundary reports whether the remainder after a stripped type-name prefix is
+// a clean boundary: either the end of the name or the start of a "(n)" modifier.
+func typeBoundary(rest string) bool {
+	return rest == "" || strings.HasPrefix(rest, "(")
 }
 
 // columnClassificationSQL classifies each column as 'pk'/'fk'/” via a CTE +
