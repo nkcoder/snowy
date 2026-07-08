@@ -1,0 +1,51 @@
+# Dependabot version updates. Weekly PRs per ecosystem; minor/patch bumps are
+# grouped into a single PR to keep noise down, majors come as individual PRs.
+version: 2
+updates:
+  # Frontend app dependencies (React/Vite/etc.)
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      frontend-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Root tooling dependencies (Playwright e2e, lefthook)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      root-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Go backend modules
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      gomod-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions used by the workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
