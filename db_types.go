@@ -16,6 +16,7 @@ type ColumnItem struct {
 	Name       string `json:"name"`
 	DataType   string `json:"dataType"`
 	IsNullable string `json:"isNullable"`
+	Default    string `json:"default"` // column default expression, "" if none
 	KeyType    string `json:"keyType"` // "pk" | "fk" | ""
 }
 

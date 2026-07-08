@@ -58,11 +58,60 @@ func TestListColumns_Integration(t *testing.T) {
 	if len(cols) == 0 {
 		t.Error("expected at least one column in users table")
 	}
-	// user_id should be a PK column
+	byName := map[string]ColumnItem{}
 	for _, c := range cols {
-		if c.Name == "user_id" && c.KeyType != "pk" {
-			t.Errorf("user_id should have keyType=pk, got %q", c.KeyType)
-		}
+		byName[c.Name] = c
+	}
+
+	// user_id: SERIAL PK -> integer type with a nextval default (no literal "serial").
+	if c := byName["user_id"]; c.KeyType != "pk" {
+		t.Errorf("user_id should have keyType=pk, got %q", c.KeyType)
+	}
+	if c := byName["user_id"]; c.DataType != "integer" {
+		t.Errorf("user_id dataType = %q, want integer", c.DataType)
+	}
+	if c := byName["user_id"]; !strings.Contains(c.Default, "nextval(") {
+		t.Errorf("user_id default = %q, want a nextval(...) expression", c.Default)
+	}
+
+	// first_name: VARCHAR(50) -> abbreviated with modifier preserved, no default.
+	if c := byName["first_name"]; c.DataType != "varchar(50)" {
+		t.Errorf("first_name dataType = %q, want varchar(50)", c.DataType)
+	}
+	if c := byName["first_name"]; c.Default != "" {
+		t.Errorf("first_name default = %q, want empty", c.Default)
+	}
+
+	// created_at: TIMESTAMPTZ -> kept verbose, with a default expression.
+	if c := byName["created_at"]; c.DataType != "timestamp with time zone" {
+		t.Errorf("created_at dataType = %q, want timestamp with time zone", c.DataType)
+	}
+	if c := byName["created_at"]; c.Default == "" {
+		t.Errorf("created_at should have a default expression")
+	}
+}
+
+func TestListColumns_NumericAndChar_Integration(t *testing.T) {
+	app, dsID := newTestApp(t)
+
+	cols, err := app.ListColumns(dsID, "public", "accounts")
+	if err != nil {
+		t.Fatalf("ListColumns: %v", err)
+	}
+	byName := map[string]ColumnItem{}
+	for _, c := range cols {
+		byName[c.Name] = c
+	}
+	// balance: DECIMAL(15,2) -> numeric(15,2) with a 0.00 default.
+	if c := byName["balance"]; c.DataType != "numeric(15,2)" {
+		t.Errorf("balance dataType = %q, want numeric(15,2)", c.DataType)
+	}
+	if c := byName["balance"]; !strings.Contains(c.Default, "0.00") {
+		t.Errorf("balance default = %q, want it to contain 0.00", c.Default)
+	}
+	// currency: VARCHAR(3) with a 'USD' default.
+	if c := byName["currency"]; c.DataType != "varchar(3)" {
+		t.Errorf("currency dataType = %q, want varchar(3)", c.DataType)
 	}
 }
 

@@ -4,6 +4,7 @@ export interface ColumnNode {
   name: string;
   dataType: string;
   isNullable: string;
+  default: string;
   keyType: string;
 }
 

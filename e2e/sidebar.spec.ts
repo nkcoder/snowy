@@ -87,6 +87,22 @@ test.describe('Sidebar tree drill-in', () => {
     await expect(page.locator('text=balance').first()).toBeVisible();
   });
 
+  test('columns show exact data type with modifier and the default expression', async ({ page }) => {
+    await connectToWorkspace(page);
+    await expandToTable(page, 'accounts');
+
+    // Type with modifier is shown (numeric(15,2), not bare "numeric").
+    await expect(page.locator('text=numeric(15,2)').first()).toBeVisible({ timeout: 5000 });
+    // Defaults are appended after the type. They render in the DOM but truncate in
+    // the narrow tree (type is kept visible), so assert presence rather than pixels.
+    // account_id is a serial: shown with its nextval default (no literal "serial").
+    await expect(
+      page.locator("text=/= nextval\\('accounts_account_id_seq'/").first()
+    ).toBeAttached();
+    // balance carries its 0.00 default.
+    await expect(page.locator('text=/= 0.00/').first()).toBeAttached();
+  });
+
   test('clicking keys sub-folder reveals primary key', async ({ page }) => {
     await connectToWorkspace(page);
     await expandToTable(page, 'accounts');

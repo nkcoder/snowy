@@ -209,11 +209,11 @@ func (s *DbService) ListColumns(dsID string, schema, table string) ([]ColumnItem
 
 	columns := make([]ColumnItem, 0)
 	for rows.Next() {
-		var colSchema, colTable, name, dataType, isNullable, keyType string
-		if err := rows.Scan(&colSchema, &colTable, &name, &dataType, &isNullable, &keyType); err != nil {
+		var colSchema, colTable, name, dataType, isNullable, colDefault, keyType string
+		if err := rows.Scan(&colSchema, &colTable, &name, &dataType, &isNullable, &colDefault, &keyType); err != nil {
 			return nil, err
 		}
-		columns = append(columns, ColumnItem{Name: name, DataType: dataType, IsNullable: isNullable, KeyType: keyType})
+		columns = append(columns, ColumnItem{Name: name, DataType: abbreviateType(dataType), IsNullable: isNullable, Default: colDefault, KeyType: keyType})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -6,8 +6,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+// abbreviateType shortens the SQL-standard names returned by format_type() to the
+// shorthand DataGrip shows, preserving any modifier suffix (e.g. "(20)"). Only the
+// "character"/"character varying" families are abbreviated; everything else
+// (including "timestamp with time zone") is returned unchanged.
+func abbreviateType(t string) string {
+	if rest, ok := strings.CutPrefix(t, "character varying"); ok {
+		return "varchar" + rest
+	}
+	if rest, ok := strings.CutPrefix(t, "character"); ok {
+		return "char" + rest
+	}
+	return t
+}
 
 // columnClassificationSQL classifies each column as 'pk'/'fk'/” via a CTE +
 // LEFT JOIN (one pass, no correlated per-row subqueries). Shared by ListColumns
@@ -16,6 +31,13 @@ import (
 // $1 = schema, $2 = table. Passing NULL for both selects every user-schema
 // table (whole-DB mode) and excludes the system schemas; passing a concrete
 // schema/table scopes to exactly that table (per-table mode).
+//
+// The type is rendered with format_type(atttypid, atttypmod) so modifiers are
+// included (e.g. "character varying(20)", "numeric(15,2)"); the column default,
+// if any, comes from pg_get_expr. Callers abbreviate the type name (see
+// abbreviateType) after scanning. Columns are read straight from pg_catalog
+// (pg_attribute) rather than information_schema.columns because the latter has
+// no single expression yielding the modifier-qualified type.
 const columnClassificationSQL = `
 	WITH pk_cols AS (
 		SELECT tc.table_schema, tc.table_name, kcu.column_name
@@ -31,19 +53,29 @@ const columnClassificationSQL = `
 			ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
 		WHERE tc.constraint_type = 'FOREIGN KEY'
 	)
-	SELECT c.table_schema, c.table_name, c.column_name, c.data_type, c.is_nullable,
+	SELECT n.nspname AS table_schema,
+		c.relname AS table_name,
+		a.attname AS column_name,
+		format_type(a.atttypid, a.atttypmod) AS data_type,
+		CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END AS is_nullable,
+		COALESCE(pg_get_expr(ad.adbin, ad.adrelid), '') AS column_default,
 		CASE WHEN pk.column_name IS NOT NULL THEN 'pk'
 			 WHEN fk.column_name IS NOT NULL THEN 'fk'
 			 ELSE '' END AS key_type
-	FROM information_schema.columns c
+	FROM pg_catalog.pg_attribute a
+	JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+	LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
 	LEFT JOIN pk_cols pk
-		ON pk.table_schema = c.table_schema AND pk.table_name = c.table_name AND pk.column_name = c.column_name
+		ON pk.table_schema = n.nspname AND pk.table_name = c.relname AND pk.column_name = a.attname
 	LEFT JOIN fk_cols fk
-		ON fk.table_schema = c.table_schema AND fk.table_name = c.table_name AND fk.column_name = c.column_name
-	WHERE ($1::text IS NULL OR c.table_schema = $1)
-	  AND ($2::text IS NULL OR c.table_name = $2)
-	  AND ($1::text IS NOT NULL OR c.table_schema NOT IN ('information_schema', 'pg_catalog', 'pg_toast'))
-	ORDER BY c.table_schema, c.table_name, c.ordinal_position`
+		ON fk.table_schema = n.nspname AND fk.table_name = c.relname AND fk.column_name = a.attname
+	WHERE a.attnum > 0 AND NOT a.attisdropped
+	  AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+	  AND ($1::text IS NULL OR n.nspname = $1)
+	  AND ($2::text IS NULL OR c.relname = $2)
+	  AND ($1::text IS NOT NULL OR n.nspname NOT IN ('information_schema', 'pg_catalog', 'pg_toast'))
+	ORDER BY n.nspname, c.relname, a.attnum`
 
 // metadataCachePath returns ~/.snowy/cache/<dsID>.json, creating the dir if needed.
 func metadataCachePath(dsID string) (string, error) {
@@ -180,13 +212,13 @@ func (s *DbService) FetchDatabaseMetadata(dsID string) (DatabaseMetadata, error)
 		return DatabaseMetadata{}, fmt.Errorf("columns: %w", err)
 	}
 	for rows.Next() {
-		var schema, table, name, dataType, isNullable, keyType string
-		if err := rows.Scan(&schema, &table, &name, &dataType, &isNullable, &keyType); err != nil {
+		var schema, table, name, dataType, isNullable, colDefault, keyType string
+		if err := rows.Scan(&schema, &table, &name, &dataType, &isNullable, &colDefault, &keyType); err != nil {
 			rows.Close()
 			return DatabaseMetadata{}, err
 		}
 		if tm := tableMap[tableKey{schema, table}]; tm != nil {
-			tm.Columns = append(tm.Columns, ColumnItem{Name: name, DataType: dataType, IsNullable: isNullable, KeyType: keyType})
+			tm.Columns = append(tm.Columns, ColumnItem{Name: name, DataType: abbreviateType(dataType), IsNullable: isNullable, Default: colDefault, KeyType: keyType})
 		}
 	}
 	if err := rows.Err(); err != nil {

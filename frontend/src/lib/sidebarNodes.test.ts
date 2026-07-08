@@ -33,7 +33,9 @@ describe('hydrateSchemaNodes', () => {
           {
             name: 'users',
             type: 'BASE TABLE',
-            columns: [{ name: 'id', dataType: 'int4', isNullable: 'NO', keyType: 'pk' }],
+            columns: [
+              { name: 'id', dataType: 'int4', isNullable: 'NO', default: '', keyType: 'pk' },
+            ],
             keys: [{ name: 'users_pkey', columns: 'id' }],
             foreignKeys: [],
             indexes: [],

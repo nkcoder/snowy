@@ -78,6 +78,19 @@ export function SidebarTableNode({
                     >
                       {col.dataType}
                     </span>
+                    {col.default && (
+                      <span
+                        style={{
+                          fontFamily: T.mono,
+                          fontSize: 11,
+                          color: T.textDim,
+                          marginLeft: 6,
+                          opacity: 0.7,
+                        }}
+                      >
+                        = {col.default}
+                      </span>
+                    )}
                   </span>
                 }
                 dim={!col.keyType}

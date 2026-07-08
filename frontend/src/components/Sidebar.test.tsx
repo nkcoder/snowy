@@ -330,6 +330,29 @@ describe('Sidebar — column load', () => {
     expect(screen.getByText('email')).toBeInTheDocument();
   });
 
+  it('renders the exact data type and appends the column default', async () => {
+    vi.mocked(GoApp.ListColumns).mockResolvedValue([
+      {
+        name: 'account_id',
+        dataType: 'integer',
+        isNullable: 'NO',
+        default: "nextval('accounts_account_id_seq'::regclass)",
+        keyType: 'pk',
+      } as never,
+      { name: 'currency', dataType: 'varchar(3)', isNullable: 'YES', default: '' } as never,
+    ]);
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => screen.getByTestId('table-row-public-users'));
+    await userEvent.click(screen.getByTestId('table-row-public-users'));
+    // Exact type with modifier is shown.
+    await waitFor(() => expect(screen.getByText('varchar(3)')).toBeInTheDocument());
+    expect(screen.getByText('integer')).toBeInTheDocument();
+    // Default is appended for account_id, omitted for currency (empty default).
+    expect(screen.getByText("= nextval('accounts_account_id_seq'::regclass)")).toBeInTheDocument();
+  });
+
   it('shows keys sub-folder after table expand', async () => {
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));

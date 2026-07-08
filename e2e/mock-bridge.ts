@@ -51,23 +51,23 @@ export const mockConfig = {
 // ListColumns), so the two never drift apart.
 
 const USERS_COLS = [
-  { name: 'user_id',    dataType: 'integer',                  isNullable: 'NO',  keyType: 'pk' },
-  { name: 'first_name', dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
-  { name: 'last_name',  dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
-  { name: 'email',      dataType: 'character varying',        isNullable: 'NO',  keyType: '' },
-  { name: 'created_at', dataType: 'timestamp with time zone', isNullable: 'NO',  keyType: '' },
+  { name: 'user_id',    dataType: 'integer',                  isNullable: 'NO',  default: "nextval('users_user_id_seq'::regclass)", keyType: 'pk' },
+  { name: 'first_name', dataType: 'varchar(50)',              isNullable: 'NO',  default: '', keyType: '' },
+  { name: 'last_name',  dataType: 'varchar(50)',              isNullable: 'NO',  default: '', keyType: '' },
+  { name: 'email',      dataType: 'varchar(100)',             isNullable: 'NO',  default: '', keyType: '' },
+  { name: 'created_at', dataType: 'timestamp with time zone', isNullable: 'NO',  default: 'CURRENT_TIMESTAMP', keyType: '' },
 ];
 
 const ACCOUNTS_COLS = [
-  { name: 'account_id', dataType: 'integer', isNullable: 'NO',  keyType: 'pk' },
-  { name: 'user_id',    dataType: 'integer', isNullable: 'NO',  keyType: 'fk' },
-  { name: 'balance',    dataType: 'numeric', isNullable: 'YES', keyType: '' },
+  { name: 'account_id', dataType: 'integer',       isNullable: 'NO',  default: "nextval('accounts_account_id_seq'::regclass)", keyType: 'pk' },
+  { name: 'user_id',    dataType: 'integer',       isNullable: 'NO',  default: '', keyType: 'fk' },
+  { name: 'balance',    dataType: 'numeric(15,2)', isNullable: 'YES', default: '0.00', keyType: '' },
 ];
 
 const TRANSACTIONS_COLS = [
-  { name: 'transaction_id', dataType: 'integer',                  isNullable: 'NO', keyType: 'pk' },
-  { name: 'amount',         dataType: 'numeric',                  isNullable: 'NO', keyType: '' },
-  { name: 'created_at',     dataType: 'timestamp with time zone', isNullable: 'NO', keyType: '' },
+  { name: 'transaction_id', dataType: 'integer',                  isNullable: 'NO', default: "nextval('transactions_transaction_id_seq'::regclass)", keyType: 'pk' },
+  { name: 'amount',         dataType: 'numeric(15,2)',            isNullable: 'NO', default: '', keyType: '' },
+  { name: 'created_at',     dataType: 'timestamp with time zone', isNullable: 'NO', default: 'CURRENT_TIMESTAMP', keyType: '' },
 ];
 
 // Full schema metadata — serialised into the injected script so RefreshMetadata
