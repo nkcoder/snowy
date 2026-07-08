@@ -251,6 +251,52 @@ describe('Sidebar — schema expand / table load', () => {
   });
 });
 
+describe('Sidebar — tree folding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([
+      { name: 'users', type: 'TABLE' } as never,
+      { name: 'v_active', type: 'VIEW' } as never,
+    ]);
+  });
+
+  it('collapses the database node, hiding schemas', async () => {
+    renderSidebar();
+    await waitFor(() => expect(screen.getByTestId('schema-row-public')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('db-row-ds1'));
+    await waitFor(() => expect(screen.queryByTestId('schema-row-public')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('db-row-ds1'));
+    await waitFor(() => expect(screen.getByTestId('schema-row-public')).toBeInTheDocument());
+  });
+
+  it('collapses the tables folder, hiding table rows', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => expect(screen.getByTestId('table-row-public-users')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('folder-tables-public'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('table-row-public-users')).not.toBeInTheDocument()
+    );
+    await userEvent.click(screen.getByTestId('folder-tables-public'));
+    await waitFor(() => expect(screen.getByTestId('table-row-public-users')).toBeInTheDocument());
+  });
+
+  it('collapses the views folder, hiding view rows', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() =>
+      expect(screen.getByTestId('table-row-public-v_active')).toBeInTheDocument()
+    );
+    await userEvent.click(screen.getByTestId('folder-views-public'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('table-row-public-v_active')).not.toBeInTheDocument()
+    );
+  });
+});
+
 describe('Sidebar — column load', () => {
   beforeEach(() => {
     vi.clearAllMocks();
