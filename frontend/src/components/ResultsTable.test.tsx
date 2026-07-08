@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { T } from '../lib/tokens';
 import { ResultsTable } from './ResultsTable';
 
 describe('ResultsTable', () => {
@@ -180,6 +181,20 @@ describe('ResultsTable', () => {
     expect(events).toContain('mousemove');
     expect(events).toContain('mouseup');
     addSpy.mockRestore();
+  });
+
+  it('shows the accent separator line only while hovering the resize handle', () => {
+    render(<ResultsTable data={{ columns: ['id', 'name'], rows: [[1, 'Alice']] }} />);
+    const handle = document.querySelectorAll('.cursor-col-resize')[0] as HTMLElement;
+    const line = handle.firstElementChild as HTMLElement;
+    // Idle: transparent line
+    expect(line.style.background).toBe('transparent');
+    // Hover: accent line
+    fireEvent.mouseEnter(handle);
+    expect(line.style.background).toBe(T.accent);
+    // Leave: transparent again
+    fireEvent.mouseLeave(handle);
+    expect(line.style.background).toBe('transparent');
   });
 
   it('renders row numbers in first column', () => {

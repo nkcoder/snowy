@@ -284,7 +284,11 @@ export function ResultsTable({
                   className="text-left text-[13px] font-semibold"
                 >
                   {/*
-                    Flex row: [content flex-1 overflow-hidden] [resize handle 5px shrink-0]
+                    Flex row: [content flex-1 overflow-hidden] [resize handle 10px shrink-0].
+                    The handle straddles the column boundary (marginRight -5px pulls it so its
+                    centre lands on the <th> right border = the visible column separator) and
+                    draws the accent as a full-height line centred on that separator, so the
+                    grab zone and highlight align with the line being dragged.
                     Avoids position:absolute inside <th> — unreliable in border-collapse tables.
                   */}
                   <div className="flex items-stretch">
@@ -305,12 +309,19 @@ export function ResultsTable({
                       onMouseDown={(e) => startColDrag(i, e)}
                       onMouseEnter={() => setHoveredResizeCol(i)}
                       onMouseLeave={() => setHoveredResizeCol(null)}
-                      className="w-[10px] shrink-0 cursor-col-resize"
-                      style={{
-                        borderLeft: `${hoveredResizeCol === i || draggingCol === i ? 4 : 1}px solid ${hoveredResizeCol === i || draggingCol === i ? T.accent : 'transparent'}`,
-                        transition: draggingCol !== null ? 'none' : 'border 0.1s ease',
-                      }}
-                    />
+                      className="w-[10px] shrink-0 cursor-col-resize flex justify-center relative"
+                      style={{ marginRight: -5, zIndex: 1 }}
+                    >
+                      <div
+                        style={{
+                          width: hoveredResizeCol === i || draggingCol === i ? 3 : 1,
+                          background:
+                            hoveredResizeCol === i || draggingCol === i ? T.accent : 'transparent',
+                          transition:
+                            draggingCol !== null ? 'none' : 'background 0.1s ease, width 0.1s ease',
+                        }}
+                      />
+                    </div>
                   </div>
                 </th>
               ))}

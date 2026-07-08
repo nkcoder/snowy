@@ -22,6 +22,27 @@ test.describe('Column resize handles', () => {
     expect(count).toBeGreaterThan(0);
   });
 
+  test('resize handle is centred on the column separator', async ({ page }) => {
+    const info = await page.evaluate(() => {
+      const th = Array.from(document.querySelectorAll('table thead th'))[1] as HTMLTableCellElement;
+      if (!th) return null;
+      const thRight = th.getBoundingClientRect().right;
+      let handleCenterX: number | null = null;
+      for (const div of th.querySelectorAll('div')) {
+        if (getComputedStyle(div).cursor === 'col-resize') {
+          const r = div.getBoundingClientRect();
+          handleCenterX = r.x + r.width / 2;
+          break;
+        }
+      }
+      return { thRight, handleCenterX };
+    });
+    expect(info?.handleCenterX).not.toBeNull();
+    // The grab zone's centre should line up with the th's right border (the
+    // visible column separator), within a couple of px.
+    expect(Math.abs(info!.handleCenterX! - info!.thRight)).toBeLessThanOrEqual(3);
+  });
+
   test('drag changes th inline width', async ({ page }) => {
     // Get position and initial width of first data column th
     const info = await page.evaluate(() => {
