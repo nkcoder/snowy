@@ -281,7 +281,7 @@ export function ResultsTable({
                     width: colWidths[i] ?? DEFAULT_COL_WIDTH,
                     padding: 0,
                   }}
-                  className="text-left text-xs font-semibold"
+                  className="text-left text-[13px] font-semibold"
                 >
                   {/*
                     Flex row: [content flex-1 overflow-hidden] [resize handle 5px shrink-0]
@@ -316,7 +316,7 @@ export function ResultsTable({
               ))}
             </tr>
           </thead>
-          <tbody style={{ fontFamily: T.mono }} className="text-xs">
+          <tbody style={{ fontFamily: T.mono }} className="text-[13px]">
             {data.rows.length === 0 ? (
               <tr>
                 <td
