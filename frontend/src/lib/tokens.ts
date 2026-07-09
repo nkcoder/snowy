@@ -34,6 +34,19 @@ export const T = {
   ui: 'var(--t-font-ui)',
 } as const;
 
+// SQL syntax-highlight tokens for the query editor. Kept separate from the UI
+// tokens above because the editor is always dark (no light variants needed).
+export const SYNTAX = {
+  keyword: 'var(--t-syntax-keyword)',
+  identifier: 'var(--t-syntax-identifier)',
+  function: 'var(--t-syntax-function)',
+  type: 'var(--t-syntax-type)',
+  string: 'var(--t-syntax-string)',
+  constant: 'var(--t-syntax-constant)',
+  operator: 'var(--t-syntax-operator)',
+  comment: 'var(--t-syntax-comment)',
+} as const;
+
 export const PROJECT_COLORS = [
   'var(--t-accent)', // blue
   'var(--t-mag)', // magenta

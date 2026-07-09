@@ -48,6 +48,16 @@
   /* Typography */
   --t-font-ui: "Monaco", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --t-font-mono: "Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+
+  /* SQL syntax highlighting (DataGrip-inspired; editor is always dark) */
+  --t-syntax-keyword: #c586c0; /* purple — SELECT, FROM, WHERE … */
+  --t-syntax-identifier: #bcbec4; /* light grey — table / column / alias names */
+  --t-syntax-function: #56a8f5; /* blue — function calls (italic) */
+  --t-syntax-type: #4ec9b0; /* teal — INT, VARCHAR … */
+  --t-syntax-string: #6aab73; /* green — string literals */
+  --t-syntax-constant: #5394ec; /* blue — numbers, booleans, NULL */
+  --t-syntax-operator: #a9a59d; /* dim grey — operators & punctuation */
+  --t-syntax-comment: #6a9955; /* muted green (italic) */
 }
 
 /* ── SnowyLight overrides ────────────────────────────────────────────────── */
