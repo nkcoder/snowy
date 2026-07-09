@@ -37,6 +37,23 @@ jobs:
       - name: Run govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
+  # npm dependency advisory scan — fails on high/critical advisories anywhere in
+  # the frontend dependency tree (prod + dev). The JS-side counterpart to
+  # govulncheck; unlike govulncheck it is not reachability-based, so it flags any
+  # advisory in the lockfile.
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        working-directory: frontend
+
   # CodeQL static analysis for Go and JS/TS. JS/TS is analysed straight from
   # source (build-mode: none). Go doesn't support build-mode: none, so it uses a
   # manual build — the frontend is built first to satisfy main.go's go:embed,
