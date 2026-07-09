@@ -9,6 +9,12 @@ on:
     # Weekly re-scan so newly-disclosed advisories surface even without a push.
     - cron: '0 6 * * 1'
 
+# Cancel superseded in-progress runs on a PR when new commits are pushed;
+# main-branch and scheduled scans always finish (never cancel a landed commit).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
