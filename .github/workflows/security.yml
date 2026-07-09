@@ -1,0 +1,87 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly re-scan so newly-disclosed advisories surface even without a push.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  # Go vulnerability scan — fails the build on known advisories affecting code
+  # paths actually reachable from this module.
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      # main.go embeds frontend/dist via go:embed, so the module won't compile
+      # (and govulncheck can't load packages) until the frontend is built.
+      - name: Build frontend (required for go:embed)
+        run: npm ci && npm run build
+        working-directory: frontend
+
+      - name: Run govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  # CodeQL static analysis for Go and JS/TS. JS/TS is analysed straight from
+  # source (build-mode: none). Go doesn't support build-mode: none, so it uses a
+  # manual build — the frontend is built first to satisfy main.go's go:embed,
+  # then `go build ./...` is traced by the extractor.
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v6
+
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - if: matrix.language == 'go'
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Manual build for Go (frontend embed + go build)
+        if: matrix.language == 'go'
+        run: |
+          (cd frontend && npm ci && npm run build)
+          go build ./...
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
