@@ -30,7 +30,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
-    "@babel/plugin-transform-react-jsx-development": "^7.27.1",
+    "@babel/plugin-transform-react-jsx-development": "^8.0.1",
     "@biomejs/biome": "^2.5.3",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/dom": "^10.4.1",
