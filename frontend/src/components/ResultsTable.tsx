@@ -429,7 +429,12 @@ export function ResultsTable({
                     <td
                       onClick={(e) => selectWholeRow(originalIndex, e.currentTarget.parentElement)}
                       style={{
-                        background: T.gridHeader,
+                        // A row selection fills the gutter too, so the whole row reads
+                        // as selected edge-to-edge.
+                        background:
+                          selection?.row === originalIndex && selection?.scope === 'row'
+                            ? T.selected
+                            : T.gridHeader,
                         borderRight: `1px solid ${T.border}`,
                         color: T.textDim,
                         cursor: 'pointer',
@@ -440,8 +445,11 @@ export function ResultsTable({
                     </td>
                     {row.map((cell, cellIndex) => {
                       const rowSelected = selection?.row === originalIndex;
+                      // Row selection fills the whole row; cell selection fills and
+                      // outlines only the active cell.
+                      const rowScope = rowSelected && selection?.scope === 'row';
                       const activeCell =
-                        rowSelected && selection?.col === cellIndex && selection?.scope !== 'row';
+                        rowSelected && selection?.scope === 'cell' && selection?.col === cellIndex;
                       return (
                         <td
                           key={cellIndex}
@@ -454,7 +462,7 @@ export function ResultsTable({
                           style={{
                             borderRight: `1px solid ${T.divider}`,
                             color: T.text,
-                            background: rowSelected ? T.selected : undefined,
+                            background: rowScope || activeCell ? T.selected : undefined,
                             boxShadow: activeCell
                               ? `inset 0 0 0 2px ${T.selectedBorder}`
                               : undefined,

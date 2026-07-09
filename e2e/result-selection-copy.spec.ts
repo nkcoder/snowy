@@ -41,7 +41,7 @@ test.describe('Result selection copy', () => {
     expect(clip).toContain('"user_id":1');
   });
 
-  test('clicking a cell highlights the row', async ({ page }) => {
+  test('clicking a cell outlines that cell', async ({ page }) => {
     const cell = page.locator('td', { hasText: 'Alice' }).first();
     await cell.click();
     // Active-cell outline is applied inline via box-shadow.

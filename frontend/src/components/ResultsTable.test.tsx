@@ -55,18 +55,18 @@ describe('ResultsTable selection', () => {
     ],
   };
 
-  it('single-click highlights the row and marks the active cell', () => {
+  it('clicking a cell fills and outlines only that cell, not the row', () => {
     render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
-    fireEvent.click(aliceCell, { detail: 1 });
+    fireEvent.click(aliceCell);
 
-    // active cell: row background + active-cell outline
+    // active cell: filled + outlined
     expect(aliceCell.style.background).toBe(T.selected);
     expect(aliceCell.style.boxShadow).toContain(T.selectedBorder);
 
-    // sibling cell in the same row is highlighted (row background) but not active
+    // sibling cell in the same row is NOT filled (cell selection isn't a row fill)
     const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
-    expect(idCell.style.background).toBe(T.selected);
+    expect(idCell.style.background).toBe('');
     expect(idCell.style.boxShadow).toBe('');
 
     // a different row is not highlighted
@@ -112,9 +112,12 @@ describe('ResultsTable selection', () => {
     const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
     fireEvent.click(gutter);
 
-    // whole row highlighted
+    // whole row filled: every data cell (not just one) plus the gutter itself
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
     expect(aliceCell.style.background).toBe(T.selected);
+    expect(idCell.style.background).toBe(T.selected);
+    expect(gutter.style.background).toBe(T.selected);
     // no single active-cell outline for a row selection
     expect(aliceCell.style.boxShadow).toBe('');
 
