@@ -43,11 +43,10 @@ function emptyResultMessage(data: {
   return 'No rows.';
 }
 
-// Grid selection. `scope` reflects the click depth: single-click marks an active
-// cell, double-click selects the cell value, triple-click selects the whole row.
-// `row` is the original (unfiltered) row index so the highlight is stable under
-// filtering. `col` is the clicked column.
-type Selection = { row: number; col: number; scope: 'active' | 'cell' | 'row' };
+// Grid selection. Clicking a cell selects that cell (`scope: 'cell'`); clicking the
+// # gutter selects the whole row (`scope: 'row'`). `row` is the original (unfiltered)
+// row index so the highlight is stable under filtering. `col` is the clicked column.
+type Selection = { row: number; col: number; scope: 'cell' | 'row' };
 
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
@@ -119,30 +118,24 @@ export function ResultsTable({
     if (tr) selectDom(tr);
   };
 
-  // Single/double/triple-click on a cell. `event.detail` is the click count.
+  // Clicking a cell selects that cell's value (a native selection is set so ⌘C fires
+  // a copy event handleCopy shapes). Click count is irrelevant — a double-click just
+  // re-selects the same cell. Whole-row selection is via the # gutter (selectWholeRow).
   const handleCellClick = (rowIndex: number, colIndex: number, e: React.MouseEvent) => {
-    const td = e.currentTarget as HTMLTableCellElement;
-    if (e.detail >= 3) {
-      selectWholeRow(rowIndex, td.parentElement as HTMLElement | null);
-    } else if (e.detail === 2) {
-      setSelection({ row: rowIndex, col: colIndex, scope: 'cell' });
-      selectDom(td);
-    } else {
-      setSelection({ row: rowIndex, col: colIndex, scope: 'active' });
-    }
+    setSelection({ row: rowIndex, col: colIndex, scope: 'cell' });
+    selectDom(e.currentTarget as HTMLElement);
   };
 
   // Shape the clipboard payload for the current selection: raw cell value for a
-  // cell selection, JSON-by-column for a row selection. An active-only (single
-  // click) selection is left to the browser's default (nothing meaningful).
+  // cell selection, JSON-by-column for a row selection.
   const handleCopy = (e: React.ClipboardEvent) => {
     if (!selection || !data?.rows) return;
     const row = data.rows[selection.row];
     if (!row) return;
-    let text: string | null = null;
-    if (selection.scope === 'cell') text = cellCopyValue(row[selection.col]);
-    else if (selection.scope === 'row') text = rowCopyJson(data.columns, row);
-    if (text === null) return;
+    const text =
+      selection.scope === 'row'
+        ? rowCopyJson(data.columns, row)
+        : cellCopyValue(row[selection.col]);
     e.preventDefault();
     e.clipboardData.setData('text/plain', text);
   };

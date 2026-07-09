@@ -84,29 +84,26 @@ describe('ResultsTable selection', () => {
     return written;
   }
 
-  it('double-click selects a cell; copy writes the raw value', () => {
+  it('clicking a cell selects it; copy writes the raw value', () => {
     const { container } = render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
-    fireEvent.click(aliceCell, { detail: 2 });
+    fireEvent.click(aliceCell);
     expect(copyFrom(container)).toBe('Alice');
   });
 
-  it('double-click on a null cell copies an empty string', () => {
+  it('clicking a null cell copies an empty string', () => {
     const { container } = render(<ResultsTable data={{ columns: ['note'], rows: [[null]] }} />);
     const nullCell = screen.getByText('null').closest('td') as HTMLTableCellElement;
-    fireEvent.click(nullCell, { detail: 2 });
+    fireEvent.click(nullCell);
     expect(copyFrom(container)).toBe('');
   });
 
-  it('triple-click selects the row; copy writes JSON keyed by column, typed', () => {
-    const { container } = render(
-      <ResultsTable data={{ columns: ['id', 'active', 'note'], rows: [[7, true, null]] }} />
-    );
-    const idCell = screen.getByText('7').closest('td') as HTMLTableCellElement;
-    fireEvent.click(idCell, { detail: 3 });
-    const copied = copyFrom(container);
-    expect(copied).not.toBeNull();
-    expect(JSON.parse(copied as string)).toEqual({ id: 7, active: true, note: null });
+  it('double/triple-clicking a cell just re-selects that cell, not the row', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 3 });
+    // still a cell selection: copies the cell value, not row JSON
+    expect(copyFrom(container)).toBe('Alice');
   });
 
   it('clicking the # gutter cell selects the whole row', () => {
@@ -125,17 +122,10 @@ describe('ResultsTable selection', () => {
     expect(JSON.parse(copyFrom(container) as string)).toEqual({ id: 10, name: 'Alice' });
   });
 
-  it('single-click (active only) does not intercept copy', () => {
-    const { container } = render(<ResultsTable data={data} />);
-    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
-    fireEvent.click(aliceCell, { detail: 1 });
-    expect(copyFrom(container)).toBeNull();
-  });
-
   it('clears selection when a new result set loads', () => {
     const { rerender } = render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
-    fireEvent.click(aliceCell, { detail: 1 });
+    fireEvent.click(aliceCell);
     expect(aliceCell.style.background).toBe(T.selected);
 
     rerender(
