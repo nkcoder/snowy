@@ -1,7 +1,142 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { T } from '../lib/tokens';
-import { ResultsTable } from './ResultsTable';
+import { cellCopyValue, ResultsTable, rowCopyJson } from './ResultsTable';
+
+describe('cellCopyValue', () => {
+  it('returns empty string for null', () => {
+    expect(cellCopyValue(null)).toBe('');
+  });
+
+  it('returns empty string for undefined', () => {
+    expect(cellCopyValue(undefined)).toBe('');
+  });
+
+  it('stringifies numbers and booleans', () => {
+    expect(cellCopyValue(42)).toBe('42');
+    expect(cellCopyValue(0)).toBe('0');
+    expect(cellCopyValue(true)).toBe('true');
+    expect(cellCopyValue(false)).toBe('false');
+  });
+
+  it('passes strings through unchanged', () => {
+    expect(cellCopyValue('Alice')).toBe('Alice');
+    expect(cellCopyValue('')).toBe('');
+  });
+});
+
+describe('rowCopyJson', () => {
+  it('builds a JSON object keyed by column name', () => {
+    const json = rowCopyJson(['id', 'name'], [1, 'Alice']);
+    expect(JSON.parse(json)).toEqual({ id: 1, name: 'Alice' });
+  });
+
+  it('preserves real types: numbers, booleans, null', () => {
+    const json = rowCopyJson(['n', 'active', 'note'], [42, false, null]);
+    // Parsing back confirms the raw JSON keeps native types, not strings.
+    expect(JSON.parse(json)).toEqual({ n: 42, active: false, note: null });
+    expect(json).toContain('"n":42');
+    expect(json).toContain('"active":false');
+    expect(json).toContain('"note":null');
+  });
+
+  it('maps a missing (undefined) cell to null', () => {
+    const json = rowCopyJson(['a', 'b'], [1]);
+    expect(JSON.parse(json)).toEqual({ a: 1, b: null });
+  });
+});
+
+describe('ResultsTable selection', () => {
+  const data = {
+    columns: ['id', 'name'],
+    rows: [
+      [10, 'Alice'],
+      [20, 'Bob'],
+    ],
+  };
+
+  it('single-click highlights the row and marks the active cell', () => {
+    render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 1 });
+
+    // active cell: row background + active-cell outline
+    expect(aliceCell.style.background).toBe(T.selected);
+    expect(aliceCell.style.boxShadow).toContain(T.selectedBorder);
+
+    // sibling cell in the same row is highlighted (row background) but not active
+    const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
+    expect(idCell.style.background).toBe(T.selected);
+    expect(idCell.style.boxShadow).toBe('');
+
+    // a different row is not highlighted
+    const bobCell = screen.getByText('Bob').closest('td') as HTMLTableCellElement;
+    expect(bobCell.style.background).toBe('');
+  });
+
+  // Fires a copy event on the grid container and returns what was written to the
+  // clipboard's text/plain slot (null if the handler didn't intercept).
+  function copyFrom(container: HTMLElement): string | null {
+    const grid = container.querySelector('.overflow-auto') as HTMLElement;
+    let written: string | null = null;
+    const clipboardData = { setData: (_type: string, value: string) => (written = value) };
+    fireEvent.copy(grid, { clipboardData });
+    return written;
+  }
+
+  it('double-click selects a cell; copy writes the raw value', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 2 });
+    expect(copyFrom(container)).toBe('Alice');
+  });
+
+  it('double-click on a null cell copies an empty string', () => {
+    const { container } = render(<ResultsTable data={{ columns: ['note'], rows: [[null]] }} />);
+    const nullCell = screen.getByText('null').closest('td') as HTMLTableCellElement;
+    fireEvent.click(nullCell, { detail: 2 });
+    expect(copyFrom(container)).toBe('');
+  });
+
+  it('triple-click selects the row; copy writes JSON keyed by column, typed', () => {
+    const { container } = render(
+      <ResultsTable data={{ columns: ['id', 'active', 'note'], rows: [[7, true, null]] }} />
+    );
+    const idCell = screen.getByText('7').closest('td') as HTMLTableCellElement;
+    fireEvent.click(idCell, { detail: 3 });
+    const copied = copyFrom(container);
+    expect(copied).not.toBeNull();
+    expect(JSON.parse(copied as string)).toEqual({ id: 7, active: true, note: null });
+  });
+
+  it('single-click (active only) does not intercept copy', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 1 });
+    expect(copyFrom(container)).toBeNull();
+  });
+
+  it('clears selection when a new result set loads', () => {
+    const { rerender } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 1 });
+    expect(aliceCell.style.background).toBe(T.selected);
+
+    rerender(
+      <ResultsTable
+        data={{
+          columns: ['id', 'name'],
+          rows: [
+            [10, 'Alice'],
+            [20, 'Bob'],
+          ],
+        }}
+      />
+    );
+    const aliceCellAfter = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    expect(aliceCellAfter.style.background).toBe('');
+  });
+});
 
 describe('ResultsTable', () => {
   it('renders empty state when data is null', () => {

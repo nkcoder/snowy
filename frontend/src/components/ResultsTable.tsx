@@ -6,6 +6,23 @@ import { T } from '../lib/tokens';
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 40;
 
+// Clipboard text for a single cell: the raw value stringified, with null/undefined
+// copied as an empty string (not the displayed "null" placeholder).
+export function cellCopyValue(cell: unknown): string {
+  return cell === null || cell === undefined ? '' : String(cell);
+}
+
+// Clipboard text for a whole row: a JSON object keyed by column name. Uses the raw
+// row values so real types survive — numbers as numbers, booleans as booleans, null
+// as null — instead of the stringified display text. A missing cell maps to null.
+export function rowCopyJson(columns: string[], row: unknown[]): string {
+  const obj: Record<string, unknown> = {};
+  columns.forEach((col, i) => {
+    obj[col] = row[i] ?? null;
+  });
+  return JSON.stringify(obj);
+}
+
 const DML_COMMANDS = new Set(['INSERT', 'UPDATE', 'DELETE']);
 
 // Message shown when a statement returns no result rows. DML reports the affected
@@ -25,6 +42,12 @@ function emptyResultMessage(data: {
   }
   return 'No rows.';
 }
+
+// Grid selection. `scope` reflects the click depth: single-click marks an active
+// cell, double-click selects the cell value, triple-click selects the whole row.
+// `row` is the original (unfiltered) row index so the highlight is stable under
+// filtering. `col` is the clicked column.
+type Selection = { row: number; col: number; scope: 'active' | 'cell' | 'row' };
 
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
@@ -59,6 +82,7 @@ export function ResultsTable({
   const [colWidths, setColWidths] = useState<number[]>([]);
   const [hoveredResizeCol, setHoveredResizeCol] = useState<number | null>(null);
   const [draggingCol, setDraggingCol] = useState<number | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const colWidthsRef = useRef(colWidths);
   colWidthsRef.current = colWidths;
   // Refs to <th> elements for direct DOM updates during drag (no React re-render)
@@ -69,6 +93,54 @@ export function ResultsTable({
       setColWidths(data.columns.map(() => DEFAULT_COL_WIDTH));
     }
   }, [data?.columns]);
+
+  // A new result set clears any prior selection. `data` is an intentional trigger
+  // dependency — the body doesn't read it, it just re-runs when the result changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: data is a change trigger, not a read
+  useEffect(() => {
+    setSelection(null);
+  }, [data]);
+
+  // Put a native text selection over `el` so the browser fires a `copy` event on
+  // ⌘C (which handleCopy then shapes). Guarded for environments without Selection.
+  const selectDom = (el: HTMLElement) => {
+    const sel = window.getSelection?.();
+    if (!sel) return;
+    sel.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.addRange(range);
+  };
+
+  // Single/double/triple-click on a cell. `event.detail` is the click count.
+  const handleCellClick = (rowIndex: number, colIndex: number, e: React.MouseEvent) => {
+    const td = e.currentTarget as HTMLTableCellElement;
+    if (e.detail >= 3) {
+      setSelection({ row: rowIndex, col: colIndex, scope: 'row' });
+      const tr = td.parentElement;
+      if (tr) selectDom(tr as HTMLElement);
+    } else if (e.detail === 2) {
+      setSelection({ row: rowIndex, col: colIndex, scope: 'cell' });
+      selectDom(td);
+    } else {
+      setSelection({ row: rowIndex, col: colIndex, scope: 'active' });
+    }
+  };
+
+  // Shape the clipboard payload for the current selection: raw cell value for a
+  // cell selection, JSON-by-column for a row selection. An active-only (single
+  // click) selection is left to the browser's default (nothing meaningful).
+  const handleCopy = (e: React.ClipboardEvent) => {
+    if (!selection || !data?.rows) return;
+    const row = data.rows[selection.row];
+    if (!row) return;
+    let text: string | null = null;
+    if (selection.scope === 'cell') text = cellCopyValue(row[selection.col]);
+    else if (selection.scope === 'row') text = rowCopyJson(data.columns, row);
+    if (text === null) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', text);
+  };
 
   const startColDrag = (colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -248,7 +320,7 @@ export function ResultsTable({
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }}>
+      <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }} onCopy={handleCopy}>
         <table
           className="border-collapse"
           style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
@@ -366,24 +438,40 @@ export function ResultsTable({
                     >
                       {originalIndex + 1}
                     </td>
-                    {row.map((cell, cellIndex) => (
-                      <td
-                        key={cellIndex}
-                        style={{
-                          borderRight: `1px solid ${T.divider}`,
-                          color: T.text,
-                        }}
-                        className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
-                      >
-                        {cell === null ? (
-                          <span style={{ color: T.textDim }} className="italic">
-                            null
-                          </span>
-                        ) : (
-                          String(cell)
-                        )}
-                      </td>
-                    ))}
+                    {row.map((cell, cellIndex) => {
+                      const rowSelected = selection?.row === originalIndex;
+                      const activeCell =
+                        rowSelected && selection?.col === cellIndex && selection?.scope !== 'row';
+                      return (
+                        <td
+                          key={cellIndex}
+                          onClick={(e) => handleCellClick(originalIndex, cellIndex, e)}
+                          onMouseDown={(e) => {
+                            // Suppress the browser's default word/line selection on
+                            // multi-click; selectDom sets our own range instead.
+                            if (e.detail > 1) e.preventDefault();
+                          }}
+                          style={{
+                            borderRight: `1px solid ${T.divider}`,
+                            color: T.text,
+                            background: rowSelected ? T.selected : undefined,
+                            boxShadow: activeCell
+                              ? `inset 0 0 0 2px ${T.selectedBorder}`
+                              : undefined,
+                            cursor: 'default',
+                          }}
+                          className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                        >
+                          {cell === null ? (
+                            <span style={{ color: T.textDim }} className="italic">
+                              null
+                            </span>
+                          ) : (
+                            String(cell)
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
             )}
