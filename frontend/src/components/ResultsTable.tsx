@@ -327,7 +327,7 @@ export function ResultsTable({
       {/* Grid */}
       <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }} onCopy={handleCopy}>
         <table
-          className="border-collapse"
+          className="border-collapse snowy-grid"
           style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
         >
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
