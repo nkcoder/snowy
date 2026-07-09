@@ -38,6 +38,21 @@ test.describe('Result selection copy', () => {
     expect(clip).toContain('"user_id":1');
   });
 
+  test('clicking the # gutter cell selects the row and copies JSON', async ({ page }) => {
+    // First cell of the first body row is the row-number gutter.
+    const gutter = page.locator('tbody tr').first().locator('td').first();
+    await gutter.click();
+    await page.keyboard.press('ControlOrMeta+c');
+
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(JSON.parse(clip)).toEqual({
+      user_id: 1,
+      first_name: 'Alice',
+      last_name: 'Smith',
+      email: 'alice@example.com',
+    });
+  });
+
   test('single-click highlights the row', async ({ page }) => {
     const cell = page.locator('td', { hasText: 'Alice' }).first();
     await cell.click();

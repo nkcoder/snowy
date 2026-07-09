@@ -112,13 +112,18 @@ export function ResultsTable({
     sel.addRange(range);
   };
 
+  // Select a whole row (triple-click or the # gutter click): highlight it and put a
+  // native selection over the row so ⌘C fires a copy event handleCopy can shape.
+  const selectWholeRow = (rowIndex: number, tr: HTMLElement | null) => {
+    setSelection({ row: rowIndex, col: 0, scope: 'row' });
+    if (tr) selectDom(tr);
+  };
+
   // Single/double/triple-click on a cell. `event.detail` is the click count.
   const handleCellClick = (rowIndex: number, colIndex: number, e: React.MouseEvent) => {
     const td = e.currentTarget as HTMLTableCellElement;
     if (e.detail >= 3) {
-      setSelection({ row: rowIndex, col: colIndex, scope: 'row' });
-      const tr = td.parentElement;
-      if (tr) selectDom(tr as HTMLElement);
+      selectWholeRow(rowIndex, td.parentElement as HTMLElement | null);
     } else if (e.detail === 2) {
       setSelection({ row: rowIndex, col: colIndex, scope: 'cell' });
       selectDom(td);
@@ -429,10 +434,12 @@ export function ResultsTable({
                     className="snowy-grid-row"
                   >
                     <td
+                      onClick={(e) => selectWholeRow(originalIndex, e.currentTarget.parentElement)}
                       style={{
                         background: T.gridHeader,
                         borderRight: `1px solid ${T.border}`,
                         color: T.textDim,
+                        cursor: 'pointer',
                       }}
                       className="px-1 py-0.5 text-[10px] text-center select-none"
                     >

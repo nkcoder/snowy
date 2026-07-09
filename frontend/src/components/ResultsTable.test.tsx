@@ -109,6 +109,22 @@ describe('ResultsTable selection', () => {
     expect(JSON.parse(copied as string)).toEqual({ id: 7, active: true, note: null });
   });
 
+  it('clicking the # gutter cell selects the whole row', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    // Row 1's gutter shows "1"; no data cell in this fixture is "1".
+    const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
+    fireEvent.click(gutter);
+
+    // whole row highlighted
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    expect(aliceCell.style.background).toBe(T.selected);
+    // no single active-cell outline for a row selection
+    expect(aliceCell.style.boxShadow).toBe('');
+
+    // copy yields the row as JSON
+    expect(JSON.parse(copyFrom(container) as string)).toEqual({ id: 10, name: 'Alice' });
+  });
+
   it('single-click (active only) does not intercept copy', () => {
     const { container } = render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
