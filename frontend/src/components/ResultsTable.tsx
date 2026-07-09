@@ -327,6 +327,12 @@ export function ResultsTable({
             <tr>
               <th
                 style={{
+                  // Frozen gutter: stays pinned to the left on horizontal scroll (and to
+                  // the top via the sticky thead), so the row-number column is always
+                  // visible and clickable. zIndex above sibling headers and body cells.
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 11,
                   background: T.gridHeader,
                   border: `1px solid ${T.border}`,
                   color: T.textDim,
@@ -420,68 +426,83 @@ export function ResultsTable({
                       )
                     : true
                 )
-                .map(({ row, originalIndex }) => (
-                  <tr
-                    key={originalIndex}
-                    style={{ borderBottom: `1px solid ${T.divider}` }}
-                    className="snowy-grid-row"
-                  >
-                    <td
-                      onClick={(e) => selectWholeRow(originalIndex, e.currentTarget.parentElement)}
-                      style={{
-                        // A row selection fills the gutter too, so the whole row reads
-                        // as selected edge-to-edge.
-                        background:
-                          selection?.row === originalIndex && selection?.scope === 'row'
-                            ? T.selected
-                            : T.gridHeader,
-                        borderRight: `1px solid ${T.border}`,
-                        color: T.textDim,
-                        cursor: 'pointer',
-                      }}
-                      className="px-1 py-0.5 text-[10px] text-center select-none"
+                .map(({ row, originalIndex }) => {
+                  const rowSelected = selection?.row === originalIndex;
+                  // Row selection fills the whole row; cell selection only faintly tints it.
+                  const rowScope = rowSelected && selection?.scope === 'row';
+                  return (
+                    <tr
+                      key={originalIndex}
+                      style={{ borderBottom: `1px solid ${T.divider}` }}
+                      className="snowy-grid-row"
                     >
-                      {originalIndex + 1}
-                    </td>
-                    {row.map((cell, cellIndex) => {
-                      const rowSelected = selection?.row === originalIndex;
-                      // Row selection fills the whole row; cell selection fills and
-                      // outlines only the active cell.
-                      const rowScope = rowSelected && selection?.scope === 'row';
-                      const activeCell =
-                        rowSelected && selection?.scope === 'cell' && selection?.col === cellIndex;
-                      return (
-                        <td
-                          key={cellIndex}
-                          onClick={(e) => handleCellClick(originalIndex, cellIndex, e)}
-                          onMouseDown={(e) => {
-                            // Suppress the browser's default word/line selection on
-                            // multi-click; selectDom sets our own range instead.
-                            if (e.detail > 1) e.preventDefault();
-                          }}
-                          style={{
-                            borderRight: `1px solid ${T.divider}`,
-                            color: T.text,
-                            background: rowScope || activeCell ? T.selected : undefined,
-                            boxShadow: activeCell
-                              ? `inset 0 0 0 2px ${T.selectedBorder}`
-                              : undefined,
-                            cursor: 'default',
-                          }}
-                          className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
-                        >
-                          {cell === null ? (
-                            <span style={{ color: T.textDim }} className="italic">
-                              null
-                            </span>
-                          ) : (
-                            String(cell)
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
+                      <td
+                        onClick={(e) =>
+                          selectWholeRow(originalIndex, e.currentTarget.parentElement)
+                        }
+                        style={{
+                          // Frozen gutter (matches the sticky header corner). Must stay
+                          // opaque — content scrolls under it — so it uses solid colours only
+                          // (a row selection fills it; otherwise the header colour). The row
+                          // tint for a cell selection is carried by the data cells, not here.
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 1,
+                          background: rowScope ? T.selected : T.gridHeader,
+                          borderRight: `1px solid ${T.border}`,
+                          color: T.textDim,
+                          cursor: 'pointer',
+                        }}
+                        className="px-1 py-0.5 text-[10px] text-center select-none"
+                      >
+                        {originalIndex + 1}
+                      </td>
+                      {row.map((cell, cellIndex) => {
+                        const activeCell =
+                          rowSelected &&
+                          selection?.scope === 'cell' &&
+                          selection?.col === cellIndex;
+                        return (
+                          <td
+                            key={cellIndex}
+                            onClick={(e) => handleCellClick(originalIndex, cellIndex, e)}
+                            onMouseDown={(e) => {
+                              // Suppress the browser's default word/line selection on
+                              // multi-click; selectDom sets our own range instead.
+                              if (e.detail > 1) e.preventDefault();
+                            }}
+                            style={{
+                              borderRight: `1px solid ${T.divider}`,
+                              color: T.text,
+                              // Row selection fills the whole row (strong). Cell selection:
+                              // the active cell is strong + outlined; the rest of its row gets
+                              // a faint tint so you can see which row it belongs to.
+                              background:
+                                rowScope || activeCell
+                                  ? T.selected
+                                  : rowSelected
+                                    ? T.hover
+                                    : undefined,
+                              boxShadow: activeCell
+                                ? `inset 0 0 0 2px ${T.selectedBorder}`
+                                : undefined,
+                              cursor: 'default',
+                            }}
+                            className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                          >
+                            {cell === null ? (
+                              <span style={{ color: T.textDim }} className="italic">
+                                null
+                              </span>
+                            ) : (
+                              String(cell)
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>

@@ -55,21 +55,21 @@ describe('ResultsTable selection', () => {
     ],
   };
 
-  it('clicking a cell fills and outlines only that cell, not the row', () => {
+  it('clicking a cell strongly marks that cell and faintly tints its row', () => {
     render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
     fireEvent.click(aliceCell);
 
-    // active cell: filled + outlined
+    // active cell: strong fill + outline
     expect(aliceCell.style.background).toBe(T.selected);
     expect(aliceCell.style.boxShadow).toContain(T.selectedBorder);
 
-    // sibling cell in the same row is NOT filled (cell selection isn't a row fill)
+    // sibling cell in the same row: faint row tint, not the strong fill, no outline
     const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
-    expect(idCell.style.background).toBe('');
+    expect(idCell.style.background).toBe(T.hover);
     expect(idCell.style.boxShadow).toBe('');
 
-    // a different row is not highlighted
+    // a different row is not highlighted at all
     const bobCell = screen.getByText('Bob').closest('td') as HTMLTableCellElement;
     expect(bobCell.style.background).toBe('');
   });
@@ -123,6 +123,17 @@ describe('ResultsTable selection', () => {
 
     // copy yields the row as JSON
     expect(JSON.parse(copyFrom(container) as string)).toEqual({ id: 10, name: 'Alice' });
+  });
+
+  it('freezes the # gutter column (sticky) for horizontal scroll', () => {
+    render(<ResultsTable data={data} />);
+    const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
+    expect(gutter.style.position).toBe('sticky');
+    expect(gutter.style.left).toBe('0px');
+    // header corner too
+    const corner = screen.getByText('#').closest('th') as HTMLTableCellElement;
+    expect(corner.style.position).toBe('sticky');
+    expect(corner.style.left).toBe('0px');
   });
 
   it('clears selection when a new result set loads', () => {
