@@ -19,15 +19,18 @@ import {
 import { EditorState, Prec } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
+  type DecorationSet,
   EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  ViewPlugin,
+  type ViewUpdate,
 } from '@codemirror/view';
 import { Clock, Play, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { editorTheme, snowySqlHighlight } from '../lib/editorTheme';
+import { buildFunctionDecorations, editorTheme, snowySqlHighlight } from '../lib/editorTheme';
 import {
   applyFuzzyMatch,
   buildCompletionOptions,
@@ -42,6 +45,22 @@ import {
 } from '../lib/sqlCompletion';
 import { T } from '../lib/tokens';
 import { FindBar, findMatchInfo, type MatchInfo } from './FindBar';
+
+// Colours function calls (name touching '(') by decorating the visible ranges.
+const sqlFunctionHighlight = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildFunctionDecorations(view.state, view.visibleRanges);
+    }
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.viewportChanged) {
+        this.decorations = buildFunctionDecorations(u.state, u.view.visibleRanges);
+      }
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
 
 interface QueryEditorProps {
   sql: string;
@@ -157,6 +176,9 @@ export function QueryEditor({
         search({ createPanel: () => ({ dom: document.createElement('div') }) }),
         oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
+        // Highest precedence so the function mark nests *inside* the tag-based
+        // highlight span, letting its colour win for keyword builtins like COUNT.
+        Prec.highest(sqlFunctionHighlight),
         editorTheme,
         Prec.high(keymap.of([{ key: 'Enter', run: insertNewline }])),
         keymap.of([

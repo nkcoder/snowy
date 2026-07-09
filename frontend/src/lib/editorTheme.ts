@@ -1,5 +1,7 @@
-import { HighlightStyle } from '@codemirror/language';
-import { EditorView } from '@codemirror/view';
+import { HighlightStyle, syntaxTree } from '@codemirror/language';
+import type { EditorState } from '@codemirror/state';
+import { RangeSetBuilder } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { SYNTAX } from './tokens';
 
@@ -22,6 +24,41 @@ export const snowySqlHighlight = HighlightStyle.define([
   { tag: t.typeName, color: SYNTAX.type }, // teal — INT, VARCHAR …
 ]);
 
+// ── Function-call highlighting ────────────────────────────────────────────────
+// Lexical rule: a name touching '(' (no space) is a function call — covers both
+// builtins (count, sum …) and user-defined functions (add_days …). Builtins like
+// COUNT tokenize as Keyword, so a decoration is needed to re-colour them.
+const functionMark = Decoration.mark({ class: 'cm-sql-function' });
+
+// Node kinds that denote a callable name when immediately followed by '('.
+const FN_NAME_NODES = new Set(['Identifier', 'QuotedIdentifier', 'Keyword']);
+
+export function buildFunctionDecorations(
+  state: EditorState,
+  ranges: readonly { from: number; to: number }[]
+): DecorationSet {
+  const tree = syntaxTree(state);
+  const marks: Array<{ from: number; to: number }> = [];
+  for (const { from, to } of ranges) {
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.name !== 'Parens') return;
+        const prev = node.node.prevSibling;
+        // Adjacent (prev.to === '('.from) excludes clause keywords like `in (…)`.
+        if (prev && prev.to === node.from && FN_NAME_NODES.has(prev.name)) {
+          marks.push({ from: prev.from, to: prev.to });
+        }
+      },
+    });
+  }
+  marks.sort((a, b) => a.from - b.from);
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const m of marks) builder.add(m.from, m.to, functionMark);
+  return builder.finish();
+}
+
 // Static CodeMirror theme matched to SnowyDark tokens.
 // Theme-switching via CSS vars inside CodeMirror is unsupported — editor stays dark.
 export const editorTheme = EditorView.theme(
@@ -33,6 +70,8 @@ export const editorTheme = EditorView.theme(
       padding: '8px 0',
     },
     '.cm-scroller': { overflow: 'auto' },
+    // Function calls; the mark nests inside the tag span (Prec.highest) so this wins.
+    '.cm-sql-function': { color: SYNTAX.function, fontStyle: 'italic' },
     '.cm-gutters': {
       background: '#1f1d1b',
       borderRight: '1px solid rgba(255,255,255,0.07)',
