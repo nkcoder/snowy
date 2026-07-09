@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded in-progress runs on a PR when new commits are pushed;
+# main-branch runs always finish (never cancel a landed commit's checks).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,7 +25,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: '24'
 
       - name: Install frontend deps
         run: npm ci

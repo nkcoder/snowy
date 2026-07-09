@@ -17,6 +17,9 @@ pre-push:
     - name: frontend-typecheck
       root: frontend/
       run: npx tsc --noEmit
+    - name: frontend-audit
+      root: frontend/
+      run: npm audit --audit-level=high
     - name: frontend-tests
       root: frontend/
       run: npm run test:coverage

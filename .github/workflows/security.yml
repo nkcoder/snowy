@@ -9,6 +9,12 @@ on:
     # Weekly re-scan so newly-disclosed advisories surface even without a push.
     - cron: '0 6 * * 1'
 
+# Cancel superseded in-progress runs on a PR when new commits are pushed;
+# main-branch and scheduled scans always finish (never cancel a landed commit).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -26,7 +32,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: '24'
 
       # main.go embeds frontend/dist via go:embed, so the module won't compile
       # (and govulncheck can't load packages) until the frontend is built.
@@ -36,6 +42,23 @@ jobs:
 
       - name: Run govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  # npm dependency advisory scan — fails on high/critical advisories anywhere in
+  # the frontend dependency tree (prod + dev). The JS-side counterpart to
+  # govulncheck; unlike govulncheck it is not reachability-based, so it flags any
+  # advisory in the lockfile.
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        working-directory: frontend
 
   # CodeQL static analysis for Go and JS/TS. JS/TS is analysed straight from
   # source (build-mode: none). Go doesn't support build-mode: none, so it uses a
@@ -67,7 +90,7 @@ jobs:
       - if: matrix.language == 'go'
         uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: '24'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
