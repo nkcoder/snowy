@@ -1,7 +1,162 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { T } from '../lib/tokens';
-import { ResultsTable } from './ResultsTable';
+import { cellCopyValue, ResultsTable, rowCopyJson } from './ResultsTable';
+
+describe('cellCopyValue', () => {
+  it('returns empty string for null', () => {
+    expect(cellCopyValue(null)).toBe('');
+  });
+
+  it('returns empty string for undefined', () => {
+    expect(cellCopyValue(undefined)).toBe('');
+  });
+
+  it('stringifies numbers and booleans', () => {
+    expect(cellCopyValue(42)).toBe('42');
+    expect(cellCopyValue(0)).toBe('0');
+    expect(cellCopyValue(true)).toBe('true');
+    expect(cellCopyValue(false)).toBe('false');
+  });
+
+  it('passes strings through unchanged', () => {
+    expect(cellCopyValue('Alice')).toBe('Alice');
+    expect(cellCopyValue('')).toBe('');
+  });
+});
+
+describe('rowCopyJson', () => {
+  it('builds a JSON object keyed by column name', () => {
+    const json = rowCopyJson(['id', 'name'], [1, 'Alice']);
+    expect(JSON.parse(json)).toEqual({ id: 1, name: 'Alice' });
+  });
+
+  it('preserves real types: numbers, booleans, null', () => {
+    const json = rowCopyJson(['n', 'active', 'note'], [42, false, null]);
+    // Parsing back confirms the raw JSON keeps native types, not strings.
+    expect(JSON.parse(json)).toEqual({ n: 42, active: false, note: null });
+    expect(json).toContain('"n":42');
+    expect(json).toContain('"active":false');
+    expect(json).toContain('"note":null');
+  });
+
+  it('maps a missing (undefined) cell to null', () => {
+    const json = rowCopyJson(['a', 'b'], [1]);
+    expect(JSON.parse(json)).toEqual({ a: 1, b: null });
+  });
+});
+
+describe('ResultsTable selection', () => {
+  const data = {
+    columns: ['id', 'name'],
+    rows: [
+      [10, 'Alice'],
+      [20, 'Bob'],
+    ],
+  };
+
+  it('clicking a cell strongly marks that cell and faintly tints its row', () => {
+    render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell);
+
+    // active cell: strong fill + outline
+    expect(aliceCell.style.background).toBe(T.selected);
+    expect(aliceCell.style.boxShadow).toContain(T.selectedBorder);
+
+    // sibling cell in the same row: faint row tint, not the strong fill, no outline
+    const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
+    expect(idCell.style.background).toBe(T.hover);
+    expect(idCell.style.boxShadow).toBe('');
+
+    // a different row is not highlighted at all
+    const bobCell = screen.getByText('Bob').closest('td') as HTMLTableCellElement;
+    expect(bobCell.style.background).toBe('');
+  });
+
+  // Fires a copy event on the grid container and returns what was written to the
+  // clipboard's text/plain slot (null if the handler didn't intercept).
+  function copyFrom(container: HTMLElement): string | null {
+    const grid = container.querySelector('.overflow-auto') as HTMLElement;
+    let written: string | null = null;
+    const clipboardData = { setData: (_type: string, value: string) => (written = value) };
+    fireEvent.copy(grid, { clipboardData });
+    return written;
+  }
+
+  it('clicking a cell selects it; copy writes the raw value', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell);
+    expect(copyFrom(container)).toBe('Alice');
+  });
+
+  it('clicking a null cell copies an empty string', () => {
+    const { container } = render(<ResultsTable data={{ columns: ['note'], rows: [[null]] }} />);
+    const nullCell = screen.getByText('null').closest('td') as HTMLTableCellElement;
+    fireEvent.click(nullCell);
+    expect(copyFrom(container)).toBe('');
+  });
+
+  it('double/triple-clicking a cell just re-selects that cell, not the row', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell, { detail: 3 });
+    // still a cell selection: copies the cell value, not row JSON
+    expect(copyFrom(container)).toBe('Alice');
+  });
+
+  it('clicking the # gutter cell selects the whole row', () => {
+    const { container } = render(<ResultsTable data={data} />);
+    // Row 1's gutter shows "1"; no data cell in this fixture is "1".
+    const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
+    fireEvent.click(gutter);
+
+    // whole row filled: every data cell (not just one) plus the gutter itself
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    const idCell = screen.getByText('10').closest('td') as HTMLTableCellElement;
+    expect(aliceCell.style.background).toBe(T.selected);
+    expect(idCell.style.background).toBe(T.selected);
+    expect(gutter.style.background).toBe(T.selected);
+    // no single active-cell outline for a row selection
+    expect(aliceCell.style.boxShadow).toBe('');
+
+    // copy yields the row as JSON
+    expect(JSON.parse(copyFrom(container) as string)).toEqual({ id: 10, name: 'Alice' });
+  });
+
+  it('freezes the # gutter column (sticky) for horizontal scroll', () => {
+    render(<ResultsTable data={data} />);
+    const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
+    expect(gutter.style.position).toBe('sticky');
+    expect(gutter.style.left).toBe('0px');
+    // header corner too
+    const corner = screen.getByText('#').closest('th') as HTMLTableCellElement;
+    expect(corner.style.position).toBe('sticky');
+    expect(corner.style.left).toBe('0px');
+  });
+
+  it('clears selection when a new result set loads', () => {
+    const { rerender } = render(<ResultsTable data={data} />);
+    const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    fireEvent.click(aliceCell);
+    expect(aliceCell.style.background).toBe(T.selected);
+
+    rerender(
+      <ResultsTable
+        data={{
+          columns: ['id', 'name'],
+          rows: [
+            [10, 'Alice'],
+            [20, 'Bob'],
+          ],
+        }}
+      />
+    );
+    const aliceCellAfter = screen.getByText('Alice').closest('td') as HTMLTableCellElement;
+    expect(aliceCellAfter.style.background).toBe('');
+  });
+});
 
 describe('ResultsTable', () => {
   it('renders empty state when data is null', () => {

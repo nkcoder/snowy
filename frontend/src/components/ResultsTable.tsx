@@ -6,6 +6,23 @@ import { T } from '../lib/tokens';
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 40;
 
+// Clipboard text for a single cell: the raw value stringified, with null/undefined
+// copied as an empty string (not the displayed "null" placeholder).
+export function cellCopyValue(cell: unknown): string {
+  return cell === null || cell === undefined ? '' : String(cell);
+}
+
+// Clipboard text for a whole row: a JSON object keyed by column name. Uses the raw
+// row values so real types survive — numbers as numbers, booleans as booleans, null
+// as null — instead of the stringified display text. A missing cell maps to null.
+export function rowCopyJson(columns: string[], row: unknown[]): string {
+  const obj: Record<string, unknown> = {};
+  columns.forEach((col, i) => {
+    obj[col] = row[i] ?? null;
+  });
+  return JSON.stringify(obj);
+}
+
 const DML_COMMANDS = new Set(['INSERT', 'UPDATE', 'DELETE']);
 
 // Message shown when a statement returns no result rows. DML reports the affected
@@ -25,6 +42,11 @@ function emptyResultMessage(data: {
   }
   return 'No rows.';
 }
+
+// Grid selection. Clicking a cell selects that cell (`scope: 'cell'`); clicking the
+// # gutter selects the whole row (`scope: 'row'`). `row` is the original (unfiltered)
+// row index so the highlight is stable under filtering. `col` is the clicked column.
+type Selection = { row: number; col: number; scope: 'cell' | 'row' };
 
 interface ResultsTableProps {
   // biome-ignore lint/suspicious/noExplicitAny: DB rows are untyped at the transport layer
@@ -59,6 +81,7 @@ export function ResultsTable({
   const [colWidths, setColWidths] = useState<number[]>([]);
   const [hoveredResizeCol, setHoveredResizeCol] = useState<number | null>(null);
   const [draggingCol, setDraggingCol] = useState<number | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const colWidthsRef = useRef(colWidths);
   colWidthsRef.current = colWidths;
   // Refs to <th> elements for direct DOM updates during drag (no React re-render)
@@ -69,6 +92,53 @@ export function ResultsTable({
       setColWidths(data.columns.map(() => DEFAULT_COL_WIDTH));
     }
   }, [data?.columns]);
+
+  // A new result set clears any prior selection. `data` is an intentional trigger
+  // dependency — the body doesn't read it, it just re-runs when the result changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: data is a change trigger, not a read
+  useEffect(() => {
+    setSelection(null);
+  }, [data]);
+
+  // Put a native text selection over `el` so the browser fires a `copy` event on
+  // ⌘C (which handleCopy then shapes). Guarded for environments without Selection.
+  const selectDom = (el: HTMLElement) => {
+    const sel = window.getSelection?.();
+    if (!sel) return;
+    sel.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.addRange(range);
+  };
+
+  // Select a whole row (triple-click or the # gutter click): highlight it and put a
+  // native selection over the row so ⌘C fires a copy event handleCopy can shape.
+  const selectWholeRow = (rowIndex: number, tr: HTMLElement | null) => {
+    setSelection({ row: rowIndex, col: 0, scope: 'row' });
+    if (tr) selectDom(tr);
+  };
+
+  // Clicking a cell selects that cell's value (a native selection is set so ⌘C fires
+  // a copy event handleCopy shapes). Click count is irrelevant — a double-click just
+  // re-selects the same cell. Whole-row selection is via the # gutter (selectWholeRow).
+  const handleCellClick = (rowIndex: number, colIndex: number, e: React.MouseEvent) => {
+    setSelection({ row: rowIndex, col: colIndex, scope: 'cell' });
+    selectDom(e.currentTarget as HTMLElement);
+  };
+
+  // Shape the clipboard payload for the current selection: raw cell value for a
+  // cell selection, JSON-by-column for a row selection.
+  const handleCopy = (e: React.ClipboardEvent) => {
+    if (!selection || !data?.rows) return;
+    const row = data.rows[selection.row];
+    if (!row) return;
+    const text =
+      selection.scope === 'row'
+        ? rowCopyJson(data.columns, row)
+        : cellCopyValue(row[selection.col]);
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', text);
+  };
 
   const startColDrag = (colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -248,15 +318,21 @@ export function ResultsTable({
       )}
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }}>
+      <div className="flex-1 overflow-auto min-h-0" style={{ minWidth: 0 }} onCopy={handleCopy}>
         <table
-          className="border-collapse"
+          className="border-collapse snowy-grid"
           style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
         >
           <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>
               <th
                 style={{
+                  // Frozen gutter: stays pinned to the left on horizontal scroll (and to
+                  // the top via the sticky thead), so the row-number column is always
+                  // visible and clickable. zIndex above sibling headers and body cells.
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 11,
                   background: T.gridHeader,
                   border: `1px solid ${T.border}`,
                   color: T.textDim,
@@ -350,42 +426,83 @@ export function ResultsTable({
                       )
                     : true
                 )
-                .map(({ row, originalIndex }) => (
-                  <tr
-                    key={originalIndex}
-                    style={{ borderBottom: `1px solid ${T.divider}` }}
-                    className="snowy-grid-row"
-                  >
-                    <td
-                      style={{
-                        background: T.gridHeader,
-                        borderRight: `1px solid ${T.border}`,
-                        color: T.textDim,
-                      }}
-                      className="px-1 py-0.5 text-[10px] text-center select-none"
+                .map(({ row, originalIndex }) => {
+                  const rowSelected = selection?.row === originalIndex;
+                  // Row selection fills the whole row; cell selection only faintly tints it.
+                  const rowScope = rowSelected && selection?.scope === 'row';
+                  return (
+                    <tr
+                      key={originalIndex}
+                      style={{ borderBottom: `1px solid ${T.divider}` }}
+                      className="snowy-grid-row"
                     >
-                      {originalIndex + 1}
-                    </td>
-                    {row.map((cell, cellIndex) => (
                       <td
-                        key={cellIndex}
+                        onClick={(e) =>
+                          selectWholeRow(originalIndex, e.currentTarget.parentElement)
+                        }
                         style={{
-                          borderRight: `1px solid ${T.divider}`,
-                          color: T.text,
+                          // Frozen gutter (matches the sticky header corner). Must stay
+                          // opaque — content scrolls under it — so it uses solid colours only
+                          // (a row selection fills it; otherwise the header colour). The row
+                          // tint for a cell selection is carried by the data cells, not here.
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 1,
+                          background: rowScope ? T.selected : T.gridHeader,
+                          borderRight: `1px solid ${T.border}`,
+                          color: T.textDim,
+                          cursor: 'pointer',
                         }}
-                        className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                        className="px-1 py-0.5 text-[10px] text-center select-none"
                       >
-                        {cell === null ? (
-                          <span style={{ color: T.textDim }} className="italic">
-                            null
-                          </span>
-                        ) : (
-                          String(cell)
-                        )}
+                        {originalIndex + 1}
                       </td>
-                    ))}
-                  </tr>
-                ))
+                      {row.map((cell, cellIndex) => {
+                        const activeCell =
+                          rowSelected &&
+                          selection?.scope === 'cell' &&
+                          selection?.col === cellIndex;
+                        return (
+                          <td
+                            key={cellIndex}
+                            onClick={(e) => handleCellClick(originalIndex, cellIndex, e)}
+                            onMouseDown={(e) => {
+                              // Suppress the browser's default word/line selection on
+                              // multi-click; selectDom sets our own range instead.
+                              if (e.detail > 1) e.preventDefault();
+                            }}
+                            style={{
+                              borderRight: `1px solid ${T.divider}`,
+                              color: T.text,
+                              // Row selection fills the whole row (strong). Cell selection:
+                              // the active cell is strong + outlined; the rest of its row gets
+                              // a faint tint so you can see which row it belongs to.
+                              background:
+                                rowScope || activeCell
+                                  ? T.selected
+                                  : rowSelected
+                                    ? T.hover
+                                    : undefined,
+                              boxShadow: activeCell
+                                ? `inset 0 0 0 2px ${T.selectedBorder}`
+                                : undefined,
+                              cursor: 'default',
+                            }}
+                            className="px-3.5 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0"
+                          >
+                            {cell === null ? (
+                              <span style={{ color: T.textDim }} className="italic">
+                                null
+                              </span>
+                            ) : (
+                              String(cell)
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>

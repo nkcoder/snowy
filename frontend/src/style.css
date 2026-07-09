@@ -129,6 +129,14 @@ body {
   background: var(--t-hover);
 }
 
+/* Cell/row selection is drawn with our own cell background. The grid also sets a
+   native text selection (so ⌘C fires a copy event), but its default paint would
+   overlay the row highlight with patchy stripes — make that paint transparent so
+   only our uniform highlight shows. */
+.snowy-grid ::selection {
+  background: transparent;
+}
+
 /* ── Spinner animation ───────────────────────────────────────────────────── */
 @keyframes spin {
   to {
