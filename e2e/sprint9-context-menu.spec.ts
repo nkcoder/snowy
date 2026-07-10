@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMock, connectToWorkspace } from './helpers';
+import { setupMock, connectToWorkspace, expandToTable } from './helpers';
 
 test.describe('Datasource context menu', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,5 +45,37 @@ test.describe('Datasource context menu', () => {
     await expect(page.getByTestId('ctx-menu-ds-1')).toBeVisible();
     await page.click('[data-testid="sidebar-search"]');
     await expect(page.getByTestId('ctx-menu-ds-1')).not.toBeVisible();
+  });
+});
+
+test.describe('Copy-name context menu', () => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await setupMock(page);
+  });
+
+  test('right-click table → Copy name writes the bare name to the clipboard', async ({ page }) => {
+    await connectToWorkspace(page);
+    await expandToTable(page, 'accounts');
+
+    await page.click('[data-testid="table-row-public-accounts"]', { button: 'right' });
+    await expect(page.getByTestId('ctx-menu-copy')).toBeVisible();
+    await page.getByText('Copy name').click();
+
+    await expect(page.getByTestId('ctx-menu-copy')).not.toBeVisible();
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toBe('accounts');
+  });
+
+  test('right-click schema → Copy name copies the schema name', async ({ page }) => {
+    await connectToWorkspace(page);
+    await page.waitForSelector('[data-testid="schema-row-public"]');
+
+    await page.click('[data-testid="schema-row-public"]', { button: 'right' });
+    await expect(page.getByTestId('ctx-menu-copy')).toBeVisible();
+    await page.getByText('Copy name').click();
+
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toBe('public');
   });
 });

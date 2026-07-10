@@ -70,7 +70,12 @@ export function Sidebar({
   const [renameValue, setRenameValue] = useState('');
 
   // ── Context menu state ────────────────────────────────────────────────────
-  const [ctxMenu, setCtxMenu] = useState<{ dsId: string; x: number; y: number } | null>(null);
+  // Datasource nodes get the connection menu; schema/table/column nodes get a
+  // lightweight "Copy name" menu keyed on the node's bare identifier.
+  type CtxMenu =
+    | { kind: 'datasource'; dsId: string; x: number; y: number }
+    | { kind: 'copyName'; name: string; x: number; y: number };
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const ctxMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctxMenu]);
 
-  const ctxIsActive = ctxMenu?.dsId === activeDatasourceId;
+  const ctxIsActive = ctxMenu?.kind === 'datasource' && ctxMenu.dsId === activeDatasourceId;
   const closeMenu = (cb?: () => void) => {
     setCtxMenu(null);
     cb?.();
@@ -210,7 +215,8 @@ export function Sidebar({
                 schemas={schemasPerDs[ds.id] ?? []}
                 search={search}
                 onToggleDs={toggleDs}
-                onOpenContextMenu={(dsId, x, y) => setCtxMenu({ dsId, x, y })}
+                onOpenContextMenu={(dsId, x, y) => setCtxMenu({ kind: 'datasource', dsId, x, y })}
+                onOpenCopyMenu={(name, x, y) => setCtxMenu({ kind: 'copyName', name, x, y })}
                 onConnect={onConnect}
                 setExpandedDs={setExpandedDs}
                 onTableSelect={onTableSelect}
@@ -237,7 +243,7 @@ export function Sidebar({
       {ctxMenu && (
         <div
           ref={ctxMenuRef}
-          data-testid={`ctx-menu-${ctxMenu.dsId}`}
+          data-testid={ctxMenu.kind === 'datasource' ? `ctx-menu-${ctxMenu.dsId}` : 'ctx-menu-copy'}
           style={{
             position: 'fixed',
             left: ctxMenu.x,
@@ -253,33 +259,42 @@ export function Sidebar({
             fontFamily: T.ui,
           }}
         >
-          <CtxMenuItem
-            label="Properties"
-            onClick={() => closeMenu(() => onShowProperties?.(ctxMenu.dsId))}
-          />
-          <CtxMenuItem
-            label="New Query Console"
-            disabled={!ctxIsActive}
-            onClick={() => closeMenu(onNewConsole)}
-          />
-          <CtxMenuItem
-            label="Refresh"
-            onClick={() =>
-              closeMenu(() => {
-                if (!ctxIsActive) {
-                  onConnect(ctxMenu.dsId);
-                  if (!onRefreshMetadata) loadSchemas(ctxMenu.dsId);
-                } else {
-                  handleRefreshClick(ctxMenu.dsId);
+          {ctxMenu.kind === 'datasource' ? (
+            <>
+              <CtxMenuItem
+                label="Properties"
+                onClick={() => closeMenu(() => onShowProperties?.(ctxMenu.dsId))}
+              />
+              <CtxMenuItem
+                label="New Query Console"
+                disabled={!ctxIsActive}
+                onClick={() => closeMenu(onNewConsole)}
+              />
+              <CtxMenuItem
+                label="Refresh"
+                onClick={() =>
+                  closeMenu(() => {
+                    if (!ctxIsActive) {
+                      onConnect(ctxMenu.dsId);
+                      if (!onRefreshMetadata) loadSchemas(ctxMenu.dsId);
+                    } else {
+                      handleRefreshClick(ctxMenu.dsId);
+                    }
+                  })
                 }
-              })
-            }
-          />
-          <CtxMenuItem
-            label="Disconnect"
-            disabled={!ctxIsActive}
-            onClick={() => closeMenu(onDisconnect)}
-          />
+              />
+              <CtxMenuItem
+                label="Disconnect"
+                disabled={!ctxIsActive}
+                onClick={() => closeMenu(onDisconnect)}
+              />
+            </>
+          ) : (
+            <CtxMenuItem
+              label="Copy name"
+              onClick={() => closeMenu(() => navigator.clipboard?.writeText(ctxMenu.name))}
+            />
+          )}
         </div>
       )}
 

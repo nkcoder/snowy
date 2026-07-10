@@ -864,11 +864,68 @@ describe('Sidebar — context menu', () => {
     await waitFor(() => expect(GoApp.ListSchemas).toHaveBeenCalledWith('ds1'));
   });
 
-  it('context menu does not appear on schema rows', async () => {
+  it('right-clicking a schema row shows the copy-name menu, not the datasource menu', async () => {
     vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
     renderSidebar();
     await waitFor(() => screen.getByTestId('schema-row-public'));
     fireEvent.contextMenu(screen.getByTestId('schema-row-public'));
+    expect(screen.getByTestId('ctx-menu-copy')).toBeInTheDocument();
     expect(screen.queryByTestId('ctx-menu-ds1')).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — copy name', () => {
+  const writeText = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    vi.mocked(GoApp.ListSchemas).mockResolvedValue([{ name: 'public' } as never]);
+    vi.mocked(GoApp.ListTables).mockResolvedValue([{ name: 'users', type: 'TABLE' } as never]);
+    vi.mocked(GoApp.ListColumns).mockResolvedValue([
+      { name: 'email', dataType: 'text', isNullable: 'YES' } as never,
+    ]);
+  });
+
+  it('copies a table name to the clipboard and closes the menu', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => screen.getByTestId('table-row-public-users'));
+
+    fireEvent.contextMenu(screen.getByTestId('table-row-public-users'));
+    await userEvent.click(screen.getByText('Copy name'));
+
+    expect(writeText).toHaveBeenCalledWith('users');
+    expect(screen.queryByTestId('ctx-menu-copy')).not.toBeInTheDocument();
+  });
+
+  it('copies a column name (bare identifier) to the clipboard', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => screen.getByTestId('table-row-public-users'));
+    await userEvent.click(screen.getByTestId('table-row-public-users'));
+    await waitFor(() => screen.getByTestId('col-row-public-users-email'));
+
+    fireEvent.contextMenu(screen.getByTestId('col-row-public-users-email'));
+    await userEvent.click(screen.getByText('Copy name'));
+
+    expect(writeText).toHaveBeenCalledWith('email');
+  });
+
+  it('closes the copy menu on Escape', async () => {
+    renderSidebar();
+    await waitFor(() => screen.getByTestId('schema-row-public'));
+    await userEvent.click(screen.getByTestId('schema-row-public'));
+    await waitFor(() => screen.getByTestId('table-row-public-users'));
+
+    fireEvent.contextMenu(screen.getByTestId('table-row-public-users'));
+    expect(screen.getByTestId('ctx-menu-copy')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByTestId('ctx-menu-copy')).not.toBeInTheDocument();
   });
 });

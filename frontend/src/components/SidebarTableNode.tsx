@@ -1,4 +1,5 @@
 import { Columns, Table2 } from 'lucide-react';
+import type { MouseEvent } from 'react';
 import type { TableNode } from '../lib/sidebarTypes';
 import { T } from '../lib/tokens';
 import { CheckIcon, ColIcon, IndexIcon, KeysIcon } from './SidebarIcons';
@@ -22,6 +23,7 @@ interface SidebarTableNodeProps {
     folder: SubFolderKey
   ) => void;
   onTableSelect: (schema: string, table: string) => void;
+  onOpenCopyMenu: (name: string, x: number, y: number) => void;
 }
 
 export function SidebarTableNode({
@@ -35,7 +37,13 @@ export function SidebarTableNode({
   onToggleColumns,
   onToggleSubFolder,
   onTableSelect,
+  onOpenCopyMenu,
 }: SidebarTableNodeProps) {
+  // Right-click on a named node → open the "Copy name" menu at the cursor.
+  const copyMenu = (name: string) => (e: MouseEvent) => {
+    e.preventDefault();
+    onOpenCopyMenu(name, e.clientX, e.clientY);
+  };
   return (
     <div>
       <TreeRow
@@ -46,6 +54,7 @@ export function SidebarTableNode({
         label={table.name}
         onClick={() => onToggleTable(dsId, realSi, realTi)}
         onDoubleClick={isActive ? () => onTableSelect(schemaName, table.name) : undefined}
+        onContextMenu={copyMenu(table.name)}
       />
       {table.expanded && (
         <>
@@ -63,9 +72,11 @@ export function SidebarTableNode({
             table.columns.items.map((col) => (
               <TreeRow
                 key={col.name}
+                data-testid={`col-row-${schemaName}-${table.name}-${col.name}`}
                 depth={6}
                 hasChildren={false}
                 icon={<ColIcon kind={col.keyType as 'pk' | 'fk' | undefined} />}
+                onContextMenu={copyMenu(col.name)}
                 label={
                   <span>
                     <span
