@@ -1,5 +1,5 @@
 import { Eye, FileCode2, Folder, X } from 'lucide-react';
-import { type Dispatch, type SetStateAction, useState } from 'react';
+import { type Dispatch, type MouseEvent, type SetStateAction, useState } from 'react';
 import type { SchemaNode } from '../lib/sidebarTypes';
 import { ENV_COLORS, T } from '../lib/tokens';
 import type { Datasource } from '../types';
@@ -18,6 +18,7 @@ interface SidebarConnectionNodeProps {
   search: string;
   onToggleDs: (dsId: string) => void;
   onOpenContextMenu: (dsId: string, x: number, y: number) => void;
+  onOpenCopyMenu: (name: string, x: number, y: number) => void;
   onConnect: (dsId: string) => void;
   setExpandedDs: Dispatch<SetStateAction<Set<string>>>;
   onTableSelect: (schema: string, table: string) => void;
@@ -51,6 +52,7 @@ export function SidebarConnectionNode({
   search,
   onToggleDs,
   onOpenContextMenu,
+  onOpenCopyMenu,
   onConnect,
   setExpandedDs,
   onTableSelect,
@@ -70,6 +72,12 @@ export function SidebarConnectionNode({
   onRenameQuery,
 }: SidebarConnectionNodeProps) {
   const connColor = ENV_COLORS[ds.env] ?? T.accent;
+
+  // Right-click on a named node → open the "Copy name" menu at the cursor.
+  const copyMenu = (name: string) => (e: MouseEvent) => {
+    e.preventDefault();
+    onOpenCopyMenu(name, e.clientX, e.clientY);
+  };
 
   // Presentational fold state for the database node and the per-schema
   // tables/views group folders. These are pure UI toggles (data is already
@@ -199,6 +207,7 @@ export function SidebarConnectionNode({
                       label={schema.name}
                       meta={schema.loaded ? schema.tables.length : undefined}
                       onClick={() => onToggleSchema(ds.id, realSi)}
+                      onContextMenu={copyMenu(schema.name)}
                     />
 
                     {/* Tables folder */}
@@ -234,6 +243,7 @@ export function SidebarConnectionNode({
                                   onToggleColumns={onToggleColumns}
                                   onToggleSubFolder={onToggleSubFolder}
                                   onTableSelect={onTableSelect}
+                                  onOpenCopyMenu={onOpenCopyMenu}
                                 />
                               );
                             })}
@@ -274,15 +284,18 @@ export function SidebarConnectionNode({
                                             ? () => onTableSelect(schema.name, view.name)
                                             : undefined
                                         }
+                                        onContextMenu={copyMenu(view.name)}
                                       />
                                       {view.expanded &&
                                         view.columns.open &&
                                         view.columns.items.map((col) => (
                                           <TreeRow
                                             key={col.name}
+                                            data-testid={`col-row-${schema.name}-${view.name}-${col.name}`}
                                             depth={5}
                                             hasChildren={false}
                                             icon={<Eye size={13} color={T.textDim} />}
+                                            onContextMenu={copyMenu(col.name)}
                                             label={
                                               <span>
                                                 <span
