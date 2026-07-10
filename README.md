@@ -125,3 +125,7 @@ snowy/
 | Editor | [CodeMirror 6](https://codemirror.net/) |
 | Unit tests | vitest + Testing Library (frontend), Go test (backend) |
 | E2E tests | [Playwright](https://playwright.dev/) |
+
+## License
+
+[ISC](./LICENSE) © Daniel
