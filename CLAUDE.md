@@ -35,7 +35,7 @@ TEST_DB_URL=postgres://myuser:mypassword@localhost:5432/mydatabase go test .    
 ### E2E tests (Playwright)
 ```bash
 npx playwright test                                              # all specs
-npx playwright test e2e/sprint7-sidebar-drill-in.spec.ts        # single spec
+npx playwright test e2e/sidebar.spec.ts                         # single spec
 # Playwright auto-starts the Vite dev server on :5173 if not already running
 ```
 
@@ -87,7 +87,7 @@ Our designs are: @spec/design, referenced DataGrip designs are: @spec/design/dat
 
 ## Development workflow
 
-Sprints deliver independent, runnable increments. Current sprint plan: Sprint 7 (sidebar drill-in — done), Sprint 8 (rich autocomplete), Sprint 9 (right-click menu + connection comment field). When completing a sprint: run all test suites, verify with `wails dev` against the demo DB, raise a PR.
+Work is tracked as GitHub issues (labelled `bug` / `enhancement` / etc.); each issue is an independent, runnable increment. When completing an issue: run all test suites, verify with `wails dev` against the demo DB, raise a PR that closes the issue.
 
 Create a new branch for each issue (bug, feature, enhancement, refactor etc.).
 Use /tdd for development.

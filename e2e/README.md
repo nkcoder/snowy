@@ -57,11 +57,12 @@ npx playwright test --ui                              # interactive UI mode
 | 39 | Close tab with unsaved-changes confirmation | — | ✗ |
 | 40 | Sidebar resize (drag handle) | — | ✗ |
 | 41 | Bottom panel resize | — | ✗ |
+| 42 | Right-click schema/table/column → Copy name | `sprint9-context-menu.spec.ts` | ✓ |
 
-**Coverage: 37 / 41 flows = 90%** (target ≥ 80% ✓)
+**Coverage: 38 / 42 flows = 90%** (target ≥ 80% ✓)
 
 ## Known gaps
 
 Flows 23–25 (saved query load/rename/delete), 39 (dirty-tab confirm close), 40–41 (panel resize) have no dedicated E2E spec.
 These paths are exercised by unit tests in `App.handlers.test.tsx` and `App.test.tsx`.
-Playwright specs for these flows are planned for a future sprint once the interactions stabilise.
+Playwright specs for these flows are planned for a future iteration once the interactions stabilise.

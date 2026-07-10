@@ -39,7 +39,7 @@ So the gap is real: a client that is **beautiful, easy to use, open-source, and 
 
 - macOS (primary target)
 - [Go 1.26+](https://go.dev/)
-- [Node.js 18+](https://nodejs.org/)
+- [Node.js 24 LTS](https://nodejs.org/) (see `.nvmrc`)
 - [Wails v2](https://wails.io/docs/gettingstarted/installation) — `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
 - PostgreSQL (local or remote) — a Docker demo DB is included
 
@@ -121,7 +121,7 @@ snowy/
 |-------|-----------|
 | Desktop shell | [Wails v2](https://wails.io/) |
 | Backend | Go 1.26, [pgx v5](https://github.com/jackc/pgx) |
-| Frontend | React 19, TypeScript, Tailwind CSS |
+| Frontend | React 19, TypeScript, Tailwind CSS v4 |
 | Editor | [CodeMirror 6](https://codemirror.net/) |
 | Unit tests | vitest + Testing Library (frontend), Go test (backend) |
 | E2E tests | [Playwright](https://playwright.dev/) |
