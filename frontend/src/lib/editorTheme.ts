@@ -1,21 +1,63 @@
-import { HighlightStyle } from '@codemirror/language';
-import { EditorView } from '@codemirror/view';
+import { HighlightStyle, syntaxTree } from '@codemirror/language';
+import type { EditorState } from '@codemirror/state';
+import { RangeSetBuilder } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
+import { SYNTAX } from './tokens';
 
-// DataGrip-inspired syntax colors — overrides oneDark via Prec.high.
+// DataGrip-inspired syntax colors, sourced from SYNTAX tokens — overrides
+// oneDark via Prec.high. Colours are lexical (Lezer SQL grammar tags): keyword,
+// identifier, constant/literal, operator each get a distinct, consistent hue.
 export const snowySqlHighlight = HighlightStyle.define([
-  { tag: t.keyword, color: '#56B6C2' }, // teal — SELECT, FROM, WHERE …
-  { tag: t.name, color: '#D19A66' }, // orange — table / column names
-  { tag: t.variableName, color: '#D19A66' },
-  { tag: t.propertyName, color: '#D19A66' },
-  { tag: t.special(t.name), color: '#E5C07B' }, // gold — function calls
-  { tag: t.string, color: '#98C379' }, // green — string literals
-  { tag: t.number, color: '#B5CEA8' }, // light green — numbers
-  { tag: t.operator, color: '#ABB2BF' },
-  { tag: t.punctuation, color: '#ABB2BF' },
-  { tag: t.comment, color: '#6A9955', fontStyle: 'italic' },
-  { tag: t.typeName, color: '#56B6C2' }, // teal — INT, VARCHAR …
+  { tag: t.keyword, color: SYNTAX.keyword }, // purple — SELECT, FROM, WHERE …
+  { tag: t.name, color: SYNTAX.identifier }, // grey — table / column names
+  { tag: t.variableName, color: SYNTAX.identifier },
+  { tag: t.propertyName, color: SYNTAX.identifier },
+  { tag: t.special(t.name), color: SYNTAX.function, fontStyle: 'italic' }, // function calls
+  { tag: t.string, color: SYNTAX.string }, // green — string literals
+  { tag: t.number, color: SYNTAX.constant }, // blue — numbers
+  { tag: t.bool, color: SYNTAX.constant }, // blue — TRUE / FALSE
+  { tag: t.null, color: SYNTAX.constant }, // blue — NULL
+  { tag: t.operator, color: SYNTAX.operator },
+  { tag: t.punctuation, color: SYNTAX.operator },
+  { tag: t.comment, color: SYNTAX.comment, fontStyle: 'italic' },
+  { tag: t.typeName, color: SYNTAX.type }, // teal — INT, VARCHAR …
 ]);
+
+// ── Function-call highlighting ────────────────────────────────────────────────
+// Lexical rule: a name touching '(' (no space) is a function call — covers both
+// builtins (count, sum …) and user-defined functions (add_days …). Builtins like
+// COUNT tokenize as Keyword, so a decoration is needed to re-colour them.
+const functionMark = Decoration.mark({ class: 'cm-sql-function' });
+
+// Node kinds that denote a callable name when immediately followed by '('.
+const FN_NAME_NODES = new Set(['Identifier', 'QuotedIdentifier', 'Keyword']);
+
+export function buildFunctionDecorations(
+  state: EditorState,
+  ranges: readonly { from: number; to: number }[]
+): DecorationSet {
+  const tree = syntaxTree(state);
+  const marks: Array<{ from: number; to: number }> = [];
+  for (const { from, to } of ranges) {
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.name !== 'Parens') return;
+        const prev = node.node.prevSibling;
+        // Adjacent (prev.to === '('.from) excludes clause keywords like `in (…)`.
+        if (prev && prev.to === node.from && FN_NAME_NODES.has(prev.name)) {
+          marks.push({ from: prev.from, to: prev.to });
+        }
+      },
+    });
+  }
+  marks.sort((a, b) => a.from - b.from);
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const m of marks) builder.add(m.from, m.to, functionMark);
+  return builder.finish();
+}
 
 // Static CodeMirror theme matched to SnowyDark tokens.
 // Theme-switching via CSS vars inside CodeMirror is unsupported — editor stays dark.
@@ -28,6 +70,8 @@ export const editorTheme = EditorView.theme(
       padding: '8px 0',
     },
     '.cm-scroller': { overflow: 'auto' },
+    // Function calls; the mark nests inside the tag span (Prec.highest) so this wins.
+    '.cm-sql-function': { color: SYNTAX.function, fontStyle: 'italic' },
     '.cm-gutters': {
       background: '#1f1d1b',
       borderRight: '1px solid rgba(255,255,255,0.07)',

@@ -31,6 +31,8 @@ vi.mock('@codemirror/view', () => ({
   lineNumbers: () => ({}),
   highlightActiveLine: () => ({}),
   highlightActiveLineGutter: () => ({}),
+  Decoration: { mark: () => ({}) },
+  ViewPlugin: { fromClass: () => ({}) },
 }));
 vi.mock('@codemirror/state', () => ({
   EditorState: { create: () => ({}) },
@@ -38,7 +40,7 @@ vi.mock('@codemirror/state', () => ({
     of = () => ({});
     reconfigure = () => ({});
   },
-  Prec: { high: (ext: unknown) => ext },
+  Prec: { high: (ext: unknown) => ext, highest: (ext: unknown) => ext },
 }));
 vi.mock('@codemirror/autocomplete', () => ({ autocompletion: () => ({}) }));
 vi.mock('@codemirror/lang-sql', () => ({ sql: () => ({}), PostgreSQL: {} }));

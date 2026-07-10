@@ -44,6 +44,8 @@ vi.mock('@codemirror/view', () => ({
   lineNumbers: () => ({}),
   highlightActiveLine: () => ({}),
   highlightActiveLineGutter: () => ({}),
+  Decoration: { mark: () => ({}) },
+  ViewPlugin: { fromClass: () => ({}) },
 }));
 
 vi.mock('@codemirror/state', () => ({
@@ -56,6 +58,7 @@ vi.mock('@codemirror/state', () => ({
   },
   Prec: {
     high: (ext: unknown) => ext,
+    highest: (ext: unknown) => ext,
   },
 }));
 
