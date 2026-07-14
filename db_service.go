@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -559,6 +561,7 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 	for i, fd := range fieldDescs {
 		columns[i] = fd.Name
 	}
+	typeMap := conn.Conn().TypeMap()
 
 	results := make([][]interface{}, 0, maxQueryRows)
 	truncated := false
@@ -576,7 +579,9 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 			// the column's type OID so an unrelated 16-byte value isn't misrendered.
 			if b, ok := v.([16]byte); ok && fieldDescs[i].DataTypeOID == pgtype.UUIDOID {
 				values[i] = fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+				continue
 			}
+			values[i] = stringifyComplexValue(typeMap, fieldDescs[i].DataTypeOID, v)
 		}
 		results = append(results, values)
 	}
@@ -605,4 +610,25 @@ func (s *DbService) ExecuteQuery(dsID string, sql string) (*QueryResult, error) 
 		RowsAffected: tag.RowsAffected(),
 		Command:      command,
 	}, nil
+}
+
+// stringifyComplexValue converts a decoded value that would otherwise serialise to a
+// JSON object — pgx returns Go structs for time/interval/bit and a map for json/jsonb —
+// into its Postgres text representation, so the grid shows e.g. "12:34:56" or the JSON
+// text instead of "[object Object]". Values that already JSON-marshal to a scalar or
+// string (time.Time timestamps, point, …) and plain scalars are returned unchanged.
+func stringifyComplexValue(typeMap *pgtype.Map, oid uint32, v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+	if _, ok := v.(json.Marshaler); ok {
+		return v
+	}
+	switch reflect.ValueOf(v).Kind() {
+	case reflect.Struct, reflect.Map, reflect.Pointer:
+		if buf, err := typeMap.Encode(oid, pgtype.TextFormatCode, v, nil); err == nil && buf != nil {
+			return string(buf)
+		}
+	}
+	return v
 }
