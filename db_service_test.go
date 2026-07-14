@@ -338,6 +338,37 @@ func TestExecuteQuery_UUIDFormatting_Integration(t *testing.T) {
 	}
 }
 
+func TestExecuteQuery_ComplexTypeFormatting_Integration(t *testing.T) {
+	app, dsID := newTestApp(t)
+
+	cases := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"time", "'12:34:56'::time", "12:34:56.000000"},
+		{"jsonb", `'{"a":1,"b":[2,3]}'::jsonb`, `{"a":1,"b":[2,3]}`},
+		{"json", `'{"a":1}'::json`, `{"a":1}`},
+		{"interval", "'1 day 3 hours'::interval", "1 day 03:00:00"},
+		{"bit", "B'101'::bit(3)", "101"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, err := app.ExecuteQuery(dsID, "SELECT "+tc.sql+" AS v")
+			if err != nil {
+				t.Fatalf("ExecuteQuery: %v", err)
+			}
+			got, ok := r.Rows[0][0].(string)
+			if !ok {
+				t.Fatalf("%s not stringified: %T (%v)", tc.name, r.Rows[0][0], r.Rows[0][0])
+			}
+			if got != tc.want {
+				t.Errorf("%s = %q, want %q", tc.name, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestExecuteQuery_RowsAffected_Integration(t *testing.T) {
 	app, dsID := newTestApp(t)
 
