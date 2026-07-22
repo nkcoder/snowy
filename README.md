@@ -126,6 +126,37 @@ snowy/
 | Unit tests | vitest + Testing Library (frontend), Go test (backend) |
 | E2E tests | [Playwright](https://playwright.dev/) |
 
+## Security & data handling
+
+Snowy is designed for use in environments with strict data-handling requirements.
+
+- **No outbound network calls.** The app makes no analytics, telemetry, update-check,
+  or any other third-party requests. The only network traffic is the PostgreSQL
+  connection you configure. Fonts and all assets are bundled into the binary. This can
+  be verified by running the app behind a deny-all egress firewall.
+- **Credentials in the OS keychain.** Passwords are stored in the macOS Keychain, never
+  written to `~/.snowy/config.json` (see [ADR-0003](./docs/adr/0003-keychain-password-storage.md)).
+- **Encrypted connections by default.** New connections default to `sslmode=require`.
+  For the strongest guarantee against MITM, use `verify-full` with a configured CA.
+  Local/non-TLS servers (e.g. the demo Docker DB) must be set to `disable` explicitly.
+- **Query results never persist.** Result rows live only in memory. They leave the app
+  only on an explicit user action — CSV export (written `0600`) or clipboard copy.
+- **Local files** (`~/.snowy`, dir `0700`, files `0600`): connection metadata, saved
+  `.sql` queries, a schema/metadata cache (names only), and query history. Query history
+  stores SQL text (which can embed literal values); it is capped at the 100 most recent
+  entries per datasource and can be wiped anytime via **Clear** in the history drawer.
+
+Residual, OS-level considerations for hardened deployments:
+
+- **Clipboard**: copied cells go to the system pasteboard, which macOS Universal
+  Clipboard/Handoff can sync to other signed-in Apple devices.
+- **Crash reports / swap**: in-memory result data could surface in a macOS crash report
+  (`~/Library/Logs/DiagnosticReports`) or swap. macOS encrypts swap by default and keeps
+  crash reports local unless diagnostics sharing is enabled.
+
+Supply-chain and vulnerability scanning (`govulncheck`, `npm audit`, CodeQL for Go and
+JS/TS) run on every push/PR and weekly — see [`.github/workflows/security.yml`](./.github/workflows/security.yml).
+
 ## License
 
 [ISC](./LICENSE) © Daniel

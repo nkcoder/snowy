@@ -202,6 +202,73 @@ func second(e []HistoryEntry) string {
 	return e[1].SQL
 }
 
+// TestHistoryRetentionCap verifies RecordHistory trims the file to the newest
+// maxHistoryEntries so plaintext SQL history never grows without bound.
+func TestHistoryRetentionCap(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	dsID := "cap-ds"
+
+	total := maxHistoryEntries + 50
+	for i := 1; i <= total; i++ {
+		if err := RecordHistory(dsID, fmt.Sprintf("SELECT %d", i), i, int64(i)); err != nil {
+			t.Fatalf("RecordHistory %d: %v", i, err)
+		}
+	}
+
+	// limit=0 returns every retained entry; there must be exactly the cap.
+	got, err := GetQueryHistory(dsID, 0)
+	if err != nil {
+		t.Fatalf("GetQueryHistory: %v", err)
+	}
+	if len(got) != maxHistoryEntries {
+		t.Fatalf("expected %d retained entries, got %d", maxHistoryEntries, len(got))
+	}
+	// Newest is the last recorded; oldest retained is total-cap+1.
+	if got[0].SQL != fmt.Sprintf("SELECT %d", total) {
+		t.Errorf("newest entry = %q, want SELECT %d", got[0].SQL, total)
+	}
+	wantOldest := fmt.Sprintf("SELECT %d", total-maxHistoryEntries+1)
+	if got[len(got)-1].SQL != wantOldest {
+		t.Errorf("oldest retained = %q, want %q", got[len(got)-1].SQL, wantOldest)
+	}
+}
+
+func TestClearHistory(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	dsID := "clear-ds"
+
+	for i := 1; i <= 3; i++ {
+		if err := RecordHistory(dsID, fmt.Sprintf("SELECT %d", i), i, int64(i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := ClearHistory(dsID); err != nil {
+		t.Fatalf("ClearHistory: %v", err)
+	}
+
+	got, err := GetQueryHistory(dsID, 100)
+	if err != nil {
+		t.Fatalf("GetQueryHistory after clear: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected empty history after clear, got %d entries", len(got))
+	}
+
+	// Clearing an already-cleared datasource is a no-op, not an error.
+	if err := ClearHistory(dsID); err != nil {
+		t.Errorf("ClearHistory on missing file should be nil, got %v", err)
+	}
+}
+
+func TestClearHistory_RejectsInvalidDsID(t *testing.T) {
+	if err := ClearHistory("../escape"); err == nil {
+		t.Error("expected error for dsID with path traversal")
+	}
+}
+
 func TestRecordHistory_InvalidPath(t *testing.T) {
 	// Point HOME at a file (not directory) to trigger MkdirAll failure
 	tmp := t.TempDir()

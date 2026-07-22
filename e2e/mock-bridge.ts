@@ -244,6 +244,10 @@ export function buildMockBridgeScript(
           GetQueryHistory: (dsId, limit) => {
             return Promise.resolve(_historyEntries.slice(0, limit));
           },
+          ClearHistory: (_dsId) => {
+            _historyEntries.length = 0;
+            return Promise.resolve();
+          },
           ListTableKeys: (dsId, schema, table) => {
             const s = _metadata.schemas.find(s => s.name === schema) ?? _metadata.schemas[0];
             const t = s.tables.find(t => t.name === table);

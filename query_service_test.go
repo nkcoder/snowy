@@ -176,3 +176,29 @@ func TestSaveQuery_RejectsPathTraversal(t *testing.T) {
 		t.Error("expected error for path traversal filename")
 	}
 }
+
+// TestQueryFilename_RejectsDotNames covers the separator-free traversal names
+// ("." and "..") that pass a plain slash check but still resolve outside the
+// intended file. Every op that takes a filename must reject them.
+func TestQueryFilename_RejectsDotNames(t *testing.T) {
+	_, cleanup := setupQueriesDir(t)
+	defer cleanup()
+
+	for _, name := range []string{"", ".", ".."} {
+		if err := SaveQuery("ds-1", name, "SELECT 1;"); err == nil {
+			t.Errorf("SaveQuery(%q) should be rejected", name)
+		}
+		if _, err := LoadSavedQuery("ds-1", name); err == nil {
+			t.Errorf("LoadSavedQuery(%q) should be rejected", name)
+		}
+		if err := DeleteSavedQuery("ds-1", name); err == nil {
+			t.Errorf("DeleteSavedQuery(%q) should be rejected", name)
+		}
+		if err := RenameQuery("ds-1", name, "ok"); err == nil {
+			t.Errorf("RenameQuery(old=%q) should be rejected", name)
+		}
+		if err := RenameQuery("ds-1", "ok.sql", name); err == nil {
+			t.Errorf("RenameQuery(new=%q) should be rejected", name)
+		}
+	}
+}

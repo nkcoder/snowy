@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +37,26 @@ type DbService struct {
 
 func NewDbService(app *App) *DbService {
 	return &DbService{app: app}
+}
+
+// postgresConnString builds a libpq connection URL from user-supplied fields,
+// URL-encoding each component so a value containing a space or "=" cannot inject
+// extra connection keywords (e.g. silently downgrading sslmode). The password is
+// deliberately omitted — callers set ConnConfig.Password after parsing so the
+// secret never lands in a parsed string. An empty sslMode defaults to "require",
+// so traffic is encrypted unless a datasource explicitly opts out with "disable".
+func postgresConnString(host string, port int, database, username, sslMode string) string {
+	if sslMode == "" {
+		sslMode = "require"
+	}
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.User(username),
+		Host:     net.JoinHostPort(host, strconv.Itoa(port)),
+		Path:     "/" + database,
+		RawQuery: url.Values{"sslmode": {sslMode}}.Encode(),
+	}
+	return u.String()
 }
 
 // getPool returns the existing pool for dsID, creating one on first call.
@@ -66,13 +89,7 @@ func (s *DbService) getPool(dsID string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("datasource %s not found", dsID)
 	}
 
-	sslMode := ds.SSLMode
-	if sslMode == "" {
-		sslMode = "disable"
-	}
-	connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
-		ds.Host, ds.Port, ds.Database, ds.Username, sslMode)
-	poolCfg, err := pgxpool.ParseConfig(connStr)
+	poolCfg, err := pgxpool.ParseConfig(postgresConnString(ds.Host, ds.Port, ds.Database, ds.Username, ds.SSLMode))
 	if err != nil {
 		return nil, err
 	}

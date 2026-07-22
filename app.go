@@ -69,7 +69,7 @@ func (a *App) ExportCSV(csvContent, defaultFilename string) error {
 	if path == "" {
 		return nil
 	}
-	if err := os.WriteFile(path, []byte(csvContent), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(csvContent), 0o600); err != nil {
 		if a.ctx != nil {
 			wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
 				"level":   "error",
@@ -223,6 +223,11 @@ func (a *App) GetQueryHistory(dsID string, limit int) ([]HistoryEntry, error) {
 	return GetQueryHistory(dsID, limit)
 }
 
+// ClearHistory deletes all recorded query history for a datasource.
+func (a *App) ClearHistory(dsID string) error {
+	return ClearHistory(dsID)
+}
+
 type TestConnectionResult struct {
 	Success bool
 	Message string
@@ -231,9 +236,6 @@ type TestConnectionResult struct {
 // TestDatasource attempts a PostgreSQL connection with the supplied credentials.
 // sslMode must be one of: disable, require, verify-ca, verify-full.
 func (a *App) TestDatasource(host string, port int, database, username, password, sslMode string) TestConnectionResult {
-	if sslMode == "" {
-		sslMode = "disable"
-	}
 	ctx := context.Background()
 	if a.ctx != nil {
 		ctx = a.ctx
@@ -241,8 +243,7 @@ func (a *App) TestDatasource(host string, port int, database, username, password
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	connConfig, err := pgx.ParseConfig(fmt.Sprintf("host=%s port=%d dbname=%s user=%s sslmode=%s",
-		host, port, database, username, sslMode))
+	connConfig, err := pgx.ParseConfig(postgresConnString(host, port, database, username, sslMode))
 	if err != nil {
 		return TestConnectionResult{Success: false, Message: err.Error()}
 	}

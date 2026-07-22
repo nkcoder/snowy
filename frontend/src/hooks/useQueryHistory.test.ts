@@ -69,6 +69,53 @@ describe('useQueryHistory', () => {
     expect(result.current.historyLoading).toBe(false);
   });
 
+  it('clearHistory is a no-op when no datasource is active', async () => {
+    const { result } = renderHook(() => useQueryHistory(null));
+    await act(async () => {
+      await result.current.clearHistory();
+    });
+    expect(GoApp.ClearHistory).not.toHaveBeenCalled();
+  });
+
+  it('clearHistory wipes entries via the backend', async () => {
+    const entries = [main.HistoryEntry.createFrom({ id: '1', sql: 'SELECT 1' })];
+    vi.mocked(GoApp.GetQueryHistory).mockResolvedValue(entries);
+    vi.mocked(GoApp.ClearHistory).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useQueryHistory('ds-1'));
+    await act(async () => {
+      await result.current.openHistory();
+    });
+    expect(result.current.historyEntries).toEqual(entries);
+
+    await act(async () => {
+      await result.current.clearHistory();
+    });
+
+    expect(GoApp.ClearHistory).toHaveBeenCalledWith('ds-1');
+    expect(result.current.historyEntries).toEqual([]);
+  });
+
+  it('clearHistory leaves entries intact on error', async () => {
+    const entries = [main.HistoryEntry.createFrom({ id: '1', sql: 'SELECT 1' })];
+    vi.mocked(GoApp.GetQueryHistory).mockResolvedValue(entries);
+    vi.mocked(GoApp.ClearHistory).mockRejectedValue(new Error('boom'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { result } = renderHook(() => useQueryHistory('ds-1'));
+    await act(async () => {
+      await result.current.openHistory();
+    });
+
+    await act(async () => {
+      await result.current.clearHistory();
+    });
+
+    expect(warn).toHaveBeenCalled();
+    expect(result.current.historyEntries).toEqual(entries);
+    warn.mockRestore();
+  });
+
   it('closeHistory closes the drawer', async () => {
     vi.mocked(GoApp.GetQueryHistory).mockResolvedValue([]);
     const { result } = renderHook(() => useQueryHistory('ds-1'));

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Integration tests require a running Postgres instance.
@@ -427,5 +429,39 @@ func TestListTableKeys_EmptyTable(t *testing.T) {
 	}
 	if len(keys) != 0 {
 		t.Errorf("expected 0 keys for nonexistent table, got %d", len(keys))
+	}
+}
+
+// TestPostgresConnString_DefaultsToRequire locks in the secure default: a
+// datasource with no SSL mode set connects with sslmode=require (encrypted),
+// not the old plaintext "disable".
+func TestPostgresConnString_DefaultsToRequire(t *testing.T) {
+	u, err := url.Parse(postgresConnString("localhost", 5432, "db", "user", ""))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got := u.Query().Get("sslmode"); got != "require" {
+		t.Errorf("empty sslMode should default to require, got %q", got)
+	}
+}
+
+// TestPostgresConnString_ResistsInjection proves user-supplied fields cannot
+// smuggle extra libpq keywords (e.g. downgrading sslmode) via spaces/"=".
+func TestPostgresConnString_ResistsInjection(t *testing.T) {
+	// A username crafted to inject "sslmode=disable" must be preserved verbatim
+	// and must not downgrade the connection's TLS.
+	cfg, err := pgxpool.ParseConfig(
+		postgresConnString("localhost", 5432, "db", "evil sslmode=disable", "require"))
+	if err != nil {
+		t.Fatalf("ParseConfig: %v", err)
+	}
+	if cfg.ConnConfig.User != "evil sslmode=disable" {
+		t.Errorf("username not preserved verbatim: %q", cfg.ConnConfig.User)
+	}
+	if cfg.ConnConfig.Database != "db" {
+		t.Errorf("database not preserved: %q", cfg.ConnConfig.Database)
+	}
+	if cfg.ConnConfig.TLSConfig == nil {
+		t.Error("sslmode=require must yield a TLS config; injection downgraded it")
 	}
 }
