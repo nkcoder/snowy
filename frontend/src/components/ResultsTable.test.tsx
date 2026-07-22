@@ -136,6 +136,30 @@ describe('ResultsTable selection', () => {
     expect(corner.style.left).toBe('0px');
   });
 
+  it('keeps the # gutter fixed at 40px and adds an auto-width spacer column', () => {
+    render(<ResultsTable data={data} />);
+    // The # header keeps its fixed width; a trailing spacer <th> with no width
+    // absorbs leftover space so the gutter and data columns never inflate (#156).
+    const corner = screen.getByText('#').closest('th') as HTMLTableCellElement;
+    expect(corner.style.width).toBe('40px');
+
+    const headerCells = corner.closest('tr')?.querySelectorAll('th') ?? [];
+    // # + 2 data columns + 1 spacer = 4 header cells
+    expect(headerCells.length).toBe(data.columns.length + 2);
+    const spacer = headerCells[headerCells.length - 1] as HTMLTableCellElement;
+    expect(spacer.style.width).toBe('');
+  });
+
+  it('spacer cell carries the row highlight so selection fills the panel', () => {
+    render(<ResultsTable data={data} />);
+    const gutter = screen.getByText('1').closest('td') as HTMLTableCellElement;
+    fireEvent.click(gutter);
+
+    const cells = gutter.closest('tr')?.querySelectorAll('td') ?? [];
+    const spacer = cells[cells.length - 1] as HTMLTableCellElement;
+    expect(spacer.style.background).toBe(T.selected);
+  });
+
   it('clears selection when a new result set loads', () => {
     const { rerender } = render(<ResultsTable data={data} />);
     const aliceCell = screen.getByText('Alice').closest('td') as HTMLTableCellElement;

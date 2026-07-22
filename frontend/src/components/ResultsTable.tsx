@@ -401,13 +401,23 @@ export function ResultsTable({
                   </div>
                 </th>
               ))}
+              {/*
+                Auto-width spacer column. With no specified width, table-layout:fixed
+                hands it all the leftover space (from minWidth:100%) instead of spreading
+                the slack across the fixed-width # and data columns, which would inflate
+                them. Keeps the # gutter a constant width regardless of result shape.
+              */}
+              <th
+                aria-hidden
+                style={{ background: T.gridHeader, borderBottom: `1px solid ${T.border}` }}
+              />
             </tr>
           </thead>
           <tbody style={{ fontFamily: T.mono }} className="text-[13px]">
             {data.rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={data.columns.length + 1}
+                  colSpan={data.columns.length + 2}
                   style={{ color: T.textDim }}
                   className="py-8 px-4 text-center italic"
                 >
@@ -500,6 +510,14 @@ export function ResultsTable({
                           </td>
                         );
                       })}
+                      {/* Spacer cell (matches the header spacer). Carries the row
+                          highlight so selection/hover fills the full panel width. */}
+                      <td
+                        aria-hidden
+                        style={{
+                          background: rowScope ? T.selected : rowSelected ? T.hover : undefined,
+                        }}
+                      />
                     </tr>
                   );
                 })
