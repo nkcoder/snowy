@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// maxHistoryEntries caps how many query records are retained per datasource.
+// The file is trimmed to this many newest entries on every write so the plaintext
+// SQL history never grows without bound.
+const maxHistoryEntries = 100
+
 // HistoryEntry records a single query execution.
 type HistoryEntry struct {
 	ID         string `json:"id"`
@@ -64,9 +69,49 @@ func RecordHistory(dsID, sql string, rowCount int, durationMs int64) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	_, err = fmt.Fprintf(f, "%s\n", data)
-	return err
+	if _, err := fmt.Fprintf(f, "%s\n", data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return trimHistory(path, maxHistoryEntries)
+}
+
+// trimHistory rewrites path to keep only its newest max lines. It is a no-op when
+// the file already has max or fewer lines. Because RecordHistory calls it after
+// every append, the file stays at ~max lines, so reading it whole stays cheap.
+// The rewrite goes through a temp file + rename so a crash never truncates history.
+func trimHistory(path string, max int) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := bytes.Split(bytes.TrimRight(data, "\n"), []byte("\n"))
+	if len(lines) <= max {
+		return nil
+	}
+	kept := bytes.Join(lines[len(lines)-max:], []byte("\n"))
+	kept = append(kept, '\n')
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, kept, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// ClearHistory removes all recorded history for a datasource. A missing file is
+// treated as already-cleared (no error).
+func ClearHistory(dsID string) error {
+	path, err := historyFile(dsID)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // GetQueryHistory returns the last limit history entries, newest first.

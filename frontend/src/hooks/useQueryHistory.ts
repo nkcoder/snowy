@@ -28,5 +28,15 @@ export function useQueryHistory(activeDatasourceId: string | null) {
 
   const closeHistory = () => setHistoryOpen(false);
 
-  return { historyOpen, historyEntries, historyLoading, openHistory, closeHistory };
+  const clearHistory = async () => {
+    if (!activeDatasourceId) return;
+    try {
+      await GoApp.ClearHistory(activeDatasourceId);
+      setHistoryEntries([]);
+    } catch (err) {
+      console.warn('ClearHistory failed', err);
+    }
+  };
+
+  return { historyOpen, historyEntries, historyLoading, openHistory, closeHistory, clearHistory };
 }

@@ -16,12 +16,28 @@ function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
 
 describe('HistoryDrawer', () => {
   it('renders loading state', () => {
-    render(<HistoryDrawer entries={[]} loading={true} onClose={vi.fn()} onSelect={vi.fn()} />);
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={true}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
     expect(screen.getByText('Loading…')).toBeTruthy();
   });
 
   it('renders empty state when not loading and no entries', () => {
-    render(<HistoryDrawer entries={[]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />);
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
     expect(screen.getByText(/No history yet/)).toBeTruthy();
   });
 
@@ -31,7 +47,13 @@ describe('HistoryDrawer', () => {
       makeEntry({ id: 'e2', sql: 'SELECT 2' }),
     ];
     render(
-      <HistoryDrawer entries={entries} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={entries}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText('SELECT 1')).toBeTruthy();
     expect(screen.getByText('SELECT 2')).toBeTruthy();
@@ -41,7 +63,13 @@ describe('HistoryDrawer', () => {
     const onSelect = vi.fn();
     const entry = makeEntry({ sql: 'SELECT id FROM users' });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={onSelect} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={onSelect}
+        onClear={vi.fn()}
+      />
     );
     fireEvent.click(screen.getByText('SELECT id FROM users'));
     expect(onSelect).toHaveBeenCalledWith('SELECT id FROM users');
@@ -49,16 +77,60 @@ describe('HistoryDrawer', () => {
 
   it('calls onClose when X button is clicked', () => {
     const onClose = vi.fn();
-    render(<HistoryDrawer entries={[]} loading={false} onClose={onClose} onSelect={vi.fn()} />);
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={false}
+        onClose={onClose}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
     // The X button is the close button in the header
     const closeBtn = document.querySelector('button[type="button"]') as HTMLButtonElement;
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('calls onClear when Clear button is clicked', () => {
+    const onClear = vi.fn();
+    render(
+      <HistoryDrawer
+        entries={[makeEntry({ id: 'e1' })]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={onClear}
+      />
+    );
+    fireEvent.click(screen.getByTestId('history-clear'));
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  it('does not render Clear button when no entries', () => {
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
+    expect(screen.queryByTestId('history-clear')).toBeNull();
+  });
+
   it('calls onClose when backdrop is clicked', () => {
     const onClose = vi.fn();
-    render(<HistoryDrawer entries={[]} loading={false} onClose={onClose} onSelect={vi.fn()} />);
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={false}
+        onClose={onClose}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
     const backdrop = screen.getByTestId('history-backdrop');
     fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalled();
@@ -67,7 +139,13 @@ describe('HistoryDrawer', () => {
   it('shows footer with count when entries exist', () => {
     const entries = [makeEntry({ id: 'e1' }), makeEntry({ id: 'e2' }), makeEntry({ id: 'e3' })];
     render(
-      <HistoryDrawer entries={entries} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={entries}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText(/3 recent entr/)).toBeTruthy();
   });
@@ -79,13 +157,22 @@ describe('HistoryDrawer', () => {
         loading={false}
         onClose={vi.fn()}
         onSelect={vi.fn()}
+        onClear={vi.fn()}
       />
     );
     expect(screen.getByText(/1 recent entry/)).toBeTruthy();
   });
 
   it('does not show footer when no entries', () => {
-    render(<HistoryDrawer entries={[]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />);
+    render(
+      <HistoryDrawer
+        entries={[]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
     expect(screen.queryByText(/recent entr/)).toBeNull();
   });
 
@@ -97,6 +184,7 @@ describe('HistoryDrawer', () => {
         loading={false}
         onClose={vi.fn()}
         onSelect={vi.fn()}
+        onClear={vi.fn()}
       />
     );
     // Snippet is max 90 chars + ellipsis, but full sql is stored and passed to onSelect
@@ -111,6 +199,7 @@ describe('HistoryDrawer', () => {
         loading={false}
         onClose={vi.fn()}
         onSelect={vi.fn()}
+        onClear={vi.fn()}
       />
     );
     expect(screen.queryByText('Loading…')).toBeNull();
@@ -119,7 +208,13 @@ describe('HistoryDrawer', () => {
   it('triggers hover styles on mouse enter/leave', () => {
     const entry = makeEntry({ id: 'e1', sql: 'SELECT 1' });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     const btn = screen.getByText('SELECT 1').closest('button')!;
     fireEvent.mouseEnter(btn);
@@ -131,7 +226,13 @@ describe('HistoryDrawer', () => {
   it('shows "just now" for very recent entries', () => {
     const entry = makeEntry({ executedAt: new Date().toISOString() });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText('just now')).toBeTruthy();
   });
@@ -140,7 +241,13 @@ describe('HistoryDrawer', () => {
     const past = new Date(Date.now() - 30 * 1000).toISOString();
     const entry = makeEntry({ executedAt: past });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText(/s ago/)).toBeTruthy();
   });
@@ -149,7 +256,13 @@ describe('HistoryDrawer', () => {
     const past = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const entry = makeEntry({ executedAt: past });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText(/m ago/)).toBeTruthy();
   });
@@ -158,7 +271,13 @@ describe('HistoryDrawer', () => {
     const past = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const entry = makeEntry({ executedAt: past });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText(/h ago/)).toBeTruthy();
   });
@@ -167,7 +286,13 @@ describe('HistoryDrawer', () => {
     const past = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     const entry = makeEntry({ executedAt: past });
     render(
-      <HistoryDrawer entries={[entry]} loading={false} onClose={vi.fn()} onSelect={vi.fn()} />
+      <HistoryDrawer
+        entries={[entry]}
+        loading={false}
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onClear={vi.fn()}
+      />
     );
     expect(screen.getByText(/d ago/)).toBeTruthy();
   });

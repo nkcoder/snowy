@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, X } from 'lucide-react';
+import { ChevronRight, Clock, Trash2, X } from 'lucide-react';
 import type { main } from '../../wailsjs/go/models';
 import { T } from '../lib/tokens';
 import { fmtDuration } from '../lib/utils';
@@ -10,6 +10,7 @@ interface HistoryDrawerProps {
   loading: boolean;
   onClose: () => void;
   onSelect: (sql: string) => void;
+  onClear: () => void;
 }
 
 function relativeTime(isoStr: string): string {
@@ -29,7 +30,13 @@ function sqlSnippet(sql: string, max = 90): string {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
-export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDrawerProps) {
+export function HistoryDrawer({
+  entries,
+  loading,
+  onClose,
+  onSelect,
+  onClear,
+}: HistoryDrawerProps) {
   return (
     <>
       {/* Backdrop */}
@@ -61,14 +68,31 @@ export function HistoryDrawer({ entries, loading, onClose, onSelect }: HistoryDr
             <Clock size={15} color={T.accent} />
             Query History
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ color: T.textDim }}
-            className="flex items-center p-1 bg-transparent border-none cursor-pointer rounded"
-          >
-            <X size={15} />
-          </button>
+          <div className="flex items-center gap-1">
+            {entries.length > 0 && (
+              <button
+                type="button"
+                data-testid="history-clear"
+                title="Clear history"
+                onClick={onClear}
+                style={{ color: T.textDim }}
+                className="flex items-center gap-1 px-1.5 py-1 text-[11px] bg-transparent border-none cursor-pointer rounded"
+                onMouseEnter={(e) => (e.currentTarget.style.color = T.err)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = T.textDim)}
+              >
+                <Trash2 size={13} />
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ color: T.textDim }}
+              className="flex items-center p-1 bg-transparent border-none cursor-pointer rounded"
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Entry list */}

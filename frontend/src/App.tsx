@@ -133,7 +133,7 @@ function App() {
     resetResults,
   } = useQueryExecution(activeDatasourceId);
 
-  const { historyOpen, historyEntries, historyLoading, openHistory, closeHistory } =
+  const { historyOpen, historyEntries, historyLoading, openHistory, closeHistory, clearHistory } =
     useQueryHistory(activeDatasourceId);
 
   const handleRunQuery = (sql: string) => {
@@ -568,6 +568,7 @@ function App() {
                 loading={historyLoading}
                 onClose={closeHistory}
                 onSelect={handleHistorySelect}
+                onClear={clearHistory}
               />
             )}
           </div>

@@ -28,11 +28,21 @@ type SavedQuery struct {
 	Filename string `json:"filename"`
 }
 
+// validateQueryFilename rejects names that would escape the datasource's queries
+// directory: empty, path separators, or the "." / ".." directory references
+// (which pass a separator-only check but still resolve outside the intended file).
+func validateQueryFilename(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("invalid filename")
+	}
+	return nil
+}
+
 // SaveQuery writes sql to ~/.snowy/queries/<dsID>/<filename>.sql.
 // filename must not contain path separators.
 func SaveQuery(dsID, filename, sql string) error {
-	if strings.ContainsAny(filename, "/\\") {
-		return fmt.Errorf("invalid filename")
+	if err := validateQueryFilename(filename); err != nil {
+		return err
 	}
 	dir, err := queriesDir(dsID)
 	if err != nil {
@@ -65,8 +75,8 @@ func ListSavedQueries(dsID string) ([]SavedQuery, error) {
 
 // LoadSavedQuery reads the contents of a saved query file.
 func LoadSavedQuery(dsID, filename string) (string, error) {
-	if strings.ContainsAny(filename, "/\\") {
-		return "", fmt.Errorf("invalid filename")
+	if err := validateQueryFilename(filename); err != nil {
+		return "", err
 	}
 	dir, err := queriesDir(dsID)
 	if err != nil {
@@ -81,8 +91,8 @@ func LoadSavedQuery(dsID, filename string) (string, error) {
 
 // DeleteSavedQuery removes a saved query file.
 func DeleteSavedQuery(dsID, filename string) error {
-	if strings.ContainsAny(filename, "/\\") {
-		return fmt.Errorf("invalid filename")
+	if err := validateQueryFilename(filename); err != nil {
+		return err
 	}
 	dir, err := queriesDir(dsID)
 	if err != nil {
@@ -93,8 +103,11 @@ func DeleteSavedQuery(dsID, filename string) error {
 
 // RenameQuery renames a saved query file.
 func RenameQuery(dsID, oldName, newName string) error {
-	if strings.ContainsAny(oldName, "/\\") || strings.ContainsAny(newName, "/\\") {
-		return fmt.Errorf("invalid filename")
+	if err := validateQueryFilename(oldName); err != nil {
+		return err
+	}
+	if err := validateQueryFilename(newName); err != nil {
+		return err
 	}
 	dir, err := queriesDir(dsID)
 	if err != nil {

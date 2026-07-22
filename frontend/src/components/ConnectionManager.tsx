@@ -87,7 +87,7 @@ export function ConnectionManager({
         form.database ?? '',
         form.username ?? '',
         form.password ?? '',
-        form.sslMode ?? 'disable'
+        form.sslMode ?? 'require'
       );
       return { success: r.Success, message: r.Message };
     } catch (e: unknown) {
