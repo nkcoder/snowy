@@ -33,7 +33,7 @@ jobs:
           echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "Next version: $NEW_TAG"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
