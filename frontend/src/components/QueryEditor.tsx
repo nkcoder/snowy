@@ -40,6 +40,7 @@ import {
   findStatementBounds,
   innerSubqueryContext,
   isAfterStringClose,
+  isInsideComment,
   isInsideString,
   makeKeyTypeBadge,
 } from '../lib/sqlCompletion';
@@ -137,6 +138,7 @@ export function QueryEditor({
       const stmtFull = fullText.slice(stmtStart, stmtEnd);
       const beforeWord = fullText.slice(stmtStart, word.from);
       if (isInsideString(beforeWord) || isAfterStringClose(beforeWord)) return null;
+      if (isInsideComment(beforeWord)) return null;
       const sub = innerSubqueryContext(beforeWord, stmtFull);
       const ctx = detectSqlContext(sub?.innerBefore ?? beforeWord, sub?.innerFull ?? stmtFull);
       if (word.from === word.to && ctx.kind === 'keyword' && !context.explicit) return null;
