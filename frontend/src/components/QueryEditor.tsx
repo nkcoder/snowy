@@ -30,6 +30,7 @@ import {
 } from '@codemirror/view';
 import { Clock, Play, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { computeDocPatch } from '../lib/docPatch';
 import { buildFunctionDecorations, editorTheme, snowySqlHighlight } from '../lib/editorTheme';
 import {
   applyFuzzyMatch,
@@ -212,9 +213,13 @@ export function QueryEditor({
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
-    if (current === sqlValue) return;
+    // Apply a minimal edit rather than replacing the whole document, so
+    // CodeMirror maps the existing selection through the change and the caret
+    // stays put (a full replace collapses the caret to the end of the change).
+    const patch = computeDocPatch(current, sqlValue);
+    if (!patch) return;
     isProgrammatic.current = true;
-    view.dispatch({ changes: { from: 0, to: current.length, insert: sqlValue } });
+    view.dispatch({ changes: patch });
     isProgrammatic.current = false;
   }, [sqlValue]);
 

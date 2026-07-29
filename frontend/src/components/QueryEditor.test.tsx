@@ -149,6 +149,33 @@ describe('QueryEditor', () => {
     expect(screen.queryByTestId('find-bar')).not.toBeInTheDocument();
   });
 
+  describe('content reconciliation', () => {
+    it('applies external sql changes as a minimal edit, not a full-document replace', () => {
+      // Mock doc is fixed at 'SELECT 1;'. Rerendering with 'SELECT 2;' should
+      // patch only the differing character so CodeMirror keeps the caret put,
+      // instead of replacing the whole document (which collapses the caret).
+      const { rerender } = render(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+      const view = cmMockState.lastView!;
+      view.dispatch.mockClear();
+
+      rerender(<QueryEditor {...defaultProps} sql="SELECT 2;" />);
+
+      expect(view.dispatch).toHaveBeenCalledWith({
+        changes: { from: 7, to: 8, insert: '2' },
+      });
+    });
+
+    it('does not dispatch when the sql prop matches the current document', () => {
+      const { rerender } = render(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+      const view = cmMockState.lastView!;
+      view.dispatch.mockClear();
+
+      rerender(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('find bar integration', () => {
     function openFindBar() {
       render(<QueryEditor {...defaultProps} />);
