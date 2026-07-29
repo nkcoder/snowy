@@ -62,14 +62,13 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.0-noble
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Mark workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
 
       - name: Install root deps
         run: npm ci
@@ -77,6 +76,11 @@ jobs:
       - name: Install frontend deps
         run: npm ci
         working-directory: frontend
+
+      # Install the browser matching the resolved @playwright/test version, so a
+      # Dependabot bump can never drift from a pinned container image (see #171).
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
         run: npx playwright test
