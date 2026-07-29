@@ -9,6 +9,7 @@ import {
   findStatementBounds,
   innerSubqueryContext,
   isAfterStringClose,
+  isInsideComment,
   isInsideString,
   makeKeyTypeBadge,
 } from './sqlCompletion';
@@ -590,6 +591,39 @@ describe('isInsideString', () => {
     // Replicates the bug from the screenshot: "where from_account_id = 'd"
     // beforeWord is everything up to (but not including) 'd'
     expect(isInsideString("SELECT *\nfrom transactions\nwhere from_account_id = '")).toBe(true);
+  });
+});
+
+describe('isInsideComment', () => {
+  it('returns false for text with no comment', () => {
+    expect(isInsideComment('SELECT * FROM users WHERE ')).toBe(false);
+  });
+
+  it('returns true inside a -- line comment', () => {
+    expect(isInsideComment('SELECT * -- pick the ')).toBe(true);
+  });
+
+  it('returns false once a newline ends the -- line comment', () => {
+    expect(isInsideComment('SELECT * -- a comment\nFROM ')).toBe(false);
+  });
+
+  it('returns true inside an unclosed /* */ block comment', () => {
+    expect(isInsideComment('SELECT /* choose ')).toBe(true);
+    expect(isInsideComment('SELECT /* line one\nline two ')).toBe(true);
+  });
+
+  it('returns false after a closed /* */ block comment', () => {
+    expect(isInsideComment('SELECT /* note */ id FROM ')).toBe(false);
+  });
+
+  it('does not treat comment markers inside a string literal as a comment', () => {
+    expect(isInsideComment("WHERE note = '-- not a comment' AND ")).toBe(false);
+    expect(isInsideComment("WHERE note = '/* not a comment */' AND ")).toBe(false);
+  });
+
+  it('does not treat a quote inside a comment as opening a string', () => {
+    expect(isInsideString("-- it's a comment ")).toBe(false);
+    expect(isInsideComment("-- it's a comment ")).toBe(true);
   });
 });
 

@@ -242,7 +242,10 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
 // Walks `text` and invokes `cb` for each character that is NOT inside a
 // string literal ('…' or "…"), a -- line comment, or a /* … */ block comment.
 // Returning false from `cb` stops the scan early.
-function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefined): boolean {
+function scanSql(
+  text: string,
+  cb?: (i: number, ch: string) => boolean | undefined
+): { inString: boolean; inComment: boolean } {
   let inSingle = false;
   let inDouble = false;
   let inLineComment = false;
@@ -293,13 +296,21 @@ function scanSql(text: string, cb?: (i: number, ch: string) => boolean | undefin
       i++;
       continue;
     }
-    if (cb && cb(i, ch) === false) return inSingle || inDouble;
+    if (cb && cb(i, ch) === false) {
+      return { inString: inSingle || inDouble, inComment: inLineComment || inBlockComment };
+    }
   }
-  return inSingle || inDouble;
+  return { inString: inSingle || inDouble, inComment: inLineComment || inBlockComment };
 }
 
 export function isInsideString(text: string): boolean {
-  return scanSql(text);
+  return scanSql(text).inString;
+}
+
+// True when the end of `text` falls inside a -- line comment or an unclosed
+// /* … */ block comment. Used to suppress autocomplete inside SQL comments.
+export function isInsideComment(text: string): boolean {
+  return scanSql(text).inComment;
 }
 
 export function isAfterStringClose(text: string): boolean {
