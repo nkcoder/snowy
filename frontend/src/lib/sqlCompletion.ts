@@ -222,8 +222,11 @@ const OPERAND_KEYWORDS = new Set([
 // than a new clause keyword: inside an unclosed parenthesis, right after an
 // operator/open-paren/comma, or right after an operand-expecting keyword. When
 // false, the current sub-expression is complete and a keyword is expected next.
+// String literals and comments are masked first (via maskLiterals) so parens or
+// operator-like characters inside them — e.g. `LIKE '%(%'` or a trailing block
+// comment — don't get mistaken for real expression structure.
 function expectsOperand(beforeWord: string): boolean {
-  const trimmed = beforeWord.replace(/\s+$/, '');
+  const trimmed = maskLiterals(beforeWord).trimEnd();
   if (trimmed === '') return false;
   const opens = (trimmed.match(/\(/g) ?? []).length;
   const closes = (trimmed.match(/\)/g) ?? []).length;
@@ -338,6 +341,35 @@ function scanSql(
   return { inString: inSingle || inDouble, inComment: inLineComment || inBlockComment };
 }
 
+// Replaces every string-literal span with the same number of '0's (an opaque,
+// operator-free operand token) and every comment span with spaces (transparent
+// whitespace), leaving code characters untouched and positions preserved. Lets
+// callers reason about expression structure without literal/comment content
+// leaking parens, operators, or keyword-like words into the analysis. Each
+// non-code span begins with its opener (' or " for strings, - or / for
+// comments), which selects the fill character.
+function maskLiterals(text: string): string {
+  const isCode = new Array<boolean>(text.length).fill(false);
+  scanSql(text, (i) => {
+    isCode[i] = true;
+    return undefined;
+  });
+  const out = text.split('');
+  let i = 0;
+  while (i < text.length) {
+    if (isCode[i]) {
+      i++;
+      continue;
+    }
+    const start = i;
+    while (i < text.length && !isCode[i]) i++;
+    const opener = text[start];
+    const fill = opener === "'" || opener === '"' ? '0' : ' ';
+    out.fill(fill, start, i);
+  }
+  return out.join('');
+}
+
 export function isInsideString(text: string): boolean {
   return scanSql(text).inString;
 }
@@ -383,11 +415,27 @@ export function innerSubqueryContext(
     return undefined; // never stops early; explicit undefined keeps the return type precise
   });
   if (stack.length === 0) return null;
-  const lastOpenPos = stack[stack.length - 1];
+
+  // Only descend into parens that open a subquery — their content begins with
+  // SELECT/WITH. Grouping and function-call parens are left in place so
+  // detectSqlContext still sees the enclosing clause (e.g. WHERE) and treats
+  // `WHERE (col = ` as a column position via expectsOperand. Search from the
+  // innermost unclosed paren outward for the first subquery paren.
+  const masked = maskLiterals(beforeWord);
+  let depthIndex = -1;
+  for (let k = stack.length - 1; k >= 0; k--) {
+    if (/^\s*(?:SELECT|WITH)\b/i.test(masked.slice(stack[k] + 1))) {
+      depthIndex = k;
+      break;
+    }
+  }
+  if (depthIndex === -1) return null;
+  const lastOpenPos = stack[depthIndex];
 
   // Find the matching `)` in stmtFull starting from the cursor; clip innerFull
   // there so outer-query content past the subquery (e.g. trailing JOINs) does
-  // not leak into completion context.
+  // not leak into completion context. The chosen paren closes when depth falls
+  // back to its index in the stack (grouping parens nested inside close first).
   let depth = stack.length;
   let closePos = stmtFull.length;
   scanSql(stmtFull.slice(beforeWord.length), (i, ch) => {
@@ -395,7 +443,7 @@ export function innerSubqueryContext(
       depth++;
     } else if (ch === ')') {
       depth--;
-      if (depth === stack.length - 1) {
+      if (depth === depthIndex) {
         closePos = beforeWord.length + i;
         return false;
       }

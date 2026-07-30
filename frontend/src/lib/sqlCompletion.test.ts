@@ -12,6 +12,7 @@ import {
   isInsideComment,
   isInsideString,
   makeKeyTypeBadge,
+  type SqlContext,
 } from './sqlCompletion';
 
 describe('makeKeyTypeBadge', () => {
@@ -347,6 +348,30 @@ describe('detectSqlContext', () => {
 
   it('still returns column context after a comma in GROUP BY list', () => {
     const stmt = 'SELECT * FROM users GROUP BY user_id, ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
+
+  // A LIKE pattern (or any string literal) may contain an unbalanced paren; it
+  // must not be counted as real expression structure — the predicate is
+  // complete, so a keyword is expected next.
+  it('returns keyword context after a LIKE pattern with a paren in the string', () => {
+    const stmt = "SELECT * FROM users WHERE name LIKE '%(%' ";
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a string literal containing an unbalanced open paren', () => {
+    const stmt = "SELECT * FROM users WHERE note = 'see (ref' ";
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a complete predicate followed by a block comment', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = 1 /* note */ ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('still returns column context when a comment sits between an operator and the cursor', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = /* pick one */ ';
     const ctx = detectSqlContext(stmt, stmt);
     expect(ctx.kind).toBe('column');
   });
@@ -838,6 +863,69 @@ describe('innerSubqueryContext', () => {
     const sub = innerSubqueryContext(before, full);
     expect(sub).not.toBeNull();
     const ctx = detectSqlContext(sub!.innerBefore, sub!.innerFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toContain('orders');
+      expect(ctx.fromTables).not.toContain('users');
+    }
+  });
+
+  // A grouping/boolean paren is NOT a subquery, so innerSubqueryContext must not
+  // descend into it — otherwise the enclosing clause (WHERE) is lost and the
+  // position is misread as a keyword position instead of a column one.
+  it('does not descend into a grouping paren in WHERE', () => {
+    const before = 'SELECT * FROM users WHERE (id = ';
+    expect(innerSubqueryContext(before, before)).toBeNull();
+  });
+
+  it('does not descend into a function-call paren', () => {
+    const before = 'SELECT id FROM users GROUP BY id HAVING count(';
+    expect(innerSubqueryContext(before, before)).toBeNull();
+  });
+});
+
+// Mirrors QueryEditor's completion path (innerSubqueryContext then
+// detectSqlContext): grouping parens keep column context, while a real subquery
+// still resets context to its own inner FROM.
+describe('completion path — grouping parens vs subqueries', () => {
+  const contextAt = (stmt: string): SqlContext => {
+    const sub = innerSubqueryContext(stmt, stmt);
+    return detectSqlContext(sub?.innerBefore ?? stmt, sub?.innerFull ?? stmt);
+  };
+
+  it('column context right after an opening grouping paren in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('column context after an operator inside a grouping paren in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (id = ');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('column context inside nested grouping parens in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (a = 1 AND (b = ');
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('column context after a grouping paren in HAVING', () => {
+    const ctx = contextAt('SELECT id FROM users GROUP BY id HAVING (');
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('still resets to the subquery FROM inside IN (SELECT …)', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE id IN (SELECT x FROM orders WHERE ');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toContain('orders');
+      expect(ctx.fromTables).not.toContain('users');
+    }
+  });
+
+  it('resolves a grouping paren nested inside a subquery to the subquery FROM', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE id IN (SELECT x FROM orders WHERE (y = ');
     expect(ctx.kind).toBe('column');
     if (ctx.kind === 'column') {
       expect(ctx.fromTables).toContain('orders');
