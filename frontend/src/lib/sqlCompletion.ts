@@ -1,5 +1,5 @@
 import type { Completion } from '@codemirror/autocomplete';
-import Fuse from 'fuse.js';
+import fuzzysort from 'fuzzysort';
 
 export interface CompletionEntry {
   kind: 'schema' | 'table' | 'view' | 'column';
@@ -410,26 +410,35 @@ export function innerSubqueryContext(
 
 export type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
+// Converts fuzzysort's ascending list of matched character indices into the
+// [from, toExclusive] range pairs CodeMirror's `getMatch` expects, merging
+// consecutive indices into a single highlighted run.
+function indexesToRanges(indexes: readonly number[]): number[] {
+  const ranges: number[] = [];
+  for (const i of indexes) {
+    if (ranges.length > 0 && ranges[ranges.length - 1] === i) {
+      ranges[ranges.length - 1] = i + 1;
+    } else {
+      ranges.push(i, i + 1);
+    }
+  }
+  return ranges;
+}
+
+// Ranks completions with subsequence + word-boundary matching (fuzzysort), the
+// way DataGrip/VS Code do: `po` matches `property`, `pt` matches
+// `property_type`, `bid` matches `booking_id`. Non-subsequence candidates are
+// excluded. Match quality (score, 0..1) drives ordering; each option's own
+// priority (keyword/table/column/PK/FK boosts from buildCompletionOptions) is
+// added on top so equal-quality matches keep their semantic order.
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
   if (!prefix) return options;
-  const fuse = new Fuse(options, {
-    keys: ['label'],
-    threshold: 0.4,
-    includeScore: true,
-    includeMatches: true,
-    minMatchCharLength: 1,
-  });
-  return fuse.search(prefix).map(({ item, score, matches }) => {
-    const matchRanges: number[] = [];
-    for (const match of matches ?? []) {
-      for (const [s, e] of match.indices) {
-        matchRanges.push(s, e + 1);
-      }
-    }
+  return fuzzysort.go(prefix, options, { key: 'label' }).map((result) => {
+    const ranges = indexesToRanges(result.indexes);
     return {
-      ...item,
-      boost: (item.boost ?? 0) + Math.round((1 - (score ?? 0)) * 100),
-      matchRanges: matchRanges.length > 0 ? matchRanges : undefined,
+      ...result.obj,
+      boost: (result.obj.boost ?? 0) + Math.round(result.score * 100),
+      matchRanges: ranges.length > 0 ? ranges : undefined,
     };
   });
 }

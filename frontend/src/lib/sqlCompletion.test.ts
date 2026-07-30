@@ -571,6 +571,58 @@ describe('applyFuzzyMatch', () => {
     expect(result[0].matchRanges).toBeDefined();
     expect(result[0].matchRanges!.length).toBeGreaterThan(0);
   });
+
+  // Subsequence + word-boundary matching, the way DataGrip/VS Code behave.
+  const cols = [
+    { label: 'property', boost: 10 },
+    { label: 'property_type', boost: 10 },
+    { label: 'property_id', boost: 10 },
+    { label: 'posted_at', boost: 10 },
+    { label: 'price', boost: 10 },
+    { label: 'booking_id', boost: 10 },
+  ];
+  const labels = (r: { label: string }[]) => r.map((o) => o.label);
+
+  it('matches a non-contiguous subsequence (po -> property)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'po'))).toContain('property');
+  });
+
+  it('matches on a word boundary (pt -> property_type)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'pt'))).toContain('property_type');
+  });
+
+  it('matches an initialism across underscores (bid -> booking_id)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'bid'))).toContain('booking_id');
+  });
+
+  it('ranks a prefix match above a looser subsequence (po: posted_at > property)', () => {
+    const result = applyFuzzyMatch(cols, 'po');
+    const posted = result.find((o) => o.label === 'posted_at');
+    const property = result.find((o) => o.label === 'property');
+    expect(posted).toBeDefined();
+    expect(property).toBeDefined();
+    expect(posted!.boost!).toBeGreaterThan(property!.boost!);
+  });
+
+  it('excludes candidates that are not a subsequence (price has no "o" for po)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'po'))).not.toContain('price');
+  });
+
+  it('highlights each matched character of a split subsequence (po -> pr[o]perty)', () => {
+    const property = applyFuzzyMatch(cols, 'po').find((o) => o.label === 'property');
+    // p@0 and o@2 -> [from,toExclusive] pairs: [0,1, 2,3]
+    expect(property!.matchRanges).toEqual([0, 1, 2, 3]);
+  });
+
+  it('fuzzy-matches keywords too (gb -> GROUP BY)', () => {
+    const kw = [
+      { label: 'GROUP BY', boost: 5 },
+      { label: 'ORDER BY', boost: 5 },
+    ];
+    const result = labels(applyFuzzyMatch(kw, 'gb'));
+    expect(result).toContain('GROUP BY');
+    expect(result).not.toContain('ORDER BY');
+  });
 });
 
 describe('isAfterStringClose', () => {
