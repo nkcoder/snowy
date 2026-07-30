@@ -1,5 +1,5 @@
 import type { Completion } from '@codemirror/autocomplete';
-import Fuse from 'fuse.js';
+import fuzzysort from 'fuzzysort';
 
 export interface CompletionEntry {
   kind: 'schema' | 'table' | 'view' | 'column';
@@ -116,6 +116,10 @@ function stripSchema(name: string): string {
 }
 
 export function extractFromTables(stmtText: string): string[] {
+  // Mask string/comment content first so a FROM/JOIN/UPDATE token inside a
+  // literal or comment can't be captured as a phantom table (real identifiers
+  // are code and stay intact; positions are preserved).
+  stmtText = maskLiterals(stmtText);
   const tables: string[] = [];
   const fromMatch = stmtText.match(
     /\bFROM\s+([\w.\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
@@ -160,6 +164,9 @@ const ALIAS_RESERVED = new Set([
 ]);
 
 export function extractAliasMap(stmtText: string): Map<string, string> {
+  // Mask literals/comments so keywords or table-like words inside them don't
+  // leak into the alias map (see extractFromTables).
+  stmtText = maskLiterals(stmtText);
   const map = new Map<string, string>();
   const addEntry = (tableName: string, alias?: string) => {
     const t = stripSchema(tableName.toLowerCase());
@@ -222,8 +229,11 @@ const OPERAND_KEYWORDS = new Set([
 // than a new clause keyword: inside an unclosed parenthesis, right after an
 // operator/open-paren/comma, or right after an operand-expecting keyword. When
 // false, the current sub-expression is complete and a keyword is expected next.
+// String literals and comments are masked first (via maskLiterals) so parens or
+// operator-like characters inside them — e.g. `LIKE '%(%'` or a trailing block
+// comment — don't get mistaken for real expression structure.
 function expectsOperand(beforeWord: string): boolean {
-  const trimmed = beforeWord.replace(/\s+$/, '');
+  const trimmed = maskLiterals(beforeWord).trimEnd();
   if (trimmed === '') return false;
   const opens = (trimmed.match(/\(/g) ?? []).length;
   const closes = (trimmed.match(/\)/g) ?? []).length;
@@ -338,6 +348,35 @@ function scanSql(
   return { inString: inSingle || inDouble, inComment: inLineComment || inBlockComment };
 }
 
+// Replaces every string-literal span with the same number of '0's (an opaque,
+// operator-free operand token) and every comment span with spaces (transparent
+// whitespace), leaving code characters untouched and positions preserved. Lets
+// callers reason about expression structure without literal/comment content
+// leaking parens, operators, or keyword-like words into the analysis. Each
+// non-code span begins with its opener (' or " for strings, - or / for
+// comments), which selects the fill character.
+function maskLiterals(text: string): string {
+  const isCode = new Array<boolean>(text.length).fill(false);
+  scanSql(text, (i) => {
+    isCode[i] = true;
+    return undefined;
+  });
+  const out = text.split('');
+  let i = 0;
+  while (i < text.length) {
+    if (isCode[i]) {
+      i++;
+      continue;
+    }
+    const start = i;
+    while (i < text.length && !isCode[i]) i++;
+    const opener = text[start];
+    const fill = opener === "'" || opener === '"' ? '0' : ' ';
+    out.fill(fill, start, i);
+  }
+  return out.join('');
+}
+
 export function isInsideString(text: string): boolean {
   return scanSql(text).inString;
 }
@@ -383,11 +422,27 @@ export function innerSubqueryContext(
     return undefined; // never stops early; explicit undefined keeps the return type precise
   });
   if (stack.length === 0) return null;
-  const lastOpenPos = stack[stack.length - 1];
+
+  // Only descend into parens that open a subquery — their content begins with
+  // SELECT/WITH. Grouping and function-call parens are left in place so
+  // detectSqlContext still sees the enclosing clause (e.g. WHERE) and treats
+  // `WHERE (col = ` as a column position via expectsOperand. Search from the
+  // innermost unclosed paren outward for the first subquery paren.
+  const masked = maskLiterals(beforeWord);
+  let depthIndex = -1;
+  for (let k = stack.length - 1; k >= 0; k--) {
+    if (/^\s*(?:SELECT|WITH)\b/i.test(masked.slice(stack[k] + 1))) {
+      depthIndex = k;
+      break;
+    }
+  }
+  if (depthIndex === -1) return null;
+  const lastOpenPos = stack[depthIndex];
 
   // Find the matching `)` in stmtFull starting from the cursor; clip innerFull
   // there so outer-query content past the subquery (e.g. trailing JOINs) does
-  // not leak into completion context.
+  // not leak into completion context. The chosen paren closes when depth falls
+  // back to its index in the stack (grouping parens nested inside close first).
   let depth = stack.length;
   let closePos = stmtFull.length;
   scanSql(stmtFull.slice(beforeWord.length), (i, ch) => {
@@ -395,7 +450,7 @@ export function innerSubqueryContext(
       depth++;
     } else if (ch === ')') {
       depth--;
-      if (depth === stack.length - 1) {
+      if (depth === depthIndex) {
         closePos = beforeWord.length + i;
         return false;
       }
@@ -410,26 +465,40 @@ export function innerSubqueryContext(
 
 export type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
+// Caps how many fuzzy matches feed the dropdown. fuzzysort returns every
+// subsequence match with no ceiling; on a wide table a single common letter can
+// match hundreds of columns, so bound the list to the best-ranked few.
+const FUZZY_MATCH_LIMIT = 50;
+
+// Converts fuzzysort's ascending list of matched character indices into the
+// [from, toExclusive] range pairs CodeMirror's `getMatch` expects, merging
+// consecutive indices into a single highlighted run.
+function indexesToRanges(indexes: readonly number[]): number[] {
+  const ranges: number[] = [];
+  for (const i of indexes) {
+    if (ranges.length > 0 && ranges[ranges.length - 1] === i) {
+      ranges[ranges.length - 1] = i + 1;
+    } else {
+      ranges.push(i, i + 1);
+    }
+  }
+  return ranges;
+}
+
+// Ranks completions with subsequence + word-boundary matching (fuzzysort), the
+// way DataGrip/VS Code do: `po` matches `property`, `pt` matches
+// `property_type`, `bid` matches `booking_id`. Non-subsequence candidates are
+// excluded. Match quality (score, 0..1) drives ordering; each option's own
+// priority (keyword/table/column/PK/FK boosts from buildCompletionOptions) is
+// added on top so equal-quality matches keep their semantic order.
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
   if (!prefix) return options;
-  const fuse = new Fuse(options, {
-    keys: ['label'],
-    threshold: 0.4,
-    includeScore: true,
-    includeMatches: true,
-    minMatchCharLength: 1,
-  });
-  return fuse.search(prefix).map(({ item, score, matches }) => {
-    const matchRanges: number[] = [];
-    for (const match of matches ?? []) {
-      for (const [s, e] of match.indices) {
-        matchRanges.push(s, e + 1);
-      }
-    }
+  return fuzzysort.go(prefix, options, { key: 'label', limit: FUZZY_MATCH_LIMIT }).map((result) => {
+    const ranges = indexesToRanges(result.indexes);
     return {
-      ...item,
-      boost: (item.boost ?? 0) + Math.round((1 - (score ?? 0)) * 100),
-      matchRanges: matchRanges.length > 0 ? matchRanges : undefined,
+      ...result.obj,
+      boost: (result.obj.boost ?? 0) + Math.round(result.score * 100),
+      matchRanges: ranges.length > 0 ? ranges : undefined,
     };
   });
 }

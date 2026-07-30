@@ -12,6 +12,7 @@ import {
   isInsideComment,
   isInsideString,
   makeKeyTypeBadge,
+  type SqlContext,
 } from './sqlCompletion';
 
 describe('makeKeyTypeBadge', () => {
@@ -108,6 +109,18 @@ describe('extractFromTables', () => {
     expect(tables).toContain('orders');
     expect(tables).not.toContain('public');
     expect(tables).not.toContain('o');
+  });
+
+  it('ignores a JOIN token that appears inside a string literal', () => {
+    const tables = extractFromTables("SELECT * FROM users WHERE note = 'JOIN phantom' AND id = 1");
+    expect(tables).toEqual(['users']);
+    expect(tables).not.toContain('phantom');
+  });
+
+  it('ignores a FROM/JOIN token that appears inside a comment', () => {
+    const tables = extractFromTables('SELECT * FROM users /* JOIN phantom */ WHERE id = 1');
+    expect(tables).toEqual(['users']);
+    expect(tables).not.toContain('phantom');
   });
 });
 
@@ -350,6 +363,30 @@ describe('detectSqlContext', () => {
     const ctx = detectSqlContext(stmt, stmt);
     expect(ctx.kind).toBe('column');
   });
+
+  // A LIKE pattern (or any string literal) may contain an unbalanced paren; it
+  // must not be counted as real expression structure — the predicate is
+  // complete, so a keyword is expected next.
+  it('returns keyword context after a LIKE pattern with a paren in the string', () => {
+    const stmt = "SELECT * FROM users WHERE name LIKE '%(%' ";
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a string literal containing an unbalanced open paren', () => {
+    const stmt = "SELECT * FROM users WHERE note = 'see (ref' ";
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a complete predicate followed by a block comment', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = 1 /* note */ ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('still returns column context when a comment sits between an operator and the cursor', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = /* pick one */ ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
 });
 
 describe('extractAliasMap', () => {
@@ -398,6 +435,13 @@ describe('extractAliasMap', () => {
   it('maps schema-qualified table with AS alias', () => {
     const m = extractAliasMap('SELECT u.id FROM public.users AS u');
     expect(m.get('u')).toBe('users');
+  });
+
+  it('ignores a FROM token inside a string literal', () => {
+    const m = extractAliasMap("SELECT * FROM users u WHERE note = 'FROM orders o'");
+    expect(m.get('u')).toBe('users');
+    expect(m.has('orders')).toBe(false);
+    expect(m.has('o')).toBe(false);
   });
 });
 
@@ -570,6 +614,64 @@ describe('applyFuzzyMatch', () => {
     const result = applyFuzzyMatch(opts, 'coun');
     expect(result[0].matchRanges).toBeDefined();
     expect(result[0].matchRanges!.length).toBeGreaterThan(0);
+  });
+
+  // Subsequence + word-boundary matching, the way DataGrip/VS Code behave.
+  const cols = [
+    { label: 'property', boost: 10 },
+    { label: 'property_type', boost: 10 },
+    { label: 'property_id', boost: 10 },
+    { label: 'posted_at', boost: 10 },
+    { label: 'price', boost: 10 },
+    { label: 'booking_id', boost: 10 },
+  ];
+  const labels = (r: { label: string }[]) => r.map((o) => o.label);
+
+  it('matches a non-contiguous subsequence (po -> property)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'po'))).toContain('property');
+  });
+
+  it('matches on a word boundary (pt -> property_type)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'pt'))).toContain('property_type');
+  });
+
+  it('matches an initialism across underscores (bid -> booking_id)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'bid'))).toContain('booking_id');
+  });
+
+  it('ranks a prefix match above a looser subsequence (po: posted_at > property)', () => {
+    const result = applyFuzzyMatch(cols, 'po');
+    const posted = result.find((o) => o.label === 'posted_at');
+    const property = result.find((o) => o.label === 'property');
+    expect(posted).toBeDefined();
+    expect(property).toBeDefined();
+    expect(posted!.boost!).toBeGreaterThan(property!.boost!);
+  });
+
+  it('excludes candidates that are not a subsequence (price has no "o" for po)', () => {
+    expect(labels(applyFuzzyMatch(cols, 'po'))).not.toContain('price');
+  });
+
+  it('highlights each matched character of a split subsequence (po -> pr[o]perty)', () => {
+    const property = applyFuzzyMatch(cols, 'po').find((o) => o.label === 'property');
+    // p@0 and o@2 -> [from,toExclusive] pairs: [0,1, 2,3]
+    expect(property!.matchRanges).toEqual([0, 1, 2, 3]);
+  });
+
+  it('fuzzy-matches keywords too (gb -> GROUP BY)', () => {
+    const kw = [
+      { label: 'GROUP BY', boost: 5 },
+      { label: 'ORDER BY', boost: 5 },
+    ];
+    const result = labels(applyFuzzyMatch(kw, 'gb'));
+    expect(result).toContain('GROUP BY');
+    expect(result).not.toContain('ORDER BY');
+  });
+
+  it('caps the number of matches so a wide table cannot flood the dropdown', () => {
+    // 200 columns that all contain the letter "a" as a subsequence.
+    const many = Array.from({ length: 200 }, (_, i) => ({ label: `col_a_${i}`, boost: 10 }));
+    expect(applyFuzzyMatch(many, 'a').length).toBeLessThanOrEqual(50);
   });
 });
 
@@ -786,6 +888,69 @@ describe('innerSubqueryContext', () => {
     const sub = innerSubqueryContext(before, full);
     expect(sub).not.toBeNull();
     const ctx = detectSqlContext(sub!.innerBefore, sub!.innerFull);
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toContain('orders');
+      expect(ctx.fromTables).not.toContain('users');
+    }
+  });
+
+  // A grouping/boolean paren is NOT a subquery, so innerSubqueryContext must not
+  // descend into it — otherwise the enclosing clause (WHERE) is lost and the
+  // position is misread as a keyword position instead of a column one.
+  it('does not descend into a grouping paren in WHERE', () => {
+    const before = 'SELECT * FROM users WHERE (id = ';
+    expect(innerSubqueryContext(before, before)).toBeNull();
+  });
+
+  it('does not descend into a function-call paren', () => {
+    const before = 'SELECT id FROM users GROUP BY id HAVING count(';
+    expect(innerSubqueryContext(before, before)).toBeNull();
+  });
+});
+
+// Mirrors QueryEditor's completion path (innerSubqueryContext then
+// detectSqlContext): grouping parens keep column context, while a real subquery
+// still resets context to its own inner FROM.
+describe('completion path — grouping parens vs subqueries', () => {
+  const contextAt = (stmt: string): SqlContext => {
+    const sub = innerSubqueryContext(stmt, stmt);
+    return detectSqlContext(sub?.innerBefore ?? stmt, sub?.innerFull ?? stmt);
+  };
+
+  it('column context right after an opening grouping paren in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('column context after an operator inside a grouping paren in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (id = ');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
+  });
+
+  it('column context inside nested grouping parens in WHERE', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE (a = 1 AND (b = ');
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('column context after a grouping paren in HAVING', () => {
+    const ctx = contextAt('SELECT id FROM users GROUP BY id HAVING (');
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('still resets to the subquery FROM inside IN (SELECT …)', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE id IN (SELECT x FROM orders WHERE ');
+    expect(ctx.kind).toBe('column');
+    if (ctx.kind === 'column') {
+      expect(ctx.fromTables).toContain('orders');
+      expect(ctx.fromTables).not.toContain('users');
+    }
+  });
+
+  it('resolves a grouping paren nested inside a subquery to the subquery FROM', () => {
+    const ctx = contextAt('SELECT * FROM users WHERE id IN (SELECT x FROM orders WHERE (y = ');
     expect(ctx.kind).toBe('column');
     if (ctx.kind === 'column') {
       expect(ctx.fromTables).toContain('orders');
