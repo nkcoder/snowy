@@ -200,6 +200,39 @@ export type SqlContext =
 const TABLE_CONTEXT_RE =
   /(?:\b(?:FROM|JOIN)\s+(?:\w+\s*,\s*)*|\bUPDATE\s*|\b(?:DROP|ALTER)\s+TABLE\s+(?:\w+\s*,\s*)*|\bTRUNCATE\s+(?:TABLE\s+)?(?:\w+\s*,\s*)*|\bINSERT\s+INTO\s+(?:\w+\s*,\s*)*)$/;
 
+// Keywords that syntactically expect an operand (a column or value) to follow.
+// Used to tell "column position" from "clause-keyword position" inside a column
+// clause: after any of these an operand is expected, so column context holds.
+const OPERAND_KEYWORDS = new Set([
+  'WHERE',
+  'HAVING',
+  'ON',
+  'SET',
+  'BY',
+  'AND',
+  'OR',
+  'NOT',
+  'LIKE',
+  'ILIKE',
+  'IN',
+  'BETWEEN',
+]);
+
+// True when the text immediately before the cursor expects an operand rather
+// than a new clause keyword: inside an unclosed parenthesis, right after an
+// operator/open-paren/comma, or right after an operand-expecting keyword. When
+// false, the current sub-expression is complete and a keyword is expected next.
+function expectsOperand(beforeWord: string): boolean {
+  const trimmed = beforeWord.replace(/\s+$/, '');
+  if (trimmed === '') return false;
+  const opens = (trimmed.match(/\(/g) ?? []).length;
+  const closes = (trimmed.match(/\)/g) ?? []).length;
+  if (opens > closes) return true;
+  if (/[-+*/%~^=<>!|&(,.]$/.test(trimmed)) return true;
+  const lastWord = trimmed.match(/(\w+)$/)?.[1].toUpperCase();
+  return lastWord !== undefined && OPERAND_KEYWORDS.has(lastWord);
+}
+
 export function detectSqlContext(beforeWord: string, stmtFull: string): SqlContext {
   // Qualified reference: alias.col or schema.table — dispatch on position
   const qualifiedMatch = beforeWord.match(/(\w+)\.\s*$/i);
@@ -224,8 +257,7 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   // patterns below. Only fires when a non-space char follows the keyword+space.
   const normalised = upper.replace(/(\b(?:WHERE|HAVING|ON|AND|OR|SET|BY)\s+)\S[\s\S]*$/, '$1');
   const isSelectList = /\bSELECT(?:\s+DISTINCT)?\s+(?:\w+\s*,\s*)*$/.test(upper);
-  const isColumnCtx =
-    isSelectList ||
+  const inColumnClause =
     /\b(?:WHERE|HAVING|ON)\s*$/.test(normalised) ||
     /\b(?:AND|OR)\s*$/.test(normalised) ||
     /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
@@ -233,7 +265,10 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
     /\bSET\s*$/.test(normalised) ||
     // Multi-column SET pattern uses upper: "SET a=1, b=" doesn't involve parens
     /\bSET\s+(?:\w+\s*=\s*[^,]+,\s*)+$/.test(upper);
-  if (isColumnCtx) {
+  // A column clause yields column context only while an operand is expected;
+  // once its current sub-expression is complete, the next clause keyword is
+  // expected instead. Select-list positions always expect a column.
+  if (isSelectList || (inColumnClause && expectsOperand(beforeWord))) {
     return { kind: 'column', fromTables: extractFromTables(stmtFull), isSelectList };
   }
   return { kind: 'keyword' };

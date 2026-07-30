@@ -306,6 +306,50 @@ describe('detectSqlContext', () => {
     expect(ctx.kind).toBe('column');
     if (ctx.kind === 'column') expect(ctx.fromTables).toContain('users');
   });
+
+  // Once a clause's sub-expression is complete, the next clause keyword — not
+  // another column — is expected, so the context switches back to 'keyword'.
+  it('returns keyword context after a complete WHERE predicate', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = 1 ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a bare column in WHERE (expects an operator/keyword)', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a complete GROUP BY column', () => {
+    const stmt = 'SELECT * FROM users GROUP BY user_id ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a complete ORDER BY column', () => {
+    const stmt = 'SELECT * FROM users ORDER BY user_id ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after ORDER BY column with direction', () => {
+    const stmt = 'SELECT * FROM users ORDER BY user_id DESC ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('returns keyword context after a complete HAVING predicate', () => {
+    const stmt = 'SELECT id FROM users GROUP BY id HAVING count(*) > 5 ';
+    expect(detectSqlContext(stmt, stmt)).toEqual({ kind: 'keyword' });
+  });
+
+  it('still returns column context right after an operator in WHERE', () => {
+    const stmt = 'SELECT * FROM users WHERE user_id = ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
+
+  it('still returns column context after a comma in GROUP BY list', () => {
+    const stmt = 'SELECT * FROM users GROUP BY user_id, ';
+    const ctx = detectSqlContext(stmt, stmt);
+    expect(ctx.kind).toBe('column');
+  });
 });
 
 describe('extractAliasMap', () => {
