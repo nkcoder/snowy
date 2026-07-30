@@ -110,6 +110,18 @@ describe('extractFromTables', () => {
     expect(tables).not.toContain('public');
     expect(tables).not.toContain('o');
   });
+
+  it('ignores a JOIN token that appears inside a string literal', () => {
+    const tables = extractFromTables("SELECT * FROM users WHERE note = 'JOIN phantom' AND id = 1");
+    expect(tables).toEqual(['users']);
+    expect(tables).not.toContain('phantom');
+  });
+
+  it('ignores a FROM/JOIN token that appears inside a comment', () => {
+    const tables = extractFromTables('SELECT * FROM users /* JOIN phantom */ WHERE id = 1');
+    expect(tables).toEqual(['users']);
+    expect(tables).not.toContain('phantom');
+  });
 });
 
 describe('detectSqlContext', () => {
@@ -424,6 +436,13 @@ describe('extractAliasMap', () => {
     const m = extractAliasMap('SELECT u.id FROM public.users AS u');
     expect(m.get('u')).toBe('users');
   });
+
+  it('ignores a FROM token inside a string literal', () => {
+    const m = extractAliasMap("SELECT * FROM users u WHERE note = 'FROM orders o'");
+    expect(m.get('u')).toBe('users');
+    expect(m.has('orders')).toBe(false);
+    expect(m.has('o')).toBe(false);
+  });
 });
 
 // Shared fixture data used by ranking tests
@@ -647,6 +666,12 @@ describe('applyFuzzyMatch', () => {
     const result = labels(applyFuzzyMatch(kw, 'gb'));
     expect(result).toContain('GROUP BY');
     expect(result).not.toContain('ORDER BY');
+  });
+
+  it('caps the number of matches so a wide table cannot flood the dropdown', () => {
+    // 200 columns that all contain the letter "a" as a subsequence.
+    const many = Array.from({ length: 200 }, (_, i) => ({ label: `col_a_${i}`, boost: 10 }));
+    expect(applyFuzzyMatch(many, 'a').length).toBeLessThanOrEqual(50);
   });
 });
 

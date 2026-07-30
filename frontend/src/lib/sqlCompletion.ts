@@ -116,6 +116,10 @@ function stripSchema(name: string): string {
 }
 
 export function extractFromTables(stmtText: string): string[] {
+  // Mask string/comment content first so a FROM/JOIN/UPDATE token inside a
+  // literal or comment can't be captured as a phantom table (real identifiers
+  // are code and stay intact; positions are preserved).
+  stmtText = maskLiterals(stmtText);
   const tables: string[] = [];
   const fromMatch = stmtText.match(
     /\bFROM\s+([\w.\s,]+?)(?:\s+(?:WHERE|(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+(?:OUTER\s+)?)?JOIN|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET|UNION|INTERSECT|EXCEPT)\b|;|$)/i
@@ -160,6 +164,9 @@ const ALIAS_RESERVED = new Set([
 ]);
 
 export function extractAliasMap(stmtText: string): Map<string, string> {
+  // Mask literals/comments so keywords or table-like words inside them don't
+  // leak into the alias map (see extractFromTables).
+  stmtText = maskLiterals(stmtText);
   const map = new Map<string, string>();
   const addEntry = (tableName: string, alias?: string) => {
     const t = stripSchema(tableName.toLowerCase());
@@ -458,6 +465,11 @@ export function innerSubqueryContext(
 
 export type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
+// Caps how many fuzzy matches feed the dropdown. fuzzysort returns every
+// subsequence match with no ceiling; on a wide table a single common letter can
+// match hundreds of columns, so bound the list to the best-ranked few.
+const FUZZY_MATCH_LIMIT = 50;
+
 // Converts fuzzysort's ascending list of matched character indices into the
 // [from, toExclusive] range pairs CodeMirror's `getMatch` expects, merging
 // consecutive indices into a single highlighted run.
@@ -481,7 +493,7 @@ function indexesToRanges(indexes: readonly number[]): number[] {
 // added on top so equal-quality matches keep their semantic order.
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
   if (!prefix) return options;
-  return fuzzysort.go(prefix, options, { key: 'label' }).map((result) => {
+  return fuzzysort.go(prefix, options, { key: 'label', limit: FUZZY_MATCH_LIMIT }).map((result) => {
     const ranges = indexesToRanges(result.indexes);
     return {
       ...result.obj,
