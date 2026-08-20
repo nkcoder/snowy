@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state';
 import type { Tag } from '@lezer/highlight';
 import { tags as t } from '@lezer/highlight';
 import { describe, expect, it } from 'vitest';
-import { buildFunctionDecorations, snowySqlHighlight } from './editorTheme';
+import { buildFunctionDecorations, editorPaneRect, snowySqlHighlight } from './editorTheme';
 import { SYNTAX } from './tokens';
 
 function functionNames(doc: string): string[] {
@@ -81,5 +81,17 @@ describe('buildFunctionDecorations', () => {
 
   it('does not mark plain identifiers not followed by a paren', () => {
     expect(functionNames('select user_id, account_id from t')).toEqual([]);
+  });
+});
+
+describe('editorPaneRect', () => {
+  it('reports the scroller rect, so tooltips are laid out inside the editor pane', () => {
+    const rect = new DOMRect(20, 10, 280, 190);
+    expect(editorPaneRect({ scrollDOM: { getBoundingClientRect: () => rect } })).toEqual({
+      top: 10,
+      left: 20,
+      right: 300,
+      bottom: 200,
+    });
   });
 });
