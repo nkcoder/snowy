@@ -8,6 +8,8 @@ Snowy is a desktop PostgreSQL GUI client built with [Wails v2](https://wails.io/
 
 ## Commands
 
+Day-to-day: `just start` (demo DB + app in the background), `just logs`, `just stop`, `just test`. The raw commands behind them:
+
 ### Development
 ```bash
 wails dev          # hot-reload dev mode (runs both Go and Vite)
