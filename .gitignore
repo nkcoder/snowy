@@ -45,3 +45,5 @@ vendor/
 coverage/
 .cache/
 tmp/
+
+.dev/
