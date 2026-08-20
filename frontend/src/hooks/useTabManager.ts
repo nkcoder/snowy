@@ -21,8 +21,12 @@ export function useTabManager() {
     setActiveTabId(tab.id);
   };
 
+  const updateTab = (id: string, patch: Partial<Tab>) => {
+    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  };
+
   const updateActiveTab = (patch: Partial<Tab>) => {
-    setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, ...patch } : t)));
+    if (activeTabId) updateTab(activeTabId, patch);
   };
 
   // Close a tab. If it was the active one, fall back to the neighbour on its
@@ -52,6 +56,7 @@ export function useTabManager() {
     activeTab,
     makeTab,
     openTab,
+    updateTab,
     updateActiveTab,
     doCloseTab,
     handleTabSelect: setActiveTabId,

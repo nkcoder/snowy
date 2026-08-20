@@ -93,3 +93,88 @@ test.describe('Query Editor', () => {
     await expect(page.getByText('test_query.sql')).toBeVisible({ timeout: 5000 });
   });
 });
+
+test.describe('Query file tabs', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMock(page);
+  });
+
+  // The queries folder starts collapsed; open it so query-row-* rows render.
+  async function openQueriesFolder(page) {
+    await page.click('[data-testid="folder-queries"]');
+  }
+
+  // Saves the current console as `name`.sql and returns once it is in the sidebar.
+  async function saveAs(page, name: string) {
+    await page.locator('[data-testid="save-button"]').click();
+    const dialogInput = page.locator('input[placeholder="filename.sql"]');
+    await dialogInput.waitFor({ timeout: 3_000 });
+    await dialogInput.fill(name);
+    await page.keyboard.press('Enter');
+    await expect(page.locator(`[data-testid="query-row-${name}.sql"]`)).toBeVisible({
+      timeout: 5_000,
+    });
+  }
+
+  test('sidebar highlights the query open in the active tab', async ({ page }) => {
+    await connectToWorkspace(page);
+    await openQueriesFolder(page);
+    await setEditorText(page, 'SELECT 1;');
+    await saveAs(page, 'highlighted');
+
+    const row = page.locator('[data-testid="query-row-highlighted.sql"]');
+    await expect(row).toHaveCSS('font-weight', '600');
+    const selectedBg = await row.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+    // Switching to a different console clears the highlight
+    await page.click('[data-testid="tab-new"]');
+    await expect(row).not.toHaveCSS('background-color', selectedBg);
+  });
+
+  test('cmd+W closes a clean tab', async ({ page }) => {
+    await connectToWorkspace(page);
+    await page.click('[data-testid="tab-new"]');
+    await expect(page.locator('[data-testid^="tab-close-"]')).toHaveCount(2);
+
+    await page.keyboard.press('Control+w');
+
+    await expect(page.locator('[data-testid^="tab-close-"]')).toHaveCount(1);
+  });
+
+  test('cmd+W on a dirty query file offers Save, which writes and closes it', async ({ page }) => {
+    await connectToWorkspace(page);
+    await openQueriesFolder(page);
+    await setEditorText(page, 'SELECT 1;');
+    await saveAs(page, 'report');
+
+    await setEditorText(page, 'SELECT 2;');
+    await page.keyboard.press('Control+w');
+
+    await expect(page.getByText(/has unsaved changes/)).toBeVisible();
+    await page.locator('[data-testid="dialog-alt"]').click();
+
+    await expect(page.locator('[data-testid^="tab-close-"]')).toHaveCount(0);
+    const saved = await page.evaluate(() => window.go.main.App.LoadSavedQuery('ds-1', 'report.sql'));
+    expect(saved).toContain('SELECT 2;');
+  });
+
+  test('Save on a dirty untitled console prompts for a filename before closing', async ({
+    page,
+  }) => {
+    await connectToWorkspace(page);
+    await openQueriesFolder(page);
+    await setEditorText(page, 'SELECT 42;');
+
+    await page.keyboard.press('Control+w');
+    await expect(page.getByText(/has unsaved changes/)).toBeVisible();
+    await page.locator('[data-testid="dialog-alt"]').click();
+
+    const dialogInput = page.locator('input[placeholder="filename.sql"]');
+    await dialogInput.waitFor({ timeout: 3_000 });
+    await dialogInput.fill('scratch');
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('[data-testid="query-row-scratch.sql"]')).toBeVisible();
+    await expect(page.locator('[data-testid^="tab-close-"]')).toHaveCount(0);
+  });
+});

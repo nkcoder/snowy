@@ -357,7 +357,7 @@ export function QueryEditor({
           style={{ color: T.textDim, fontFamily: T.mono }}
           className="ml-auto pr-2 text-[11px] select-none"
         >
-          ⌘↵ run · ⌘S save
+          ⌘↵ run · ⌘S save · ⌘W close
         </div>
       </div>
 

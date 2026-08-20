@@ -18,6 +18,11 @@ interface ConfirmDialogProps extends BaseProps {
   message: string;
   confirmLabel?: string;
   onConfirm: () => void;
+  // Optional third action, rendered as the primary button to the right of the
+  // confirm one (e.g. "Save" next to "Close anyway"). When present it takes
+  // over the autofocus and the Enter key.
+  altLabel?: string;
+  onAlt?: () => void;
 }
 
 function Backdrop({ children }: { children: React.ReactNode }) {
@@ -148,17 +153,21 @@ export function ConfirmDialog({
   confirmLabel = 'Close anyway',
   onConfirm,
   onCancel,
+  altLabel,
+  onAlt,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const altRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    confirmRef.current?.focus();
+    (altRef.current ?? confirmRef.current)?.focus();
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      onConfirm();
+      if (onAlt) onAlt();
+      else onConfirm();
     }
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -190,6 +199,18 @@ export function ConfirmDialog({
           >
             {confirmLabel}
           </button>
+          {onAlt && (
+            <button
+              type="button"
+              ref={altRef}
+              data-testid="dialog-alt"
+              style={{ background: T.accent, fontFamily: T.ui }}
+              className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+              onClick={onAlt}
+            >
+              {altLabel}
+            </button>
+          )}
         </div>
       </Box>
     </Backdrop>
