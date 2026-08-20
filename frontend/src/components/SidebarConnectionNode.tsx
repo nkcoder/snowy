@@ -32,6 +32,7 @@ interface SidebarConnectionNodeProps {
     folder: SubFolderKey
   ) => void;
   savedQueries: { filename: string }[];
+  activeQueryFilename: string | null;
   queriesOpen: boolean;
   setQueriesOpen: Dispatch<SetStateAction<boolean>>;
   renamingFile: string | null;
@@ -61,6 +62,7 @@ export function SidebarConnectionNode({
   onToggleColumns,
   onToggleSubFolder,
   savedQueries,
+  activeQueryFilename,
   queriesOpen,
   setQueriesOpen,
   renamingFile,
@@ -432,6 +434,7 @@ export function SidebarConnectionNode({
                           data-testid={`query-row-${q.filename}`}
                           depth={3}
                           hasChildren={false}
+                          selected={q.filename === activeQueryFilename}
                           icon={<FileCode2 size={11} color={T.warn} />}
                           label={
                             <span style={{ fontFamily: T.mono, fontSize: 11.5 }}>{q.filename}</span>

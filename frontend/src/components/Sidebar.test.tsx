@@ -78,6 +78,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
       onNewConsole={onNewConsole}
       onDisconnect={onDisconnect}
       onShowProperties={onShowProperties}
+      activeQueryFilename={overrides.activeQueryFilename}
     />
   );
   return {
@@ -570,6 +571,25 @@ describe('Sidebar — saved queries', () => {
     renderSidebar({ savedQueries: [] });
     await userEvent.click(screen.getByTestId('folder-queries'));
     expect(screen.getByText(/No saved queries/)).toBeInTheDocument();
+  });
+
+  it('highlights the row for the query open in the active tab', async () => {
+    renderSidebar({
+      savedQueries: [{ filename: 'a.sql' }, { filename: 'b.sql' }],
+      activeQueryFilename: 'b.sql',
+    });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    const selected = screen.getByTestId('query-row-b.sql');
+    const other = screen.getByTestId('query-row-a.sql');
+    expect(selected).toHaveStyle({ background: 'var(--t-selected)' });
+    expect(selected).toHaveStyle({ fontWeight: '600' });
+    expect(other).toHaveStyle({ background: 'transparent' });
+  });
+
+  it('highlights no row when no saved query is open', async () => {
+    renderSidebar({ savedQueries: [{ filename: 'a.sql' }], activeQueryFilename: null });
+    await userEvent.click(screen.getByTestId('folder-queries'));
+    expect(screen.getByTestId('query-row-a.sql')).toHaveStyle({ background: 'transparent' });
   });
 
   it('shows query count badge on folder', async () => {

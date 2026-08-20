@@ -414,6 +414,7 @@ function App() {
                 handleRunQuery(q);
               }}
               savedQueries={savedQueries}
+              activeQueryFilename={activeTab?.filename ?? null}
               onLoadQuery={handleLoadQuery}
               onDeleteQuery={handleDeleteQuery}
               onRenameQuery={handleRenameQuery}
