@@ -112,3 +112,36 @@ describe('useTabManager', () => {
     expect(result.current.activeTabId).toBe(t1.id);
   });
 });
+
+describe('useTabManager — updateTab', () => {
+  it('patches a tab that is not the active one', () => {
+    const { result } = renderHook(() => useTabManager());
+    const first = result.current.makeTab('first');
+    const second = result.current.makeTab('second');
+    act(() => result.current.openTab(first));
+    act(() => result.current.openTab(second));
+    expect(result.current.activeTabId).toBe(second.id);
+
+    act(() => result.current.updateTab(first.id, { sql: 'SELECT 1', dirty: true }));
+
+    expect(result.current.tabs.find((t) => t.id === first.id)).toMatchObject({
+      sql: 'SELECT 1',
+      dirty: true,
+    });
+    expect(result.current.tabs.find((t) => t.id === second.id)?.dirty).toBe(false);
+    expect(result.current.activeTabId).toBe(second.id);
+  });
+
+  it('updateActiveTab still patches only the active tab', () => {
+    const { result } = renderHook(() => useTabManager());
+    const first = result.current.makeTab('first');
+    const second = result.current.makeTab('second');
+    act(() => result.current.openTab(first));
+    act(() => result.current.openTab(second));
+
+    act(() => result.current.updateActiveTab({ label: 'renamed' }));
+
+    expect(result.current.tabs.find((t) => t.id === second.id)?.label).toBe('renamed');
+    expect(result.current.tabs.find((t) => t.id === first.id)?.label).toBe('first');
+  });
+});

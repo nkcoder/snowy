@@ -17,6 +17,7 @@ interface SidebarProps {
   onDisconnect?: () => void;
   onShowProperties?: (dsId: string) => void;
   savedQueries?: { filename: string }[];
+  activeQueryFilename?: string | null;
   onLoadQuery?: (filename: string) => void;
   onDeleteQuery?: (filename: string) => void;
   onRenameQuery?: (oldFilename: string, newFilename: string) => void;
@@ -38,6 +39,7 @@ export function Sidebar({
   onDisconnect,
   onShowProperties,
   savedQueries: savedQueriesProp,
+  activeQueryFilename = null,
   onLoadQuery,
   onDeleteQuery,
   onRenameQuery,
@@ -225,6 +227,7 @@ export function Sidebar({
                 onToggleColumns={toggleColumnsFolder}
                 onToggleSubFolder={toggleTableSubFolder}
                 savedQueries={savedQueries}
+                activeQueryFilename={activeQueryFilename}
                 queriesOpen={queriesOpen}
                 setQueriesOpen={setQueriesOpen}
                 renamingFile={renamingFile}

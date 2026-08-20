@@ -493,3 +493,108 @@ describe('App handlers (mocked children)', () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe('App — save-and-close from the unsaved-changes dialog', () => {
+  it('Save closes a named tab after writing it to disk', async () => {
+    await connectToWorkspace();
+    // Open q.sql (tab 2) and dirty it
+    fireEvent.click(screen.getByTestId('stub-load-query'));
+    await waitFor(() => expect(screen.getAllByTestId(/tab-close-/).length).toBe(2));
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+
+    fireEvent.click(screen.getAllByTestId(/tab-close-/)[1]);
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+    fireEvent.click(screen.getByTestId('dialog-alt'));
+
+    await waitFor(() => {
+      expect(GoApp.SaveQuery).toHaveBeenCalledWith('ds-1', 'q.sql', 'SELECT 2;');
+    });
+    await waitFor(() => expect(screen.getAllByTestId(/tab-close-/).length).toBe(1));
+  });
+
+  it('Save on an untitled tab prompts for a filename, then saves and closes', async () => {
+    await connectToWorkspace();
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+    fireEvent.click(screen.getAllByTestId(/tab-close-/)[0]);
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dialog-alt'));
+    await waitFor(() => expect(screen.getByText('Save query')).toBeTruthy());
+    const saveBtns = screen.getAllByText('Save');
+    fireEvent.click(saveBtns[saveBtns.length - 1]);
+
+    await waitFor(() => {
+      expect(GoApp.SaveQuery).toHaveBeenCalledWith('ds-1', 'untitled.sql', 'SELECT 2;');
+    });
+    await waitFor(() => expect(screen.queryAllByTestId(/tab-close-/).length).toBe(0));
+  });
+
+  it('cancelling the filename prompt keeps the tab open and unsaved', async () => {
+    await connectToWorkspace();
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+    fireEvent.click(screen.getAllByTestId(/tab-close-/)[0]);
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+    fireEvent.click(screen.getByTestId('dialog-alt'));
+    await waitFor(() => expect(screen.getByText('Save query')).toBeTruthy());
+
+    fireEvent.click(screen.getAllByText('Cancel')[0]);
+
+    await waitFor(() => expect(screen.queryByText('Save query')).toBeNull());
+    expect(GoApp.SaveQuery).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(1);
+  });
+
+  it('keeps the tab open when the save fails', async () => {
+    vi.mocked(GoApp.SaveQuery).mockRejectedValueOnce(new Error('disk full'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await connectToWorkspace();
+    fireEvent.click(screen.getByTestId('stub-load-query'));
+    await waitFor(() => expect(screen.getAllByTestId(/tab-close-/).length).toBe(2));
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+    fireEvent.click(screen.getAllByTestId(/tab-close-/)[1]);
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dialog-alt'));
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to save query', expect.any(Error));
+    });
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(2);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('App — cmd+W closes the active tab', () => {
+  it('closes a clean tab without prompting', async () => {
+    await connectToWorkspace();
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(1);
+    fireEvent.keyDown(window, { key: 'w', metaKey: true });
+    await waitFor(() => expect(screen.queryAllByTestId(/tab-close-/).length).toBe(0));
+  });
+
+  it('opens the unsaved-changes dialog for a dirty tab', async () => {
+    await connectToWorkspace();
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+    fireEvent.keyDown(window, { key: 'w', metaKey: true });
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(1);
+  });
+
+  it('is a no-op while a dialog is open', async () => {
+    await connectToWorkspace();
+    fireEvent.click(screen.getByTestId('stub-type-sql'));
+    fireEvent.keyDown(window, { key: 'w', metaKey: true });
+    await waitFor(() => expect(screen.getByText(/has unsaved changes/i)).toBeTruthy());
+
+    fireEvent.keyDown(window, { key: 'w', metaKey: true });
+
+    expect(screen.getAllByText(/has unsaved changes/i).length).toBe(1);
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(1);
+  });
+
+  it('ignores a bare w keypress', async () => {
+    await connectToWorkspace();
+    fireEvent.keyDown(window, { key: 'w' });
+    expect(screen.getAllByTestId(/tab-close-/).length).toBe(1);
+  });
+});

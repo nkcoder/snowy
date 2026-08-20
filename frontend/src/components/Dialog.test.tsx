@@ -127,6 +127,46 @@ describe('ConfirmDialog', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it('renders no alt button unless onAlt is given', () => {
+    render(<ConfirmDialog message="Close tab?" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByTestId('dialog-alt')).toBeNull();
+  });
+
+  it('renders the alt button and calls onAlt when clicked', () => {
+    const onAlt = vi.fn();
+    const onConfirm = vi.fn();
+    render(
+      <ConfirmDialog
+        message="Close tab?"
+        altLabel="Save"
+        onAlt={onAlt}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByTestId('dialog-alt'));
+    expect(onAlt).toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('Enter triggers onAlt when an alt action is present', () => {
+    const onAlt = vi.fn();
+    const onConfirm = vi.fn();
+    render(
+      <ConfirmDialog
+        message="Close tab?"
+        altLabel="Save"
+        onAlt={onAlt}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    const box = screen.getByText('Close anyway').closest('div[class]')!;
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(onAlt).toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('renders custom confirm label', () => {
     render(
       <ConfirmDialog

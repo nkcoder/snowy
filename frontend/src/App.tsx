@@ -8,7 +8,7 @@ import { HistoryDrawer } from './components/HistoryDrawer';
 import { QueryEditor } from './components/QueryEditor';
 import { ResultsPanel } from './components/ResultsPanel';
 import { Sidebar } from './components/Sidebar';
-import { TabBar } from './components/TabBar';
+import { type Tab, TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { useDatasourceSession } from './hooks/useDatasourceSession';
 import { usePanelResize } from './hooks/usePanelResize';
@@ -65,7 +65,7 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
 type AppView = 'connections' | 'workspace';
 
 type DialogState =
-  | { type: 'save-query'; suggestedName: string }
+  | { type: 'save-query'; suggestedName: string; tabId: string; closeAfterSave?: boolean }
   | { type: 'confirm-close'; tabId: string; tabLabel: string };
 
 // ── App ───────────────────────────────────────────────────────────────────────
@@ -106,6 +106,7 @@ function App() {
     activeTab,
     makeTab,
     openTab,
+    updateTab,
     updateActiveTab,
     doCloseTab,
     handleTabSelect,
@@ -196,6 +197,23 @@ function App() {
     doCloseTab(id);
   };
 
+  // ⌘W / Ctrl+W closes the active console. Bound on the window rather than in
+  // the CodeMirror keymap so it also works when focus is in the sidebar or the
+  // results grid; preventDefault stops the webview closing the whole window.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handleTabClose is re-created every render; the state it reads is listed instead
+  useEffect(() => {
+    if (view !== 'workspace') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      if (e.key.toLowerCase() !== 'w') return;
+      e.preventDefault();
+      if (dialog) return;
+      if (activeTabId) handleTabClose(activeTabId);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, dialog, activeTabId, tabs]);
+
   // ── Connect ───────────────────────────────────────────────────────────────
   // useDatasourceSession owns the connection/metadata data; App orchestrates the
   // surrounding tab/results/view reset.
@@ -234,8 +252,10 @@ function App() {
     try {
       await GoApp.DeleteSavedQuery(activeDatasourceId, filename);
       setSavedQueries((prev) => prev.filter((q) => q.filename !== filename));
+      // The file is gone, so there is nothing left to save it back to — close
+      // the tab outright rather than offering the unsaved-changes prompt.
       const tab = tabs.find((t) => t.filename === filename);
-      if (tab) handleTabClose(tab.id);
+      if (tab) doCloseTab(tab.id);
     } catch (err) {
       console.error('Failed to delete query', err);
     }
@@ -258,27 +278,56 @@ function App() {
     }
   };
 
-  const doSaveQuery = async (filename: string) => {
-    if (!activeDatasourceId || !activeTab) return;
+  // Saves the given tab (not necessarily the active one — a background tab can
+  // be closed from its ×). Returns whether the write succeeded so callers can
+  // avoid closing a tab whose buffer never made it to disk.
+  const doSaveQuery = async (filename: string, tabId: string): Promise<boolean> => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!activeDatasourceId || !tab) return false;
     try {
-      await GoApp.SaveQuery(activeDatasourceId, filename, activeTab.sql);
+      await GoApp.SaveQuery(activeDatasourceId, filename, tab.sql);
       const updated = await GoApp.ListSavedQueries(activeDatasourceId);
       setSavedQueries(updated ?? []);
       const savedFilename = filename.endsWith('.sql') ? filename : `${filename}.sql`;
-      updateActiveTab({ filename: savedFilename, label: savedFilename, dirty: false });
+      updateTab(tabId, { filename: savedFilename, label: savedFilename, dirty: false });
+      return true;
     } catch (err) {
       console.error('Failed to save query', err);
+      return false;
     }
+  };
+
+  const promptForFilename = (tab: Tab, closeAfterSave?: boolean) => {
+    const base = tab.label.replace(/\.sql$/i, '');
+    setDialog({
+      type: 'save-query',
+      suggestedName: `${base}.sql`,
+      tabId: tab.id,
+      closeAfterSave,
+    });
   };
 
   const handleSaveQuery = () => {
     if (!activeDatasourceId || !activeTab) return;
     if (!activeTab.filename) {
-      const base = activeTab.label.replace(/\.sql$/i, '');
-      setDialog({ type: 'save-query', suggestedName: `${base}.sql` });
+      promptForFilename(activeTab);
       return;
     }
-    doSaveQuery(activeTab.filename);
+    doSaveQuery(activeTab.filename, activeTab.id);
+  };
+
+  // "Save" in the unsaved-changes dialog: write the tab out, then close it.
+  // An untitled tab needs a name first, so it hands off to the save-query
+  // prompt, which closes the tab once the name is confirmed.
+  const handleSaveAndClose = async (tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    if (!tab.filename) {
+      promptForFilename(tab, true);
+      return;
+    }
+    setDialog(null);
+    if (await doSaveQuery(tab.filename, tab.id)) doCloseTab(tab.id);
   };
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -414,6 +463,7 @@ function App() {
                 handleRunQuery(q);
               }}
               savedQueries={savedQueries}
+              activeQueryFilename={activeTab?.filename ?? null}
               onLoadQuery={handleLoadQuery}
               onDeleteQuery={handleDeleteQuery}
               onRenameQuery={handleRenameQuery}
@@ -580,9 +630,11 @@ function App() {
               placeholder="filename.sql"
               defaultValue={dialog.suggestedName}
               confirmLabel="Save"
-              onConfirm={(name) => {
+              onConfirm={async (name) => {
+                const { tabId, closeAfterSave } = dialog;
                 setDialog(null);
-                doSaveQuery(name);
+                const saved = await doSaveQuery(name, tabId);
+                if (saved && closeAfterSave) doCloseTab(tabId);
               }}
               onCancel={() => setDialog(null)}
             />
@@ -595,6 +647,8 @@ function App() {
                 setDialog(null);
                 doCloseTab(dialog.tabId);
               }}
+              altLabel="Save"
+              onAlt={() => handleSaveAndClose(dialog.tabId)}
               onCancel={() => setDialog(null)}
             />
           )}
