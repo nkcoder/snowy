@@ -27,8 +27,10 @@ vi.mock('@codemirror/view', () => ({
       if (parent) parent.appendChild(this.dom);
     }
   },
+  tooltips: () => ({}),
   keymap: { of: () => ({}) },
   lineNumbers: () => ({}),
+  scrollPastEnd: () => ({}),
   highlightActiveLine: () => ({}),
   highlightActiveLineGutter: () => ({}),
   Decoration: { mark: () => ({}) },

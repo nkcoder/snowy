@@ -546,3 +546,31 @@ test.describe('Completions bootstrap', () => {
     expect(content).toContain('users');
   });
 });
+
+// ─── popup placement ─────────────────────────────────────────────────────────
+
+test.describe('Popup placement', () => {
+  test('completion popup stays inside the editor pane near the results separator', async ({
+    page,
+  }) => {
+    await setupMock(page);
+    await connectToWorkspace(page);
+
+    // Fill the editor past its visible height so the cursor sits at the bottom.
+    const editor = page.locator('.cm-content');
+    await editor.click();
+    for (let i = 0; i < 20; i++) {
+      await page.keyboard.type(`SELECT ${i} FROM users;`);
+      await page.keyboard.press('Enter');
+    }
+    await page.keyboard.type('SELECT * FROM us');
+    expect(await waitForTooltip(page), 'tooltip did not appear').not.toBeNull();
+
+    const box = await page.locator('.cm-tooltip-autocomplete').boundingBox();
+    const pane = await page.locator('.cm-scroller').boundingBox();
+    expect(box, 'tooltip has no box').not.toBeNull();
+    expect(pane, 'scroller has no box').not.toBeNull();
+    // biome-ignore lint/style/noNonNullAssertion: asserted non-null above
+    expect(box!.y + box!.height).toBeLessThanOrEqual(pane!.y + pane!.height + 1);
+  });
+});

@@ -178,3 +178,41 @@ test.describe('Query file tabs', () => {
     await expect(page.locator('[data-testid^="tab-close-"]')).toHaveCount(0);
   });
 });
+
+test.describe('Scroll past end', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMock(page);
+  });
+
+  test('typing at the end of the document does not open a gap above the separator', async ({
+    page,
+  }) => {
+    await connectToWorkspace(page);
+    const editor = page.locator('.cm-content');
+    await editor.click();
+    for (let i = 0; i < 20; i++) {
+      await page.keyboard.type(`SELECT ${i} FROM users;`);
+      await page.keyboard.press('Enter');
+    }
+    await page.keyboard.type('SELECT * FROM users;');
+
+    const gapBelowLastLine = () =>
+      page.evaluate(() => {
+        const scroller = document.querySelector('.cm-scroller') as HTMLElement;
+        const lines = document.querySelectorAll('.cm-line');
+        const last = lines[lines.length - 1].getBoundingClientRect();
+        return scroller.getBoundingClientRect().bottom - last.bottom;
+      });
+
+    // The last line stays at the bottom edge while typing — no empty band.
+    expect(await gapBelowLastLine()).toBeLessThan(24);
+    await page.keyboard.type(' -- more');
+    expect(await gapBelowLastLine()).toBeLessThan(24);
+
+    // But the document can still be scrolled well past its last line.
+    await page.mouse.move(600, 250);
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(200);
+    expect(await gapBelowLastLine()).toBeGreaterThan(100);
+  });
+});
