@@ -1,7 +1,7 @@
 import { HighlightStyle, syntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import { RangeSetBuilder } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
+import { Decoration, type DecorationSet, EditorView, tooltips } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 import { SYNTAX } from './tokens';
 
@@ -58,6 +58,16 @@ export function buildFunctionDecorations(
   for (const m of marks) builder.add(m.from, m.to, functionMark);
   return builder.finish();
 }
+
+// Completion popups are laid out inside the editor pane rather than the whole
+// window, so CodeMirror flips them above the cursor (or trims their height)
+// near the bottom instead of spilling across the results separator.
+export const editorTooltipSpace = tooltips({
+  tooltipSpace: (view) => {
+    const r = view.scrollDOM.getBoundingClientRect();
+    return { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
+  },
+});
 
 // Static CodeMirror theme matched to SnowyDark tokens.
 // Theme-switching via CSS vars inside CodeMirror is unsupported — editor stays dark.

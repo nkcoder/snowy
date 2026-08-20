@@ -41,7 +41,9 @@ vi.mock('@codemirror/view', () => ({
       return {};
     },
   },
+  tooltips: () => ({}),
   lineNumbers: () => ({}),
+  scrollPastEnd: () => ({}),
   highlightActiveLine: () => ({}),
   highlightActiveLineGutter: () => ({}),
   Decoration: { mark: () => ({}) },

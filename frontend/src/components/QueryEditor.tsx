@@ -25,13 +25,19 @@ import {
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  scrollPastEnd,
   ViewPlugin,
   type ViewUpdate,
 } from '@codemirror/view';
 import { Clock, Play, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { computeDocPatch } from '../lib/docPatch';
-import { buildFunctionDecorations, editorTheme, snowySqlHighlight } from '../lib/editorTheme';
+import {
+  buildFunctionDecorations,
+  editorTheme,
+  editorTooltipSpace,
+  snowySqlHighlight,
+} from '../lib/editorTheme';
 import {
   applyFuzzyMatch,
   buildCompletionOptions,
@@ -158,6 +164,9 @@ export function QueryEditor({
       extensions: [
         history(),
         lineNumbers(),
+        // VS Code-style: the document can be scrolled until the last line sits
+        // at the top of the pane, so the bottom line is never pinned to the edge.
+        scrollPastEnd(),
         highlightActiveLine(),
         highlightActiveLineGutter(),
         autocompletion({
@@ -183,6 +192,7 @@ export function QueryEditor({
         // highlight span, letting its colour win for keyword builtins like COUNT.
         Prec.highest(sqlFunctionHighlight),
         editorTheme,
+        editorTooltipSpace,
         Prec.high(keymap.of([{ key: 'Enter', run: insertNewline }])),
         keymap.of([
           { key: 'Mod-f', run: openFindCmd },
