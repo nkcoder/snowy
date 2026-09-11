@@ -108,6 +108,7 @@ function App() {
     openTab,
     updateTab,
     updateActiveTab,
+    replaceActiveTabSql,
     doCloseTab,
     handleTabSelect,
     handleNewTab,
@@ -334,7 +335,7 @@ function App() {
   const handleHistorySelect = (sql: string) => {
     closeHistory();
     if (activeTab) {
-      updateActiveTab({ sql, dirty: true });
+      replaceActiveTabSql(sql);
     } else {
       openTab(makeTab('from history', sql));
     }
@@ -517,7 +518,10 @@ function App() {
                 <div className="flex-1 min-h-0 overflow-hidden" style={{ minHeight: 0 }}>
                   {activeTab ? (
                     <QueryEditor
+                      tabId={activeTab.id}
+                      openTabIds={tabs.map((t) => t.id)}
                       sql={activeTab.sql}
+                      externalApplyId={activeTab.externalApplyId}
                       onChange={(sql) => updateActiveTab({ sql, dirty: true })}
                       onRun={handleRunQuery}
                       onSave={handleSaveQuery}
