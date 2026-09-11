@@ -152,15 +152,14 @@ describe('QueryEditor', () => {
   });
 
   describe('content reconciliation', () => {
-    it('applies external sql changes as a minimal edit, not a full-document replace', () => {
-      // Mock doc is fixed at 'SELECT 1;'. Rerendering with 'SELECT 2;' should
-      // patch only the differing character so CodeMirror keeps the caret put,
-      // instead of replacing the whole document (which collapses the caret).
-      const { rerender } = render(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+    it('applies external sql changes when externalApplyId bumps, as a minimal edit', () => {
+      const { rerender } = render(
+        <QueryEditor {...defaultProps} sql="SELECT 1;" externalApplyId={0} />
+      );
       const view = cmMockState.lastView!;
       view.dispatch.mockClear();
 
-      rerender(<QueryEditor {...defaultProps} sql="SELECT 2;" />);
+      rerender(<QueryEditor {...defaultProps} sql="SELECT 2;" externalApplyId={1} />);
 
       expect(view.dispatch).toHaveBeenCalledWith({
         changes: { from: 7, to: 8, insert: '2' },
@@ -168,11 +167,26 @@ describe('QueryEditor', () => {
     });
 
     it('does not dispatch when the sql prop matches the current document', () => {
-      const { rerender } = render(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+      const { rerender } = render(
+        <QueryEditor {...defaultProps} sql="SELECT 1;" externalApplyId={0} />
+      );
       const view = cmMockState.lastView!;
       view.dispatch.mockClear();
 
-      rerender(<QueryEditor {...defaultProps} sql="SELECT 1;" />);
+      rerender(<QueryEditor {...defaultProps} sql="SELECT 1;" externalApplyId={0} />);
+
+      expect(view.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('does not rewind the doc when sql changes without an externalApplyId bump', () => {
+      const { rerender } = render(
+        <QueryEditor {...defaultProps} sql="SELECT " externalApplyId={0} />
+      );
+      const view = cmMockState.lastView!;
+      view.state.doc.toString = () => 'SELECT 12;';
+      view.dispatch.mockClear();
+
+      rerender(<QueryEditor {...defaultProps} sql="SELECT 1;" externalApplyId={0} />);
 
       expect(view.dispatch).not.toHaveBeenCalled();
     });
