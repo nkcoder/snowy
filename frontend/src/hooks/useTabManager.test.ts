@@ -69,6 +69,28 @@ describe('useTabManager', () => {
     expect(result.current.activeTab?.externalApplyId).toBe(1);
   });
 
+  it('replaceActiveTabSql only mutates the active tab when several are open', () => {
+    const { result } = renderHook(() => useTabManager());
+    const t1 = result.current.makeTab('t1', 'A');
+    const t2 = result.current.makeTab('t2', 'B');
+    act(() => {
+      result.current.openTab(t1);
+      result.current.openTab(t2);
+    });
+    act(() => result.current.replaceActiveTabSql('C'));
+    expect(result.current.tabs.find((t) => t.id === t1.id)?.sql).toBe('A');
+    expect(result.current.tabs.find((t) => t.id === t1.id)?.externalApplyId).toBe(0);
+    expect(result.current.activeTab?.sql).toBe('C');
+    expect(result.current.activeTab?.externalApplyId).toBe(1);
+  });
+
+  it('replaceActiveTabSql and updateActiveTab no-op without an active tab', () => {
+    const { result } = renderHook(() => useTabManager());
+    act(() => result.current.replaceActiveTabSql('SELECT 1'));
+    act(() => result.current.updateActiveTab({ sql: 'SELECT 2', dirty: true }));
+    expect(result.current.tabs).toEqual([]);
+  });
+
   it('updateActiveTab leaves externalApplyId unchanged', () => {
     const { result } = renderHook(() => useTabManager());
     const tab = result.current.makeTab();
