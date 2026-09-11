@@ -1,3 +1,4 @@
+import { EditorState } from '@codemirror/state';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,9 +11,12 @@ import { QueryEditor } from './QueryEditor';
 // vi.hoisted ensures these are available inside the hoisted vi.mock factory.
 const cmMockState = vi.hoisted(() => ({
   capturedKeyHandlers: [] as Array<{ key: string; run: (v: unknown) => boolean }>,
+  viewConstructions: 0,
   lastView: null as {
     dispatch: ReturnType<typeof vi.fn>;
+    setState: ReturnType<typeof vi.fn>;
     focus: ReturnType<typeof vi.fn>;
+    destroy: ReturnType<typeof vi.fn>;
     state: { doc: { toString: () => string }; selection: { main: { from: number } } };
   } | null,
 }));
@@ -29,7 +33,11 @@ vi.mock('@codemirror/view', () => ({
     dispatch = vi.fn();
     destroy = vi.fn();
     focus = vi.fn();
+    setState = vi.fn((s: unknown) => {
+      this.state = s as typeof this.state;
+    });
     constructor({ parent }: { parent?: Element }) {
+      cmMockState.viewConstructions++;
       if (parent) parent.appendChild(this.dom);
       // biome-ignore lint/suspicious/noExplicitAny: store ref for tests
       cmMockState.lastView = this as any;
@@ -52,7 +60,7 @@ vi.mock('@codemirror/view', () => ({
 
 vi.mock('@codemirror/state', () => ({
   EditorState: {
-    create: () => ({}),
+    create: vi.fn(() => ({})),
   },
   Compartment: class {
     of = () => ({});
@@ -104,6 +112,7 @@ describe('QueryEditor', () => {
     vi.clearAllMocks();
     cmMockState.capturedKeyHandlers.length = 0;
     cmMockState.lastView = null;
+    cmMockState.viewConstructions = 0;
   });
 
   it('renders toolbar', () => {
@@ -189,6 +198,74 @@ describe('QueryEditor', () => {
       rerender(<QueryEditor {...defaultProps} sql="SELECT 1;" externalApplyId={0} />);
 
       expect(view.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('per-tab state cache', () => {
+    it('keeps the same view mounted across tab switches instead of remounting', () => {
+      const { rerender } = render(<QueryEditor {...defaultProps} tabId="tab-a" sql="SELECT 1;" />);
+      const viewAfterMount = cmMockState.lastView;
+
+      rerender(<QueryEditor {...defaultProps} tabId="tab-b" sql="SELECT 2;" />);
+
+      expect(cmMockState.viewConstructions).toBe(1);
+      expect(cmMockState.lastView).toBe(viewAfterMount);
+    });
+
+    it('swaps in a fresh EditorState via setState when switching to a new tab', () => {
+      const { rerender } = render(<QueryEditor {...defaultProps} tabId="tab-a" sql="SELECT 1;" />);
+      const view = cmMockState.lastView!;
+      const createCallsAfterMount = vi.mocked(EditorState.create).mock.calls.length;
+
+      rerender(<QueryEditor {...defaultProps} tabId="tab-b" sql="SELECT 2;" />);
+
+      expect(view.setState).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(EditorState.create)).toHaveBeenCalledTimes(createCallsAfterMount + 1);
+    });
+
+    it('reuses the cached state for a tab instead of rebuilding it when switching back', () => {
+      const { rerender } = render(<QueryEditor {...defaultProps} tabId="tab-a" sql="SELECT 1;" />);
+      const view = cmMockState.lastView!;
+
+      rerender(<QueryEditor {...defaultProps} tabId="tab-b" sql="SELECT 2;" />);
+      const createCallsAfterFirstSwitch = vi.mocked(EditorState.create).mock.calls.length;
+
+      rerender(<QueryEditor {...defaultProps} tabId="tab-a" sql="SELECT 1;" />);
+
+      expect(view.setState).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(EditorState.create)).toHaveBeenCalledTimes(createCallsAfterFirstSwitch);
+    });
+
+    it('evicts cached state for tabs no longer in openTabIds', () => {
+      const { rerender } = render(
+        <QueryEditor
+          {...defaultProps}
+          tabId="tab-a"
+          sql="SELECT 1;"
+          openTabIds={['tab-a', 'tab-b']}
+        />
+      );
+      const view = cmMockState.lastView!;
+
+      rerender(
+        <QueryEditor
+          {...defaultProps}
+          tabId="tab-b"
+          sql="SELECT 2;"
+          openTabIds={['tab-a', 'tab-b']}
+        />
+      );
+      rerender(
+        <QueryEditor {...defaultProps} tabId="tab-b" sql="SELECT 2;" openTabIds={['tab-b']} />
+      );
+      const createCallsBeforeReturn = vi.mocked(EditorState.create).mock.calls.length;
+
+      rerender(
+        <QueryEditor {...defaultProps} tabId="tab-a" sql="SELECT 1;" openTabIds={['tab-a']} />
+      );
+
+      expect(vi.mocked(EditorState.create)).toHaveBeenCalledTimes(createCallsBeforeReturn + 1);
+      expect(view.setState).toHaveBeenCalled();
     });
   });
 

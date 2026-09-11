@@ -70,11 +70,9 @@ const sqlFunctionHighlight = ViewPlugin.fromClass(
 );
 
 interface QueryEditorProps {
+  tabId?: string;
+  openTabIds?: string[];
   sql: string;
-  /**
-   * Identity of the last parent-driven document replace (history pick, etc.).
-   * Local typing updates `sql` without changing this.
-   */
   externalApplyId?: number;
   onChange: (sql: string) => void;
   onRun: (sql: string) => void;
@@ -85,6 +83,8 @@ interface QueryEditorProps {
 }
 
 export function QueryEditor({
+  tabId = 'default',
+  openTabIds = [],
   sql: sqlValue,
   externalApplyId = 0,
   onChange,
@@ -99,6 +99,8 @@ export function QueryEditor({
   const isProgrammatic = useRef(false);
   const appliedIdRef = useRef(externalApplyId);
   const sqlRef = useRef(sqlValue);
+  const tabStatesRef = useRef<Map<string, EditorState>>(new Map());
+  const tabIdRef = useRef(tabId);
   sqlRef.current = sqlValue;
   const onRunRef = useRef(onRun);
   const onSaveRef = useRef(onSave);
@@ -117,10 +119,7 @@ export function QueryEditor({
     entriesRef.current = completions ?? [];
   }, [completions]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: editor initializes once; callbacks kept fresh via refs
-  useEffect(() => {
-    if (!containerRef.current) return;
-
+  const createState = useCallback((doc: string) => {
     const runCmd = (view: EditorView) => {
       const sel = view.state.selection.main;
       const content = sel.empty ? view.state.doc.toString() : view.state.sliceDoc(sel.from, sel.to);
@@ -164,8 +163,8 @@ export function QueryEditor({
       };
     };
 
-    const state = EditorState.create({
-      doc: sqlValue,
+    return EditorState.create({
+      doc,
       extensions: [
         history(),
         lineNumbers(),
@@ -214,15 +213,46 @@ export function QueryEditor({
         }),
       ],
     });
+  }, []);
+  const createStateRef = useRef(createState);
+  createStateRef.current = createState;
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const id = tabIdRef.current;
+    const state = tabStatesRef.current.get(id) ?? createStateRef.current(sqlRef.current);
+    tabStatesRef.current.set(id, state);
     const view = new EditorView({ state, parent: containerRef.current });
     viewRef.current = view;
     return () => {
       view.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const swapToTab = useCallback((toId: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+    tabStatesRef.current.set(tabIdRef.current, view.state);
+    const nextState = tabStatesRef.current.get(toId) ?? createStateRef.current(sqlRef.current);
+    tabStatesRef.current.set(toId, nextState);
+    view.setState(nextState);
+    tabIdRef.current = toId;
+  }, []);
+
+  useEffect(() => {
+    if (tabIdRef.current === tabId) return;
+    swapToTab(tabId);
+    appliedIdRef.current = externalApplyId;
+  }, [tabId, externalApplyId, swapToTab]);
+
+  useEffect(() => {
+    if (openTabIds.length === 0) return;
+    const openIds = new Set(openTabIds);
+    for (const id of tabStatesRef.current.keys()) {
+      if (!openIds.has(id)) tabStatesRef.current.delete(id);
+    }
+  }, [openTabIds]);
 
   useEffect(() => {
     const view = viewRef.current;

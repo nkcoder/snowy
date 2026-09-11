@@ -518,7 +518,8 @@ function App() {
                 <div className="flex-1 min-h-0 overflow-hidden" style={{ minHeight: 0 }}>
                   {activeTab ? (
                     <QueryEditor
-                      key={activeTab.id}
+                      tabId={activeTab.id}
+                      openTabIds={tabs.map((t) => t.id)}
                       sql={activeTab.sql}
                       externalApplyId={activeTab.externalApplyId}
                       onChange={(sql) => updateActiveTab({ sql, dirty: true })}

@@ -72,6 +72,26 @@ test.describe('Query Editor', () => {
     expect(content).not.toContain('tab1');
   });
 
+  test('switching tabs and back preserves cursor position and undo history', async ({ page }) => {
+    await connectToWorkspace(page);
+
+    const editor = page.locator('.cm-content');
+    await setEditorText(page, 'SELECT 1;');
+
+    const firstTab = page.locator('[data-testid="tab-bar"] > div').first();
+    await page.click('[data-testid="tab-new"]');
+    await page.waitForTimeout(300);
+    await firstTab.click();
+    await page.waitForTimeout(300);
+    await editor.focus();
+
+    await page.keyboard.type('!');
+    await expect(editor).toHaveText('SELECT 1;!');
+
+    await page.keyboard.press('Control+z');
+    await expect(editor).toHaveText('SELECT 1;');
+  });
+
   test('save button prompts and saves query; appears in sidebar', async ({ page }) => {
     await connectToWorkspace(page);
 
