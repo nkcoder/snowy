@@ -212,7 +212,7 @@ export function ConnectionManager({
               height: 22,
               borderRadius: 4,
               background: T.accent,
-              color: '#fff',
+              color: T.onAccent,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -221,7 +221,7 @@ export function ConnectionManager({
               padding: 0,
             }}
           >
-            <Plus size={12} color="#fff" />
+            <Plus size={12} color={T.onAccent} />
           </button>
           <button
             type="button"

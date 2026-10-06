@@ -38,7 +38,7 @@ function Backdrop({ children }: { children: React.ReactNode }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0,0,0,0.5)',
+        background: T.scrim,
       }}
     >
       {children}
@@ -59,7 +59,7 @@ function Box({
       style={{
         background: T.panel,
         border: `1px solid ${T.borderStrong}`,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        boxShadow: T.shadowModal,
         fontFamily: T.ui,
       }}
       className="rounded-lg p-5 w-[340px] flex flex-col gap-3.5"
@@ -135,8 +135,8 @@ export function InputDialog({
           </button>
           <button
             type="button"
-            style={{ background: T.accent, fontFamily: T.ui }}
-            className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+            style={{ background: T.accent, color: T.onAccent, fontFamily: T.ui }}
+            className="px-3.5 py-1 text-xs rounded border-none cursor-pointer font-medium"
             onClick={() => value.trim() && onConfirm(value.trim())}
             disabled={!value.trim()}
           >
@@ -193,8 +193,8 @@ export function ConfirmDialog({
           <button
             type="button"
             ref={confirmRef}
-            style={{ background: T.err, fontFamily: T.ui }}
-            className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+            style={{ background: T.err, color: T.onAccent, fontFamily: T.ui }}
+            className="px-3.5 py-1 text-xs rounded border-none cursor-pointer font-medium"
             onClick={onConfirm}
           >
             {confirmLabel}
@@ -204,8 +204,8 @@ export function ConfirmDialog({
               type="button"
               ref={altRef}
               data-testid="dialog-alt"
-              style={{ background: T.accent, fontFamily: T.ui }}
-              className="px-3.5 py-1 text-xs rounded border-none text-white cursor-pointer font-medium"
+              style={{ background: T.accent, color: T.onAccent, fontFamily: T.ui }}
+              className="px-3.5 py-1 text-xs rounded border-none cursor-pointer font-medium"
               onClick={onAlt}
             >
               {altLabel}

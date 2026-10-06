@@ -156,7 +156,6 @@ vi.mock('@codemirror/view', () => ({}));
 vi.mock('@codemirror/state', () => ({}));
 vi.mock('@codemirror/autocomplete', () => ({}));
 vi.mock('@codemirror/lang-sql', () => ({}));
-vi.mock('@codemirror/theme-one-dark', () => ({}));
 vi.mock('@codemirror/commands', () => ({}));
 vi.mock('@codemirror/language', () => ({}));
 

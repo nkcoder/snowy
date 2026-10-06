@@ -17,7 +17,6 @@ import {
   setSearchQuery,
 } from '@codemirror/search';
 import { EditorState, Prec } from '@codemirror/state';
-import { oneDark } from '@codemirror/theme-one-dark';
 import {
   type DecorationSet,
   EditorView,
@@ -190,7 +189,6 @@ export function QueryEditor({
         sql({ dialect: PostgreSQL }),
         // No-op panel suppresses the default CM search UI while keeping match highlighting active.
         search({ createPanel: () => ({ dom: document.createElement('div') }) }),
-        oneDark,
         Prec.high(syntaxHighlighting(snowySqlHighlight)),
         // Highest precedence so the function mark nests *inside* the tag-based
         // highlight span, letting its colour win for keyword builtins like COUNT.
@@ -355,7 +353,7 @@ export function QueryEditor({
           title="Run (⌘↵)"
           style={{
             background: T.accent,
-            color: '#fff',
+            color: T.onAccent,
             fontFamily: T.ui,
             opacity: loading ? 0.4 : 1,
             cursor: loading ? 'default' : 'pointer',

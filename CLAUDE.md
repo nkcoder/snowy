@@ -53,6 +53,8 @@ Always reference design prototypes under `spec/design/`. DataGrip is the primary
 
 Our designs are: @spec/design, referenced DataGrip designs are: @spec/design/datagrip-references/
 
+`PRODUCT.md` (who Snowy is for, positioning, principles) and `DESIGN.md` (the visual system, documented from `frontend/src/style.css` and the components) sit at the repo root because the [Impeccable](https://github.com/pbakaus/impeccable) Claude Code plugin only reads them there; `.impeccable/design.json` is its sidecar. Hand edits are fine. Keep `DESIGN.md` in sync when tokens in `style.css` / `tokens.ts` change.
+
 ## Architecture
 
 ### Backend (Go)

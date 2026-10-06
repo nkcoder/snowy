@@ -18,7 +18,7 @@
   /* Text */
   --t-text: #ecebe8;
   --t-text-sec: #a9a59d;
-  --t-text-dim: #6e6a62;
+  --t-text-dim: #908c83; /* ≥4.5:1 on panel/chrome — metadata, placeholders, counts */
 
   /* Interaction */
   --t-hover: rgba(255, 255, 255, 0.04);
@@ -28,6 +28,8 @@
   /* Accent */
   --t-accent: oklch(0.62 0.17 240);
   --t-accent-hover: oklch(0.68 0.17 240);
+  --t-accent-soft: color-mix(in oklch, var(--t-accent) 16%, transparent);
+  --t-on-accent: #fff;
 
   /* Semantic */
   --t-ok: oklch(0.6 0.14 155);
@@ -36,13 +38,16 @@
   --t-info: oklch(0.62 0.14 240);
   --t-mag: oklch(0.6 0.18 320);
   --t-purple: oklch(0.58 0.17 290);
+  --t-warn-text: var(--t-warn); /* warn colour safe for text on panel surfaces */
 
   /* Grid */
   --t-grid-stripe: rgba(255, 255, 255, 0.018);
   --t-grid-header: #232120;
 
-  /* Shadow & vibrancy */
+  /* Shadow, scrim & vibrancy — overlays only; docked panels stay flat */
   --t-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.4);
+  --t-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --t-scrim: rgba(0, 0, 0, 0.5);
   --t-vibrancy: rgba(37, 35, 32, 0.85);
 
   /* Typography */
@@ -75,17 +80,30 @@
 
   --t-text: #1c1b19;
   --t-text-sec: #5a574f;
-  --t-text-dim: #8b877d;
+  --t-text-dim: #67635a;
 
   --t-hover: rgba(0, 0, 0, 0.04);
   --t-selected: oklch(0.93 0.04 240);
   --t-selected-border: oklch(0.7 0.14 240);
+  --t-warn-text: oklch(0.48 0.12 75);
 
   --t-grid-stripe: rgba(0, 0, 0, 0.018);
   --t-grid-header: #f0ede7;
 
-  --t-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --t-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.1);
+  --t-shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.18);
+  --t-scrim: rgba(28, 27, 25, 0.32);
   --t-vibrancy: rgba(232, 229, 223, 0.85);
+
+  /* SQL syntax — darker hues so every token clears 4.5:1 on the light panel */
+  --t-syntax-keyword: #9b3d96;
+  --t-syntax-identifier: #3b3d44;
+  --t-syntax-function: #1f6fbf;
+  --t-syntax-type: #0f7a67;
+  --t-syntax-string: #3a7d44;
+  --t-syntax-constant: #2457b8;
+  --t-syntax-operator: #6b675e;
+  --t-syntax-comment: #587546;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
@@ -103,6 +121,78 @@ body {
 
 #root {
   height: 100vh;
+}
+
+/* Colour-scheme drives native form controls, scrollbars and the caret. */
+:root {
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+::selection {
+  background: var(--t-selected);
+  color: var(--t-text);
+}
+
+/* ── Focus ────────────────────────────────────────────────────────────────── */
+/* One visible keyboard focus treatment for every control. Pointer clicks never
+   show it (:focus-visible); inputs get an inset ring so it never clips. */
+:focus-visible {
+  outline: 2px solid var(--t-accent);
+  outline-offset: 1px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: -1px;
+  outline-width: 1px;
+}
+
+/* CodeMirror shows focus with its caret and active line; no ring around the pane. */
+.cm-editor :focus-visible,
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Composite fields (icon + bare input in a bordered wrapper) show focus on the wrapper. */
+.snowy-field:focus-within {
+  outline: 1px solid var(--t-accent);
+  outline-offset: -1px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+button {
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    filter 120ms ease-out;
+}
+/* Fill buttons (accent / danger) lift slightly; ghost buttons gain a wash. */
+button:not(:disabled):hover {
+  filter: brightness(1.14);
+}
+[data-theme="light"] button:not(:disabled):hover {
+  filter: brightness(0.9);
+}
+button.bg-transparent:not(:disabled):hover {
+  background-color: var(--t-hover);
+  filter: none;
+}
+/* Buttons that declare an inline transparent background can't be reached by a
+   class selector (inline styles win), so match the attribute; !important only
+   guards this one hover wash. */
+button[style*="background: none"]:not(:disabled):hover,
+button[style*="background: transparent"]:not(:disabled):hover {
+  background: var(--t-hover) !important;
+  filter: none;
+}
+button:not(:disabled):active {
+  filter: brightness(0.94);
+}
+button:disabled {
+  cursor: default;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */

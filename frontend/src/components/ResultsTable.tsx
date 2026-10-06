@@ -303,9 +303,9 @@ export function ResultsTable({
       {truncated && (
         <div
           style={{
-            background: 'rgba(229,192,123,0.08)',
-            borderBottom: `1px solid rgba(229,192,123,0.25)`,
-            color: '#e5c07b',
+            background: `color-mix(in srgb, ${T.warn} 8%, transparent)`,
+            borderBottom: `1px solid color-mix(in srgb, ${T.warn} 25%, transparent)`,
+            color: T.warnText,
             fontFamily: T.ui,
           }}
           className="flex items-center gap-2 px-3 py-1.5 text-[11px] shrink-0"

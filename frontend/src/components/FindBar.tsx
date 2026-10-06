@@ -66,7 +66,7 @@ export function FindBar({
         border: `1px solid ${T.border}`,
         borderRadius: 6,
         padding: '3px 4px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        boxShadow: T.shadow,
       }}
     >
       <input
@@ -98,7 +98,6 @@ export function FindBar({
           fontSize: 12,
           padding: '2px 6px',
           width: 160,
-          outline: 'none',
         }}
       />
       {matchInfo != null && (

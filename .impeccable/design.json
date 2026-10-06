@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T10:26:34.789938+00:00",
+  "title": "Design System: Snowy",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Workbench Blue",
+        "canonical": "oklch(0.62 0.17 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 240)",
+          "oklch(0.25 0.17 240)",
+          "oklch(0.35 0.17 240)",
+          "oklch(0.45 0.17 240)",
+          "oklch(0.58 0.17 240)",
+          "oklch(0.70 0.17 240)",
+          "oklch(0.82 0.17 240)",
+          "oklch(0.95 0.17 240)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Workbench Blue, Lifted",
+        "canonical": "oklch(0.68 0.17 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 240)",
+          "oklch(0.25 0.17 240)",
+          "oklch(0.35 0.17 240)",
+          "oklch(0.45 0.17 240)",
+          "oklch(0.58 0.17 240)",
+          "oklch(0.70 0.17 240)",
+          "oklch(0.82 0.17 240)",
+          "oklch(0.95 0.17 240)"
+        ]
+      },
+      "selected-fill": {
+        "role": "primary",
+        "displayName": "Selection Wash",
+        "canonical": "oklch(0.28 0.07 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.07 240)",
+          "oklch(0.25 0.07 240)",
+          "oklch(0.35 0.07 240)",
+          "oklch(0.45 0.07 240)",
+          "oklch(0.58 0.07 240)",
+          "oklch(0.70 0.07 240)",
+          "oklch(0.82 0.07 240)",
+          "oklch(0.95 0.07 240)"
+        ]
+      },
+      "ok": {
+        "role": "secondary",
+        "displayName": "Signal Green",
+        "canonical": "oklch(0.6 0.14 155)",
+        "tonalRamp": [
+          "oklch(0.15 0.14 155)",
+          "oklch(0.25 0.14 155)",
+          "oklch(0.35 0.14 155)",
+          "oklch(0.45 0.14 155)",
+          "oklch(0.58 0.14 155)",
+          "oklch(0.70 0.14 155)",
+          "oklch(0.82 0.14 155)",
+          "oklch(0.95 0.14 155)"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Signal Amber",
+        "canonical": "oklch(0.7 0.15 75)",
+        "tonalRamp": [
+          "oklch(0.15 0.15 75)",
+          "oklch(0.25 0.15 75)",
+          "oklch(0.35 0.15 75)",
+          "oklch(0.45 0.15 75)",
+          "oklch(0.58 0.15 75)",
+          "oklch(0.70 0.15 75)",
+          "oklch(0.82 0.15 75)",
+          "oklch(0.95 0.15 75)"
+        ]
+      },
+      "err": {
+        "role": "secondary",
+        "displayName": "Signal Red",
+        "canonical": "oklch(0.58 0.19 25)",
+        "tonalRamp": [
+          "oklch(0.15 0.19 25)",
+          "oklch(0.25 0.19 25)",
+          "oklch(0.35 0.19 25)",
+          "oklch(0.45 0.19 25)",
+          "oklch(0.58 0.19 25)",
+          "oklch(0.70 0.19 25)",
+          "oklch(0.82 0.19 25)",
+          "oklch(0.95 0.19 25)"
+        ]
+      },
+      "magenta": {
+        "role": "tertiary",
+        "displayName": "Project Magenta",
+        "canonical": "oklch(0.6 0.18 320)",
+        "tonalRamp": [
+          "oklch(0.15 0.18 320)",
+          "oklch(0.25 0.18 320)",
+          "oklch(0.35 0.18 320)",
+          "oklch(0.45 0.18 320)",
+          "oklch(0.58 0.18 320)",
+          "oklch(0.70 0.18 320)",
+          "oklch(0.82 0.18 320)",
+          "oklch(0.95 0.18 320)"
+        ]
+      },
+      "purple": {
+        "role": "tertiary",
+        "displayName": "Project Purple",
+        "canonical": "oklch(0.58 0.17 290)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 290)",
+          "oklch(0.25 0.17 290)",
+          "oklch(0.35 0.17 290)",
+          "oklch(0.45 0.17 290)",
+          "oklch(0.58 0.17 290)",
+          "oklch(0.70 0.17 290)",
+          "oklch(0.82 0.17 290)",
+          "oklch(0.95 0.17 290)"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Charcoal Floor",
+        "canonical": "#1a1917",
+        "tonalRamp": [
+          "oklch(0.15 0.006 75)",
+          "oklch(0.25 0.006 75)",
+          "oklch(0.35 0.006 75)",
+          "oklch(0.45 0.006 75)",
+          "oklch(0.58 0.006 75)",
+          "oklch(0.70 0.006 75)",
+          "oklch(0.82 0.006 75)",
+          "oklch(0.95 0.006 75)"
+        ]
+      },
+      "chrome": {
+        "role": "neutral",
+        "displayName": "Chrome Stone",
+        "canonical": "#252320",
+        "tonalRamp": [
+          "oklch(0.15 0.006 75)",
+          "oklch(0.25 0.006 75)",
+          "oklch(0.35 0.006 75)",
+          "oklch(0.45 0.006 75)",
+          "oklch(0.58 0.006 75)",
+          "oklch(0.70 0.006 75)",
+          "oklch(0.82 0.006 75)",
+          "oklch(0.95 0.006 75)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#1f1d1b",
+        "tonalRamp": [
+          "oklch(0.15 0.006 75)",
+          "oklch(0.25 0.006 75)",
+          "oklch(0.35 0.006 75)",
+          "oklch(0.45 0.006 75)",
+          "oklch(0.58 0.006 75)",
+          "oklch(0.70 0.006 75)",
+          "oklch(0.82 0.006 75)",
+          "oklch(0.95 0.006 75)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#ecebe8",
+        "tonalRamp": [
+          "oklch(0.15 0.004 85)",
+          "oklch(0.25 0.004 85)",
+          "oklch(0.35 0.004 85)",
+          "oklch(0.45 0.004 85)",
+          "oklch(0.58 0.004 85)",
+          "oklch(0.70 0.004 85)",
+          "oklch(0.82 0.004 85)",
+          "oklch(0.95 0.004 85)"
+        ]
+      },
+      "text-dim": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "#908c83",
+        "tonalRamp": [
+          "oklch(0.15 0.006 85)",
+          "oklch(0.25 0.006 85)",
+          "oklch(0.35 0.006 85)",
+          "oklch(0.45 0.006 85)",
+          "oklch(0.58 0.006 85)",
+          "oklch(0.70 0.006 85)",
+          "oklch(0.82 0.006 85)",
+          "oklch(0.95 0.006 85)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Dialog titles, column names, selected tree rows."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Tree rows and base UI text."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Inputs, buttons, tabs, toasts."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Grid cells, SQL, identifiers."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Counters and badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "popover",
+        "value": "0 1px 0 rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.4)",
+        "purpose": "Menus, find bar, toasts, autocomplete (--t-shadow)."
+      },
+      {
+        "name": "modal",
+        "value": "0 8px 32px rgba(0,0,0,0.5)",
+        "purpose": "Modal dialogs (--t-shadow-modal) over --t-scrim."
+      }
+    ],
+    "motion": [
+      {
+        "name": "spin",
+        "value": "rotate 360deg linear infinite",
+        "purpose": "Loading spinner; the only keyframe animation in the system."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Confirm or save action.",
+      "html": "<button class=\"ds-btn-primary\">Save</button>",
+      "css": ".ds-btn-primary{background:var(--t-accent);color:var(--t-on-accent);border:none;border-radius:4px;padding:4px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;}.ds-btn-primary:hover{background:var(--t-accent-hover)}.ds-btn-primary:focus-visible{outline:2px solid var(--t-accent-hover);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Cancel and neutral actions.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary{background:transparent;color:var(--t-text-sec);border:1px solid var(--t-border);border-radius:4px;padding:4px 14px;font-size:12px;cursor:pointer;font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;}.ds-btn-secondary:hover{background:var(--t-hover);color:var(--t-text)}.ds-btn-secondary:focus-visible{outline:2px solid var(--t-accent);outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Confirm a destructive action.",
+      "html": "<button class=\"ds-btn-danger\">Close anyway</button>",
+      "css": ".ds-btn-danger{background:var(--t-err);color:var(--t-on-accent);border:none;border-radius:4px;padding:4px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;}.ds-btn-danger:hover{filter:brightness(1.1)}.ds-btn-danger:focus-visible{outline:2px solid var(--t-err);outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Recessed well used in dialogs and the connection form.",
+      "html": "<input class=\"ds-input\" value=\"mydatabase\" />",
+      "css": ".ds-input{box-sizing:border-box;width:220px;background:var(--t-bg);color:var(--t-text);border:1px solid var(--t-border);border-radius:4px;padding:7px 10px;font-size:12px;font-family:var(--t-font-mono);outline:none}.ds-input:focus{border-color:var(--t-accent)}"
+    },
+    {
+      "name": "Query Tab",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Console tab with file icon, dirty dot and close.",
+      "html": "<div class=\"ds-tab-strip\"><div class=\"ds-tab ds-tab-active\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6\"/></svg><span>console [dev]</span><span class=\"ds-dot\">●</span></div><div class=\"ds-tab\"><span>users.sql</span></div></div>",
+      "css": ".ds-tab-strip{display:flex;height:30px;background:var(--t-chrome);border-bottom:0.5px solid var(--t-border);width:320px}.ds-tab{display:flex;align-items:center;gap:6px;padding:0 10px;min-width:100px;font-size:11.5px;color:var(--t-text-sec);border-right:0.5px solid var(--t-border);border-bottom:2px solid transparent;font-family:var(--t-font-mono);cursor:pointer}.ds-tab:hover{background:var(--t-hover)}.ds-tab-active{background:var(--t-panel);color:var(--t-text);font-weight:600;border-bottom-color:var(--t-accent)}.ds-tab-active svg{color:var(--t-accent)}.ds-dot{color:var(--t-accent);margin-left:auto}"
+    },
+    {
+      "name": "Tree Row",
+      "kind": "custom",
+      "refersTo": "tree-row",
+      "description": "Schema explorer row; selected state shown.",
+      "html": "<div class=\"ds-tree\"><div class=\"ds-row\"><span class=\"ds-chev\">›</span>users<span class=\"ds-meta\">3</span></div><div class=\"ds-row ds-row-sel\"><span class=\"ds-chev\">⌄</span>accounts<span class=\"ds-meta\">7</span></div></div>",
+      "css": ".ds-tree{width:220px;background:var(--t-sidebar);font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif}.ds-row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px 0 6px;font-size:13px;color:var(--t-text);border-left:2px solid transparent;cursor:pointer}.ds-row:hover{background:var(--t-hover)}.ds-row-sel{background:var(--t-selected);border-left-color:var(--t-selected-border);font-weight:600}.ds-chev{width:14px;color:var(--t-text-dim)}.ds-meta{margin-left:auto;font-size:11px;color:var(--t-text-dim);font-family:var(--t-font-mono)}"
+    },
+    {
+      "name": "Result Grid",
+      "kind": "custom",
+      "refersTo": "data",
+      "description": "Zebra-striped mono result table with sticky header.",
+      "html": "<table class=\"ds-grid\"><thead><tr><th>user_id</th><th>first_name</th></tr></thead><tbody><tr><td>1</td><td>Alice</td></tr><tr><td>2</td><td>Bob</td></tr><tr><td>3</td><td>Charlie</td></tr></tbody></table>",
+      "css": ".ds-grid{border-collapse:collapse;width:240px;background:var(--t-panel);color:var(--t-text);font-family:var(--t-font-mono);font-size:13px}.ds-grid th{background:var(--t-grid-header);text-align:left;font-weight:600;padding:4px 12px;border-bottom:1px solid var(--t-border)}.ds-grid td{padding:4px 12px;border-bottom:1px solid var(--t-divider)}.ds-grid tbody tr:nth-child(even){background:var(--t-grid-stripe)}.ds-grid tbody tr:hover td{background:var(--t-hover)}"
+    },
+    {
+      "name": "Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Modal input/confirm box.",
+      "html": "<div class=\"ds-dialog\"><div class=\"ds-dialog-title\">Rename query</div><input class=\"ds-dialog-input\" value=\"report.sql\"/><div class=\"ds-dialog-actions\"><button class=\"ds-d-cancel\">Cancel</button><button class=\"ds-d-ok\">Save</button></div></div>",
+      "css": ".ds-dialog{box-sizing:border-box;width:340px;background:var(--t-panel);border:1px solid var(--t-border-strong);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--t-shadow-modal);color:var(--t-text);font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif}.ds-dialog-title{font-size:13px;font-weight:600}.ds-dialog-input{background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text);border-radius:4px;padding:6px 10px;font-size:12px;font-family:var(--t-font-mono);outline:none}.ds-dialog-actions{display:flex;justify-content:flex-end;gap:8px}.ds-d-cancel{background:transparent;border:1px solid var(--t-border);color:var(--t-text-sec);border-radius:4px;padding:4px 14px;font-size:12px}.ds-d-ok{background:var(--t-accent);border:none;color:#fff;border-radius:4px;padding:4px 14px;font-size:12px;font-weight:500}"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Status notification with a colored left edge.",
+      "html": "<div class=\"ds-toast\"><span class=\"ds-toast-msg\">Connected to snowy@dev</span></div>",
+      "css": ".ds-toast{display:flex;gap:10px;padding:10px 12px;width:280px;box-sizing:border-box;background:var(--t-panel);background:color-mix(in srgb,var(--t-ok) 8%,var(--t-panel));border:0.5px solid color-mix(in srgb,var(--t-ok) 50%,transparent);border-radius:6px;box-shadow:var(--t-shadow);font-size:12px;line-height:1.5;color:var(--t-text);font-family:Monaco, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Workbench",
+    "overview": "Snowy is a place where a developer sits down to work with data, and the interface stays out of the way. Surfaces are warm stone-grey rather than cold blue-grey or pure black and white; there is exactly one accent hue (a clear blue); chrome is drawn with hairline borders rather than boxes, shadows, or fills. Everything that is not the schema tree, the editor, or the result grid is kept at low contrast so the data leads.\n\nThe mood is calm, focused, dense, and precise: IDE-density 24px rows, 10–13px type, a monospace-first voice, and information-rich panels that still read as quiet. It should feel at home on macOS (a vibrancy-blurred chrome, restrained controls, no web-app flourish) and beautiful in the way a well-kept tool is: through proportion, alignment, and consistency rather than decoration. DataGrip is the binding reference for layout, theming and interaction; Snowy borrows its flat sidebar and editor-over-results arrangement.\n\nConfirmed rejections: the pgAdmin look (nested-layer trees, dated web-admin chrome), the generic SaaS dashboard (large cards, gradients, big radii, colourful KPI tiles), and the neon \"hacker terminal\" (saturated green or cyan on pure black, glow).",
+    "keyCharacteristics": [
+      "Warm neutral surfaces in two themes (SnowyDark default, SnowyLight), switched by one `data-theme` attribute.",
+      "One blue accent carries selection, focus, active tab and primary action; semantic colors appear only as status and environment signals.",
+      "Hairline (0.5–1px) translucent borders instead of shadows for structure.",
+      "Monospace-led typography at small sizes (10–13px), with 13px as the base.",
+      "24px tree rows and a 30px tab bar: density is a feature.",
+      "Every color and font is a `--t-*` custom property exposed as `T.*`; no hex in components."
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "Blue is the only chromatic color that means \"interactive\". If something is blue, you can act on it. Status hues report state; they never decorate.",
+        "section": "colors"
+      },
+      {
+        "name": "The Environment Rule",
+        "body": "Connection environments map to fixed hues: prod = `err`, stg = `warn`, dev = `ok`, local = `accent`. Production must never share a color with a safe environment.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token Rule",
+        "body": "Components never contain hex; they read `T.*`. A new color is added to `style.css` and `tokens.ts` together, or it does not exist.",
+        "section": "colors"
+      },
+      {
+        "name": "The Small and Steady Rule",
+        "body": "Nothing in the chrome exceeds 13px. Hierarchy comes from weight (400 / 500 / 600) and ink step (`text`, `text-sec`, `text-dim`), not from size jumps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Until-Floating Rule",
+        "body": "Anything docked in the layout is flat and hairline-bordered. Only overlays (menus, dialogs, toasts) get a shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** take every color and font from `T.*` / `--t-*`; add new tokens to `style.css` and `tokens.ts` together.",
+      "**Do** build structure from tonal steps and 0.5–1px translucent hairlines.",
+      "**Do** keep chrome text at 10–13px and let weight and ink step carry hierarchy.",
+      "**Do** reserve the accent blue for interactive and selected state.",
+      "**Do** check every new surface in both SnowyDark and SnowyLight; both are reachable from the appearance menu.",
+      "**Do** keep tree rows at 24px (22px for sub-folders) and let data take the visual priority.",
+      "**Do** pair every status color with an icon or label."
+    ],
+    "donts": [
+      "**Don't** use hardcoded hex in components (ADR-0004).",
+      "**Don't** reproduce the pgAdmin look: no deeply nested connection → server → database → schema chains, and no heavy web-admin chrome.",
+      "**Don't** build a generic SaaS dashboard: no big cards, gradients, rounded-xl corners, or colorful KPI tiles.",
+      "**Don't** drift toward a neon \"hacker terminal\": no saturated green or cyan on pure black, no glow.",
+      "**Don't** put shadows on docked panels; shadows belong to overlays.",
+      "**Don't** use pure black or pure white as a surface; stay on the warm neutral ramp.",
+      "**Don't** introduce a second interactive hue next to the accent blue.",
+      "**Don't** use a spacing utility without checking it compiled; Tailwind v4 needs `@import \"tailwindcss\";` at the top of `style.css`."
+    ]
+  }
+}

@@ -43,7 +43,7 @@ export function HistoryDrawer({
       <div
         data-testid="history-backdrop"
         onClick={onClose}
-        style={{ background: 'rgba(0,0,0,0.35)' }}
+        style={{ background: T.scrim }}
         className="fixed inset-0 z-[99]"
       />
 

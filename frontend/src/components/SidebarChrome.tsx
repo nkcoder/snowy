@@ -42,7 +42,7 @@ export function ToolBtn({
             height: 9,
             borderRadius: 5,
             background: T.accent,
-            color: '#fff',
+            color: T.onAccent,
             fontSize: 8,
             fontWeight: 800,
             lineHeight: 1,

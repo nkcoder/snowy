@@ -50,7 +50,7 @@ class WorkspaceErrorBoundary extends Component<{ children: ReactNode }, { error:
           <button
             type="button"
             onClick={() => this.setState({ error: null })}
-            style={{ background: T.accent, color: '#fff' }}
+            style={{ background: T.accent, color: T.onAccent }}
             className="mt-4 px-3 py-1.5 border-none rounded cursor-pointer"
           >
             Retry
@@ -430,9 +430,9 @@ function App() {
             <div
               data-testid="connection-warning"
               style={{
-                background: 'rgba(229,192,123,0.1)',
-                borderBottom: '1px solid rgba(229,192,123,0.3)',
-                color: '#e5c07b',
+                background: `color-mix(in srgb, ${T.warn} 10%, transparent)`,
+                borderBottom: `1px solid color-mix(in srgb, ${T.warn} 30%, transparent)`,
+                color: T.warnText,
                 fontFamily: T.ui,
               }}
               className="flex items-center gap-2 px-3 py-1.5 text-[11.5px] shrink-0"
