@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import type { Tab } from '../components/TabBar';
 
+type TabPatch = Omit<Partial<Tab>, 'id' | 'externalApplyId'>;
+
 export function useTabManager() {
   const seqRef = useRef(0);
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -12,6 +14,7 @@ export function useTabManager() {
     filename,
     sql,
     dirty: false,
+    externalApplyId: 0,
   });
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
@@ -21,17 +24,30 @@ export function useTabManager() {
     setActiveTabId(tab.id);
   };
 
-  const updateTab = (id: string, patch: Partial<Tab>) => {
-    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const updateTab = (id: string, patch: TabPatch) => {
+    setTabs((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        return { ...t, ...patch, id: t.id, externalApplyId: t.externalApplyId };
+      })
+    );
   };
 
-  const updateActiveTab = (patch: Partial<Tab>) => {
+  const updateActiveTab = (patch: TabPatch) => {
     if (activeTabId) updateTab(activeTabId, patch);
   };
 
-  // Close a tab. If it was the active one, fall back to the neighbour on its
-  // left (clamped) so focus lands somewhere sensible rather than jumping to the
-  // end; closing the last tab clears the active id.
+  const replaceActiveTabSql = (sql: string) => {
+    if (!activeTabId) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeTabId
+          ? { ...t, sql, dirty: true, externalApplyId: t.externalApplyId + 1 }
+          : t
+      )
+    );
+  };
+
   const doCloseTab = (id: string) => {
     setTabs((prev) => {
       const next = prev.filter((t) => t.id !== id);
@@ -58,6 +74,7 @@ export function useTabManager() {
     openTab,
     updateTab,
     updateActiveTab,
+    replaceActiveTabSql,
     doCloseTab,
     handleTabSelect: setActiveTabId,
     handleNewTab,

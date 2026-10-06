@@ -7,6 +7,8 @@ export interface Tab {
   filename: string | null;
   sql: string;
   dirty: boolean;
+  /** Identity of the last parent-driven SQL replace; typing leaves this alone. */
+  externalApplyId: number;
 }
 
 interface TabBarProps {

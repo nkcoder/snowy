@@ -3,7 +3,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Tab, TabBar } from './TabBar';
 
 function makeTab(overrides: Partial<Tab> = {}): Tab {
-  return { id: 'tab-1', label: 'untitled', filename: null, sql: '', dirty: false, ...overrides };
+  return {
+    id: 'tab-1',
+    label: 'untitled',
+    filename: null,
+    sql: '',
+    dirty: false,
+    externalApplyId: 0,
+    ...overrides,
+  };
 }
 
 describe('TabBar', () => {

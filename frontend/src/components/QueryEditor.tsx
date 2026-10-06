@@ -54,7 +54,6 @@ import {
 import { T } from '../lib/tokens';
 import { FindBar, findMatchInfo, type MatchInfo } from './FindBar';
 
-// Colours function calls (name touching '(') by decorating the visible ranges.
 const sqlFunctionHighlight = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
@@ -71,7 +70,10 @@ const sqlFunctionHighlight = ViewPlugin.fromClass(
 );
 
 interface QueryEditorProps {
+  tabId?: string;
+  openTabIds?: string[];
   sql: string;
+  externalApplyId?: number;
   onChange: (sql: string) => void;
   onRun: (sql: string) => void;
   onSave: () => void;
@@ -81,7 +83,10 @@ interface QueryEditorProps {
 }
 
 export function QueryEditor({
+  tabId = 'default',
+  openTabIds = [],
   sql: sqlValue,
+  externalApplyId = 0,
   onChange,
   onRun,
   onSave,
@@ -92,6 +97,11 @@ export function QueryEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isProgrammatic = useRef(false);
+  const appliedIdRef = useRef(externalApplyId);
+  const sqlRef = useRef(sqlValue);
+  const tabStatesRef = useRef<Map<string, EditorState>>(new Map());
+  const tabIdRef = useRef(tabId);
+  sqlRef.current = sqlValue;
   const onRunRef = useRef(onRun);
   const onSaveRef = useRef(onSave);
   const onChangeRef = useRef(onChange);
@@ -109,10 +119,7 @@ export function QueryEditor({
     entriesRef.current = completions ?? [];
   }, [completions]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: editor initializes once; callbacks kept fresh via refs
-  useEffect(() => {
-    if (!containerRef.current) return;
-
+  const createState = useCallback((doc: string) => {
     const runCmd = (view: EditorView) => {
       const sel = view.state.selection.main;
       const content = sel.empty ? view.state.doc.toString() : view.state.sliceDoc(sel.from, sel.to);
@@ -137,9 +144,6 @@ export function QueryEditor({
       const fullText = context.state.doc.toString();
       const bounds = findStatementBounds(fullText, context.pos);
       const sel = context.state.selection.main;
-      // Selection acts as an additional boundary on top of `;`. Clamping
-      // composes both: a selection that spans multiple statements still
-      // resolves to the statement containing the cursor.
       const stmtStart = sel.empty ? bounds.stmtStart : Math.max(bounds.stmtStart, sel.from);
       const stmtEnd = sel.empty ? bounds.stmtEnd : Math.min(bounds.stmtEnd, sel.to);
       const stmtFull = fullText.slice(stmtStart, stmtEnd);
@@ -159,8 +163,8 @@ export function QueryEditor({
       };
     };
 
-    const state = EditorState.create({
-      doc: sqlValue,
+    return EditorState.create({
+      doc,
       extensions: [
         history(),
         lineNumbers(),
@@ -209,29 +213,60 @@ export function QueryEditor({
         }),
       ],
     });
+  }, []);
+  const createStateRef = useRef(createState);
+  createStateRef.current = createState;
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const id = tabIdRef.current;
+    const state = tabStatesRef.current.get(id) ?? createStateRef.current(sqlRef.current);
+    tabStatesRef.current.set(id, state);
     const view = new EditorView({ state, parent: containerRef.current });
     viewRef.current = view;
     return () => {
       view.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const swapToTab = useCallback((toId: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+    tabStatesRef.current.set(tabIdRef.current, view.state);
+    const nextState = tabStatesRef.current.get(toId) ?? createStateRef.current(sqlRef.current);
+    tabStatesRef.current.set(toId, nextState);
+    view.setState(nextState);
+    tabIdRef.current = toId;
   }, []);
 
   useEffect(() => {
+    if (tabIdRef.current === tabId) return;
+    swapToTab(tabId);
+    appliedIdRef.current = externalApplyId;
+  }, [tabId, externalApplyId, swapToTab]);
+
+  useEffect(() => {
+    if (openTabIds.length === 0) return;
+    const openIds = new Set(openTabIds);
+    for (const id of tabStatesRef.current.keys()) {
+      if (!openIds.has(id)) tabStatesRef.current.delete(id);
+    }
+  }, [openTabIds]);
+
+  useEffect(() => {
     const view = viewRef.current;
-    if (!view) return;
+    if (!view || externalApplyId === appliedIdRef.current) return;
+    appliedIdRef.current = externalApplyId;
     const current = view.state.doc.toString();
-    // Apply a minimal edit rather than replacing the whole document, so
-    // CodeMirror maps the existing selection through the change and the caret
-    // stays put (a full replace collapses the caret to the end of the change).
-    const patch = computeDocPatch(current, sqlValue);
+    // Minimal prefix/suffix diff so CodeMirror maps the selection through a
+    // tiny change instead of collapsing the caret on a full-document replace.
+    const patch = computeDocPatch(current, sqlRef.current);
     if (!patch) return;
     isProgrammatic.current = true;
     view.dispatch({ changes: patch });
     isProgrammatic.current = false;
-  }, [sqlValue]);
+  }, [externalApplyId]);
 
   const handleRun = useCallback(() => {
     const view = viewRef.current;
@@ -263,8 +298,6 @@ export function QueryEditor({
       effects: setSearchQuery.of(new SearchQuery({ search: val, caseSensitive: false })),
     });
     if (val) {
-      // Navigate to first match only when the query goes from empty to non-empty,
-      // so typing subsequent characters doesn't jump the cursor on every keystroke.
       if (!findHasNavigated.current) {
         findNext(view);
         findHasNavigated.current = true;

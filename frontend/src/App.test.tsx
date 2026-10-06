@@ -23,6 +23,9 @@ vi.mock('@codemirror/view', () => ({
     state = { doc: { toString: () => '', length: 0 } };
     dispatch = vi.fn();
     destroy = vi.fn();
+    setState = vi.fn((s: unknown) => {
+      this.state = s as typeof this.state;
+    });
     constructor({ parent }: { parent?: Element }) {
       if (parent) parent.appendChild(this.dom);
     }
