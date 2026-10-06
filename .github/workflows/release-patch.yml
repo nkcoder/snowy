@@ -9,6 +9,12 @@ on:
 permissions:
   contents: write
 
+# Merges to main land in bursts (dependabot). Without this, concurrent runs
+# compute the same next tag and the later `gh release create` fails.
+concurrency:
+  group: auto-patch-release
+  cancel-in-progress: false
+
 jobs:
   release:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}

@@ -465,10 +465,14 @@ export function innerSubqueryContext(
 
 export type FuzzyCompletion = Completion & { matchRanges?: readonly number[] };
 
-// Caps how many fuzzy matches feed the dropdown. fuzzysort returns every
-// subsequence match with no ceiling; on a wide table a single common letter can
-// match hundreds of columns, so bound the list to the best-ranked few.
+// Caps how many fuzzy matches feed the dropdown. On a wide table a single
+// common letter can match hundreds of columns, so bound the list to the
+// best-ranked few.
 const FUZZY_MATCH_LIMIT = 50;
+
+// fuzzysort 4 defaults to a 0.5 score floor, which drops loose subsequence
+// matches like `po` -> `property`. 0 keeps every subsequence match.
+const FUZZY_MATCH_THRESHOLD = 0;
 
 // Converts fuzzysort's ascending list of matched character indices into the
 // [from, toExclusive] range pairs CodeMirror's `getMatch` expects, merging
@@ -493,14 +497,20 @@ function indexesToRanges(indexes: readonly number[]): number[] {
 // added on top so equal-quality matches keep their semantic order.
 export function applyFuzzyMatch(options: Completion[], prefix: string): FuzzyCompletion[] {
   if (!prefix) return options;
-  return fuzzysort.go(prefix, options, { key: 'label', limit: FUZZY_MATCH_LIMIT }).map((result) => {
-    const ranges = indexesToRanges(result.indexes);
-    return {
-      ...result.obj,
-      boost: (result.obj.boost ?? 0) + Math.round(result.score * 100),
-      matchRanges: ranges.length > 0 ? ranges : undefined,
-    };
-  });
+  return fuzzysort
+    .go(prefix, options, {
+      key: 'label',
+      limit: FUZZY_MATCH_LIMIT,
+      threshold: FUZZY_MATCH_THRESHOLD,
+    })
+    .map((result) => {
+      const ranges = indexesToRanges(result.indexes);
+      return {
+        ...result.obj,
+        boost: (result.obj.boost ?? 0) + Math.round(result.score * 100),
+        matchRanges: ranges.length > 0 ? ranges : undefined,
+      };
+    });
 }
 
 export function buildCompletionOptions(entries: CompletionEntry[], ctx: SqlContext): Completion[] {

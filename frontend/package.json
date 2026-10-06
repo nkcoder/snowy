@@ -27,7 +27,7 @@
     "@codemirror/view": "^6.43.12",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
-    "fuzzysort": "^3.1.0",
+    "fuzzysort": "^4.0.2",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
