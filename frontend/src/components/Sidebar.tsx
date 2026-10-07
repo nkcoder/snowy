@@ -1,9 +1,10 @@
-import { Plus, RefreshCw, Search, Settings, Square, Terminal, X } from 'lucide-react';
+import { Plus, RefreshCw, Search, Square, Terminal, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSidebarTree } from '../hooks/useSidebarTree';
 import type { DatabaseMetadata } from '../lib/sidebarTypes';
 import { T } from '../lib/tokens';
 import type { Datasource } from '../types';
+import { AppearanceMenu } from './AppearanceMenu';
 import { CtxMenuItem, ToolBtn } from './SidebarChrome';
 import { SidebarConnectionNode } from './SidebarConnectionNode';
 
@@ -153,7 +154,7 @@ export function Sidebar({
       {/* ── Search bar ───────────────────────────────────────────── */}
       <div className="px-2 py-1.5 shrink-0" style={{ borderBottom: `0.5px solid ${T.divider}` }}>
         <div
-          className="flex items-center gap-1.5"
+          className="flex items-center gap-1.5 snowy-field"
           style={{
             padding: '3px 8px',
             background: T.panel,
@@ -255,7 +256,7 @@ export function Sidebar({
             background: T.panel,
             border: `1px solid ${T.border}`,
             borderRadius: 6,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            boxShadow: T.shadow,
             minWidth: 160,
             padding: '4px 0',
             fontSize: 12.5,
@@ -320,13 +321,7 @@ export function Sidebar({
           </div>
         )}
         <div className="flex-1" />
-        <button
-          type="button"
-          style={{ background: 'none', border: 'none', color: T.textDim }}
-          className="cursor-pointer p-0.5 flex items-center"
-        >
-          <Settings size={13} />
-        </button>
+        <AppearanceMenu />
       </div>
     </div>
   );

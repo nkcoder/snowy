@@ -11,8 +11,7 @@ function ModalShell({ testId, children }: { testId: string; children: React.Reac
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.65)',
-        backdropFilter: 'blur(4px)',
+        background: T.scrim,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -22,11 +21,11 @@ function ModalShell({ testId, children }: { testId: string; children: React.Reac
       <div
         style={{
           background: T.panel,
-          border: `0.5px solid ${T.borderStrong}`,
-          borderRadius: 10,
-          padding: '24px 28px',
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: 8,
+          padding: 20,
           width: 360,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: T.shadowModal,
         }}
       >
         {children}
@@ -56,7 +55,7 @@ export function UnsavedChangesDialog({
   };
   return (
     <ModalShell testId="unsaved-changes-dialog">
-      <div style={{ fontSize: 14, color: T.text, marginBottom: 20, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: T.text, marginBottom: 16, lineHeight: 1.5 }}>
         You have unsaved changes. What would you like to do?
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -68,9 +67,9 @@ export function UnsavedChangesDialog({
           style={{
             padding: '5px 14px',
             background: T.err,
-            color: '#fff',
+            color: T.onAccent,
             border: 'none',
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
@@ -88,7 +87,7 @@ export function UnsavedChangesDialog({
             background: T.panelAlt,
             color: T.textSec,
             border: `0.5px solid ${T.border}`,
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 12,
             cursor: 'pointer',
           }}
@@ -103,9 +102,9 @@ export function UnsavedChangesDialog({
           style={{
             padding: '5px 14px',
             background: T.accent,
-            color: '#fff',
+            color: T.onAccent,
             border: 'none',
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
@@ -130,7 +129,7 @@ export function DeleteConfirmDialog({
 }) {
   return (
     <ModalShell testId="confirm-dialog">
-      <div style={{ fontSize: 14, color: T.text, marginBottom: 20, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: T.text, marginBottom: 16, lineHeight: 1.5 }}>
         {message}
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -143,7 +142,7 @@ export function DeleteConfirmDialog({
             background: T.panelAlt,
             color: T.textSec,
             border: `0.5px solid ${T.border}`,
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 12,
             cursor: 'pointer',
           }}
@@ -157,9 +156,9 @@ export function DeleteConfirmDialog({
           style={{
             padding: '5px 14px',
             background: T.err,
-            color: '#fff',
+            color: T.onAccent,
             border: 'none',
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',

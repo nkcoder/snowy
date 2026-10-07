@@ -74,7 +74,6 @@ vi.mock('@codemirror/state', () => ({
 
 vi.mock('@codemirror/autocomplete', () => ({ autocompletion: () => ({}) }));
 vi.mock('@codemirror/lang-sql', () => ({ sql: () => ({}), PostgreSQL: {} }));
-vi.mock('@codemirror/theme-one-dark', () => ({ oneDark: {} }));
 vi.mock('@codemirror/commands', () => ({
   defaultKeymap: [],
   history: () => ({}),

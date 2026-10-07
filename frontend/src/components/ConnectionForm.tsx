@@ -131,9 +131,8 @@ export function ConnectionForm({
         display: 'flex',
         flexDirection: 'column',
         minWidth: 0,
-        background: isNew ? `color-mix(in srgb, ${T.panel} 92%, var(--t-accent))` : T.panel,
+        background: T.panel,
         overflow: 'hidden',
-        borderTop: isNew ? `2px solid ${T.accent}` : `2px solid transparent`,
       }}
     >
       {/* New / Edit header strip */}
@@ -144,7 +143,7 @@ export function ConnectionForm({
           padding: '6px 24px',
           gap: 8,
           borderBottom: `0.5px solid ${T.divider}`,
-          background: isNew ? `color-mix(in srgb, ${T.panel} 80%, var(--t-accent))` : T.panelAlt,
+          background: T.panelAlt,
           flexShrink: 0,
         }}
       >
@@ -260,7 +259,7 @@ export function ConnectionForm({
             padding: '7px 10px',
             background: `${testResult.success ? T.ok : T.err}18`,
             border: `0.5px solid ${testResult.success ? T.ok : T.err}55`,
-            borderRadius: 5,
+            borderRadius: 4,
             display: 'flex',
             alignItems: 'center',
             gap: 8,
@@ -276,7 +275,7 @@ export function ConnectionForm({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff',
+              color: T.onAccent,
               fontSize: 9,
               fontWeight: 800,
               flexShrink: 0,
@@ -301,7 +300,7 @@ export function ConnectionForm({
             padding: '6px 10px',
             background: `${T.err}18`,
             border: `0.5px solid ${T.err}55`,
-            borderRadius: 5,
+            borderRadius: 4,
             fontSize: 11.5,
             color: T.err,
           }}
@@ -399,7 +398,7 @@ export function ConnectionForm({
           style={{
             padding: '5px 16px',
             background: T.accent,
-            color: '#fff',
+            color: T.onAccent,
             borderRadius: 4,
             fontSize: 12,
             fontWeight: 600,

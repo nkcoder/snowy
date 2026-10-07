@@ -19,15 +19,20 @@ export const T = {
   selectedBorder: 'var(--t-selected-border)',
   accent: 'var(--t-accent)',
   accentHover: 'var(--t-accent-hover)',
+  accentSoft: 'var(--t-accent-soft)',
+  onAccent: 'var(--t-on-accent)',
   ok: 'var(--t-ok)',
   err: 'var(--t-err)',
   warn: 'var(--t-warn)',
+  warnText: 'var(--t-warn-text)',
   info: 'var(--t-info)',
   mag: 'var(--t-mag)',
   purple: 'var(--t-purple)',
   gridStripe: 'var(--t-grid-stripe)',
   gridHeader: 'var(--t-grid-header)',
   shadow: 'var(--t-shadow)',
+  shadowModal: 'var(--t-shadow-modal)',
+  scrim: 'var(--t-scrim)',
   vibrancy: 'var(--t-vibrancy)',
   overlay: 'color-mix(in srgb, var(--t-panel) 75%, transparent)',
   mono: 'var(--t-font-mono)',
@@ -35,7 +40,7 @@ export const T = {
 } as const;
 
 // SQL syntax-highlight tokens for the query editor. Kept separate from the UI
-// tokens above because the editor is always dark (no light variants needed).
+// tokens above; style.css gives SnowyLight its own darker hues.
 export const SYNTAX = {
   keyword: 'var(--t-syntax-keyword)',
   identifier: 'var(--t-syntax-identifier)',

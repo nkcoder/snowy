@@ -3,7 +3,7 @@ import type { EditorState } from '@codemirror/state';
 import { RangeSetBuilder } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, type Rect, tooltips } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
-import { SYNTAX } from './tokens';
+import { SYNTAX, T } from './tokens';
 
 // DataGrip-inspired syntax colors, sourced from SYNTAX tokens — overrides
 // oneDark via Prec.high. Colours are lexical (Lezer SQL grammar tags): keyword,
@@ -72,101 +72,112 @@ export function editorPaneRect(view: {
 // near the bottom instead of spilling across the results separator.
 export const editorTooltipSpace = tooltips({ tooltipSpace: editorPaneRect });
 
-// Static CodeMirror theme matched to SnowyDark tokens.
-// Theme-switching via CSS vars inside CodeMirror is unsupported — editor stays dark.
-export const editorTheme = EditorView.theme(
-  {
-    '&': { height: '100%', fontSize: '13px', background: '#1f1d1b' },
-    '.cm-content': {
-      fontFamily: '"Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace',
-      caretColor: '#ecebe8',
-      padding: '8px 0',
-    },
-    '.cm-scroller': { overflow: 'auto' },
-    // Function calls; the mark nests inside the tag span (Prec.highest) so this wins.
-    '.cm-sql-function': { color: SYNTAX.function, fontStyle: 'italic' },
-    '.cm-gutters': {
-      background: '#1f1d1b',
-      borderRight: '1px solid rgba(255,255,255,0.07)',
-      color: '#6e6a62',
-    },
-    '.cm-activeLineGutter': { background: '#252320' },
-    '.cm-activeLine': { background: '#252320' },
-    '.cm-selectionBackground, ::selection': { background: 'oklch(0.28 0.07 240) !important' },
-    '.cm-cursor': { borderLeftColor: '#ecebe8' },
-    '.cm-focused .cm-selectionBackground': { background: 'oklch(0.28 0.07 240)' },
-    '.cm-tooltip.cm-tooltip-autocomplete': {
-      width: '440px',
-      background: '#232120',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: '6px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-      overflow: 'hidden',
-      fontFamily: '"Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace',
-      fontSize: '12px',
-    },
-    '.cm-tooltip-autocomplete > ul': { maxHeight: '240px', fontFamily: 'inherit' },
-    '.cm-tooltip-autocomplete > ul > li': {
-      padding: '5px 10px',
-      color: '#ecebe8',
-      borderLeft: '2px solid transparent',
-      display: 'flex',
-      alignItems: 'center',
-    },
-    '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-      background: 'rgba(53, 116, 240, 0.15)',
-      borderLeft: '2px solid oklch(0.62 0.17 240)',
-    },
-    '.cm-completionLabel': { color: '#ecebe8', flex: '1' },
-    '.cm-completionDetail': {
-      color: '#6e6a62',
-      fontSize: '11px',
-      marginLeft: '8px',
-      fontStyle: 'normal',
-    },
-    '.cm-completionIcon': {
-      width: '18px',
-      marginRight: '4px',
-      textAlign: 'center',
-      fontSize: '10px',
-      color: '#6e6a62',
-      opacity: '1',
-    },
-    '.cm-completionIcon-type': { color: 'oklch(0.62 0.17 240)' },
-    '.cm-completionIcon-property': { color: '#e5c07b' },
-    '.cm-completionIcon-namespace': { color: '#98c379' },
-    '.cm-completionIcon-keyword': { color: '#c678dd' },
-    '.cm-key-badge': {
-      display: 'inline-block',
-      fontSize: '9px',
-      fontWeight: '700',
-      letterSpacing: '0.02em',
-      padding: '1px 4px',
-      borderRadius: '3px',
-      marginRight: '6px',
-      lineHeight: '1.4',
-      verticalAlign: 'middle',
-    },
-    '.cm-key-badge-pk': {
-      background: 'rgba(229,192,123,0.15)',
-      color: '#e5c07b',
-      border: '1px solid rgba(229,192,123,0.3)',
-    },
-    '.cm-key-badge-fk': {
-      background: 'rgba(53,116,240,0.15)',
-      color: 'oklch(0.72 0.17 240)',
-      border: '1px solid rgba(53,116,240,0.3)',
-    },
-    '.cm-key-badge-col': {
-      background: 'rgba(255,255,255,0.05)',
-      color: '#6e6a62',
-      border: '1px solid rgba(255,255,255,0.08)',
-    },
-    '.cm-completionMatchedText': {
-      color: '#e5c07b',
-      fontWeight: '600',
-      textDecoration: 'none',
-    },
+// CodeMirror theme driven entirely by the shared design tokens. Every colour is a
+// `var(--t-*)` reference, so the editor follows SnowyDark / SnowyLight with the
+// rest of the app (CSS variables resolve at paint time; no reconfigure needed).
+const MONO = '"Monaco", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace';
+
+export const editorTheme = EditorView.theme({
+  '&': { height: '100%', fontSize: '13px', background: T.panel, color: T.text },
+  '.cm-content': {
+    fontFamily: MONO,
+    caretColor: T.text,
+    padding: '8px 0',
   },
-  { dark: true }
-);
+  '.cm-scroller': { overflow: 'auto' },
+  // Function calls; the mark nests inside the tag span (Prec.highest) so this wins.
+  '.cm-sql-function': { color: SYNTAX.function, fontStyle: 'italic' },
+  '.cm-gutters': {
+    background: T.panel,
+    borderRight: `1px solid ${T.border}`,
+    color: T.textDim,
+  },
+  '.cm-activeLineGutter': { background: T.panelAlt, color: T.textSec },
+  '.cm-activeLine': { background: T.panelAlt },
+  // Native text selection is used (no drawSelection layer), so paint ::selection.
+  '.cm-selectionBackground, ::selection': { background: `${T.selected} !important` },
+  '.cm-focused .cm-selectionBackground': { background: T.selected },
+  '.cm-cursor': { borderLeftColor: T.text },
+  // The search extension mounts an empty no-op panel (FindBar replaces it); its default
+  // light styling leaks a bright 1px line, so don't render the panel container at all.
+  '.cm-panels': { display: 'none' },
+  // Find matches (FindBar drives the search; the default panel is suppressed).
+  '.cm-searchMatch': {
+    background: `color-mix(in srgb, ${T.warn} 22%, transparent)`,
+    outline: `1px solid color-mix(in srgb, ${T.warn} 45%, transparent)`,
+  },
+  '.cm-searchMatch.cm-searchMatch-selected': {
+    background: `color-mix(in srgb, ${T.warn} 45%, transparent)`,
+  },
+  '.cm-tooltip.cm-tooltip-autocomplete': {
+    width: '440px',
+    background: T.panelAlt,
+    border: `1px solid ${T.border}`,
+    borderRadius: '6px',
+    boxShadow: T.shadow,
+    overflow: 'hidden',
+    fontFamily: MONO,
+    fontSize: '12px',
+  },
+  '.cm-tooltip-autocomplete > ul': { maxHeight: '240px', fontFamily: 'inherit' },
+  '.cm-tooltip-autocomplete > ul > li': {
+    padding: '5px 10px',
+    color: T.text,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+    background: T.selected,
+    color: T.text,
+  },
+  '.cm-completionLabel': { color: T.text, flex: '1' },
+  '.cm-completionDetail': {
+    color: T.textDim,
+    fontSize: '11px',
+    marginLeft: '8px',
+    fontStyle: 'normal',
+  },
+  '.cm-completionIcon': {
+    width: '18px',
+    marginRight: '4px',
+    textAlign: 'center',
+    fontSize: '10px',
+    color: T.textDim,
+    opacity: '1',
+  },
+  '.cm-completionIcon-type': { color: T.accent },
+  '.cm-completionIcon-property': { color: T.warnText },
+  '.cm-completionIcon-namespace': { color: SYNTAX.string },
+  '.cm-completionIcon-keyword': { color: SYNTAX.keyword },
+  '.cm-key-badge': {
+    display: 'inline-block',
+    fontSize: '9px',
+    fontWeight: '700',
+    letterSpacing: '0.02em',
+    padding: '1px 4px',
+    borderRadius: '3px',
+    marginRight: '6px',
+    lineHeight: '1.4',
+    verticalAlign: 'middle',
+  },
+  '.cm-key-badge-pk': {
+    background: `color-mix(in srgb, ${T.warn} 16%, transparent)`,
+    color: T.warnText,
+    border: `1px solid color-mix(in srgb, ${T.warn} 35%, transparent)`,
+  },
+  '.cm-key-badge-fk': {
+    background: T.accentSoft,
+    color: T.accent,
+    border: `1px solid color-mix(in srgb, ${T.accent} 35%, transparent)`,
+  },
+  '.cm-key-badge-col': {
+    background: T.hover,
+    color: T.textDim,
+    border: `1px solid ${T.border}`,
+  },
+  '.cm-completionMatchedText': {
+    color: T.warnText,
+    fontWeight: '600',
+    textDecoration: 'none',
+  },
+});
