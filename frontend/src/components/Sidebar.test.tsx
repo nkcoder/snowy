@@ -581,15 +581,15 @@ describe('Sidebar — saved queries', () => {
     await userEvent.click(screen.getByTestId('folder-queries'));
     const selected = screen.getByTestId('query-row-b.sql');
     const other = screen.getByTestId('query-row-a.sql');
-    expect(selected).toHaveStyle({ background: 'var(--t-selected)' });
+    expect(selected.style.background).toBe('var(--t-selected)');
     expect(selected).toHaveStyle({ fontWeight: '600' });
-    expect(other).toHaveStyle({ background: 'transparent' });
+    expect(other.style.background).toBe('transparent');
   });
 
   it('highlights no row when no saved query is open', async () => {
     renderSidebar({ savedQueries: [{ filename: 'a.sql' }], activeQueryFilename: null });
     await userEvent.click(screen.getByTestId('folder-queries'));
-    expect(screen.getByTestId('query-row-a.sql')).toHaveStyle({ background: 'transparent' });
+    expect(screen.getByTestId('query-row-a.sql').style.background).toBe('transparent');
   });
 
   it('shows query count badge on folder', async () => {
