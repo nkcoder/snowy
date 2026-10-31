@@ -47,3 +47,6 @@ coverage/
 tmp/
 
 .dev/
+
+# Wails frontend:install cache (regenerated on every dev/build)
+frontend/package.json.md5
