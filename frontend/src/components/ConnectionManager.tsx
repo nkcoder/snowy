@@ -1,6 +1,6 @@
 import { Copy, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 import { T } from '../lib/tokens';
 import type { Datasource, Project } from '../types';
 import { DeleteConfirmDialog, UnsavedChangesDialog } from './ConnectionDialogs';

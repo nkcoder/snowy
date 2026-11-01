@@ -1,6 +1,6 @@
 import { AlertCircle, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { EventsOff, EventsOn } from '../../wailsjs/runtime/runtime';
+import { onNotification } from '../backend/events';
 import { T } from '../lib/tokens';
 
 type Level = 'success' | 'warning' | 'error';
@@ -26,8 +26,7 @@ export function Toast() {
       setItems((prev) => [...prev, { id, level, message }]);
       setTimeout(() => setItems((prev) => prev.filter((n) => n.id !== id)), AUTO_DISMISS_MS);
     };
-    EventsOn('snowy:notification', handler);
-    return () => EventsOff('snowy:notification');
+    return onNotification(handler);
   }, []);
 
   if (items.length === 0) return null;

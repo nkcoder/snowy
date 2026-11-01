@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
-import type { main } from '../../wailsjs/go/models';
+import * as GoApp from '../backend/app';
+import type { main } from '../backend/models';
 
 // useQueryHistory owns the history-drawer state: whether it's open, the loaded
 // entries, and the loading flag. openHistory fetches the latest 100 entries for

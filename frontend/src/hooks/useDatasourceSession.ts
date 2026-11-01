@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
-import type { main } from '../../wailsjs/go/models';
+import * as GoApp from '../backend/app';
+import type { main } from '../backend/models';
 import type { CompletionEntry } from '../lib/sqlCompletion';
 
 // useDatasourceSession owns the connection + metadata lifecycle for the active

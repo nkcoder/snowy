@@ -2,40 +2,31 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../wailsjs/runtime/runtime', () => {
+vi.mock('../backend/events', () => {
   type Handler = (payload: unknown) => void;
-  const handlers: Record<string, Handler[]> = {};
+  const handlers: Handler[] = [];
   return {
-    EventsOn: vi.fn((event: string, cb: Handler) => {
-      if (!handlers[event]) handlers[event] = [];
-      handlers[event].push(cb);
+    onNotification: vi.fn((cb: Handler) => {
+      handlers.push(cb);
       return () => {
-        delete handlers[event];
+        handlers.splice(handlers.indexOf(cb), 1);
       };
-    }),
-    EventsOff: vi.fn((event: string) => {
-      delete handlers[event];
-    }),
-    EventsEmit: vi.fn((event: string, payload: unknown) => {
-      for (const cb of handlers[event] ?? []) cb(payload);
     }),
     __handlers: handlers,
   };
 });
 
-import * as runtime from '../../wailsjs/runtime/runtime';
+import * as events from '../backend/events';
 import { Toast } from './Toast';
 
+const handlers = (events as unknown as { __handlers: Array<(p: unknown) => void> }).__handlers;
+
 const emit = (payload: unknown) => {
-  const handlers = (
-    runtime as unknown as { __handlers: Record<string, Array<(p: unknown) => void>> }
-  ).__handlers;
-  for (const cb of handlers['snowy:notification'] ?? []) cb(payload);
+  for (const cb of handlers) cb(payload);
 };
 
 afterEach(() => {
-  const handlers = (runtime as unknown as { __handlers: Record<string, unknown[]> }).__handlers;
-  for (const k of Object.keys(handlers)) delete handlers[k];
+  handlers.length = 0;
 });
 
 describe('Toast', () => {

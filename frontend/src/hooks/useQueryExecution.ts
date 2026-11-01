@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 import type { ResultTab } from '../components/ResultsPanel';
 
 function makeLiveResultTab(): ResultTab {

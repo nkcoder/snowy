@@ -1,7 +1,7 @@
 import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
-import * as GoApp from '../wailsjs/go/main/App';
-import type { main } from '../wailsjs/go/models';
+import * as GoApp from './backend/app';
+import type { main } from './backend/models';
 import { ConnectionManager } from './components/ConnectionManager';
 import { ConfirmDialog, InputDialog } from './components/Dialog';
 import { HistoryDrawer } from './components/HistoryDrawer';

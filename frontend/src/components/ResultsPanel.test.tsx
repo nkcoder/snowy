@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 import type { ResultTab } from './ResultsPanel';
 import { ResultsPanel } from './ResultsPanel';
 
-vi.mock('../../wailsjs/go/main/App', () => ({
+vi.mock('../backend/app', () => ({
   ExportCSV: vi.fn().mockResolvedValue(undefined),
 }));
 

@@ -1,6 +1,6 @@
 import { History, PanelBottomClose, PanelBottomOpen, Pin, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { ExportCSV } from '../../wailsjs/go/main/App';
+import { ExportCSV } from '../backend/app';
 import { T } from '../lib/tokens';
 import { ResultsTable } from './ResultsTable';
 

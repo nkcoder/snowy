@@ -1,5 +1,5 @@
 import { ChevronRight, Clock, Trash2, X } from 'lucide-react';
-import type { main } from '../../wailsjs/go/models';
+import type { main } from '../backend/models';
 import { T } from '../lib/tokens';
 import { fmtDuration } from '../lib/utils';
 
