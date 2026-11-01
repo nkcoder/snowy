@@ -1,6 +1,6 @@
 # Snowy
 
-[![Website](https://img.shields.io/badge/website-nkcoder.github.io%2Fsnowy-blue)](https://nkcoder.github.io/snowy/)
+[![Website](https://img.shields.io/badge/website-snowy.daniel-guo.com-blue)](https://snowy.daniel-guo.com/)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://github.com/nkcoder/snowy/releases)
 [![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 
@@ -29,11 +29,12 @@ So the gap is real: a client that is **beautiful, easy to use, open-source, and 
 
 - **Connection manager** — add, edit, duplicate and delete PostgreSQL connections; per-connection environment tags (local / dev / staging / prod); test connection before saving
 - **Schema explorer** — lazy-loading sidebar tree: datasources → schemas → tables → columns · keys · foreign keys · indexes · checks
-- **Query editor** — CodeMirror SQL editor with syntax highlighting and DB-aware autocomplete (schemas, tables, columns, functions, keywords)
-- **Results panel** — tabular grid with pinnable result tabs, row/duration counters, CSV export
+- **Query editor** — CodeMirror SQL editor with syntax highlighting, find bar (⌘F) and DB-aware autocomplete (schemas, tables, columns, functions, keywords)
+- **Results panel** — tabular grid with pinnable result tabs, row filter, row/duration counters, CSV export
 - **Query history** — per-datasource execution log, click to restore any previous query
 - **Saved queries** — save `.sql` files per datasource; rename and delete from the sidebar
 - **Multiple consoles** — open as many query tabs as needed, each with its own dirty-state tracking
+- **Dark & light themes** — follows the macOS appearance, or pick one from the appearance menu
 
 ## Requirements
 
