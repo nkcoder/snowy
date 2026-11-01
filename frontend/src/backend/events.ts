@@ -1,4 +1,4 @@
-import { EventsOff, EventsOn } from '../../wailsjs/runtime/runtime';
+import { Events } from '@wailsio/runtime';
 
 export interface Notification {
   level?: string;
@@ -6,6 +6,5 @@ export interface Notification {
 }
 
 export function onNotification(handler: (payload: Notification) => void): () => void {
-  EventsOn('snowy:notification', handler);
-  return () => EventsOff('snowy:notification');
+  return Events.On('snowy:notification', (event) => handler(event.data));
 }

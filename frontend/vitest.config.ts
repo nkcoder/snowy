@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Map absolute resolved path of App.js → mock so all components see the same mock
-      [path.resolve(__dirname, 'wailsjs/go/main/App')]: path.resolve(__dirname, 'src/test/mocks/wailsjs.ts'),
+      [path.resolve(__dirname, 'bindings/snowy/app')]: path.resolve(__dirname, 'src/test/mocks/wailsjs.ts'),
     },
   },
   test: {

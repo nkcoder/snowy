@@ -1,6 +1,6 @@
 # ADR-0005: Hand-maintained Wails binding mirrors
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0007](0007-generated-wails-v3-bindings.md)
 - **Date:** 2026-07-01
 
 ## Context

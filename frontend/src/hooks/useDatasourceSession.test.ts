@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { CancellablePromise } from '@wailsio/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../backend/models';
 import { useDatasourceSession } from './useDatasourceSession';
@@ -72,7 +73,7 @@ describe('useDatasourceSession', () => {
     const cached = main.DatabaseMetadata.createFrom({ schemas: [{ name: 'cached', tables: [] }] });
     vi.mocked(GoApp.GetCachedMetadata).mockResolvedValue(cached);
     // Keep the live refresh pending so the cached value is what we observe.
-    vi.mocked(GoApp.RefreshMetadata).mockReturnValue(new Promise(() => {}));
+    vi.mocked(GoApp.RefreshMetadata).mockReturnValue(new CancellablePromise(() => {}));
 
     const { result } = renderHook(() => useDatasourceSession());
     act(() => {
@@ -88,7 +89,7 @@ describe('useDatasourceSession', () => {
     vi.mocked(GoApp.RefreshMetadata).mockResolvedValue(fresh);
     // Cache resolves on a later macrotask, after the live refresh has landed.
     vi.mocked(GoApp.GetCachedMetadata).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(cached), 10))
+      () => new CancellablePromise((resolve) => setTimeout(() => resolve(cached), 10))
     );
 
     const { result } = renderHook(() => useDatasourceSession());

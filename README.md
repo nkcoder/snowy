@@ -6,7 +6,7 @@
 
 A native macOS PostgreSQL GUI client — fast, keyboard-friendly, DataGrip-inspired.
 
-Built with [Wails v2](https://wails.io/) (Go + React/TypeScript) so it ships as a single binary with no Electron overhead.
+Built with [Wails v3](https://v3.wails.io/) (Go + React/TypeScript) so it ships as a single binary with no Electron overhead.
 
 ![Hero Screenshot](./docs/images/hero.gif)
 
@@ -38,9 +38,9 @@ So the gap is real: a client that is **beautiful, easy to use, open-source, and 
 ## Requirements
 
 - macOS (primary target)
-- [Go 1.26+](https://go.dev/)
+- [Go 1.27+](https://go.dev/)
 - [Node.js 24 LTS](https://nodejs.org/) (see `.nvmrc`)
-- [Wails v2](https://wails.io/docs/gettingstarted/installation) — `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+- [Wails v3](https://v3.wails.io/getting-started/installation/) — `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0`
 - PostgreSQL (local or remote) — a Docker demo DB is included
 
 ## Getting started
@@ -53,7 +53,7 @@ git clone https://github.com/nkcoder/snowy.git && cd snowy
 cd frontend && npm install && cd ..
 
 # Start in dev mode (hot-reload)
-wails dev
+wails3 dev -config ./build/config.yml
 ```
 
 The app opens automatically. Point it at any PostgreSQL instance using the connection manager.
@@ -70,8 +70,8 @@ docker compose -f docker/docker-compose-postgresql.yml up -d
 ## Building
 
 ```bash
-wails build
-# Output: build/bin/snowy.app
+wails3 task darwin:package
+# Output: bin/snowy.app
 ```
 
 ## Testing
@@ -119,7 +119,7 @@ snowy/
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop shell | [Wails v2](https://wails.io/) |
+| Desktop shell | [Wails v3](https://v3.wails.io/) |
 | Backend | Go 1.26, [pgx v5](https://github.com/jackc/pgx) |
 | Frontend | React 19, TypeScript, Tailwind CSS v4 |
 | Editor | [CodeMirror 6](https://codemirror.net/) |

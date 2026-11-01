@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:dev": "tsc && vite build --minify false --mode development",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -26,6 +27,7 @@
     "@codemirror/view": "^6.43.15",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
+    "@wailsio/runtime": "^3.0.0",
     "fuzzysort": "^4.0.2",
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",

@@ -1,1 +1,1 @@
-export * from '../../wailsjs/go/main/App';
+export * from '../../bindings/snowy/app';

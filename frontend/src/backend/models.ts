@@ -1,1 +1,3 @@
-export { main } from '../../wailsjs/go/models';
+import * as main from '../../bindings/snowy/models';
+
+export { main };
