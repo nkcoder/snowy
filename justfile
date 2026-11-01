@@ -87,6 +87,7 @@ package-universal version="" build_date="": _tidy _frontend-deps (_bindings prod
 _build-dev: _tidy _frontend-deps (_bindings dev_flags) _icons
     cd frontend && npm run build:dev -q
     wails3 tool prepare-macos-output --dir "{{ bin }}"
+    rm -f "{{ bin }}/{{ app }}"
     go build {{ dev_flags }} -o "{{ bin }}/{{ app }}"
 
 [private]
@@ -137,6 +138,7 @@ _compile arch output version build_date:
     [ -n "{{ version }}" ] && ldflags+=" -X main.Version={{ version }}"
     [ -n "{{ build_date }}" ] && ldflags+=" -X main.BuildDate={{ build_date }}"
     wails3 tool prepare-macos-output --dir "{{ bin }}"
+    rm -f "{{ output }}"
     GOOS=darwin GOARCH={{ arch }} go build {{ prod_flags }} -ldflags="$ldflags" -o "{{ output }}"
 
 # A fresh bundle each time: a reused one can pick up Finder metadata that breaks codesign.
