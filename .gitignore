@@ -13,7 +13,7 @@ test-results/
 frontend/test-results/
 playwright-report/
 
-snowy
+/snowy
 
 # ── GSD baseline (auto-generated) ──
 .gsd
