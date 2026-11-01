@@ -126,9 +126,10 @@ _icons:
     set -euo pipefail
     [ build/darwin/icons.icns -nt build/appicon.png ] && exit 0
     cd build
-    wails3 generate icons -input appicon.png -macfilename darwin/icons.icns \
-        -windowsfilename "$(mktemp -d)/icon.ico" \
-        -iconcomposerinput appicon.icon -macassetdir darwin
+    args=(-input appicon.png -macfilename darwin/icons.icns -windowsfilename "$(mktemp -d)/icon.ico")
+    # appicon.icon is untracked; passing a missing one makes actool fail on CI.
+    [ -e appicon.icon ] && args+=(-iconcomposerinput appicon.icon -macassetdir darwin)
+    wails3 generate icons "${args[@]}"
 
 [private]
 _compile arch output version build_date:
