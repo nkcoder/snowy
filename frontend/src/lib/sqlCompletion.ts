@@ -270,11 +270,11 @@ export function detectSqlContext(beforeWord: string, stmtFull: string): SqlConte
   const inColumnClause =
     /\b(?:WHERE|HAVING|ON)\s*$/.test(normalised) ||
     /\b(?:AND|OR)\s*$/.test(normalised) ||
-    /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
-    /\bBY\s+(?:\w+\s*(?:ASC|DESC)?\s*,\s*)*$/.test(normalised) ||
+    /\b(?:ORDER|GROUP)\s+BY\s+(?:\w+(?:\s+(?:ASC|DESC))?\s*,\s*)*$/.test(normalised) ||
+    /\bBY\s+(?:\w+(?:\s+(?:ASC|DESC))?\s*,\s*)*$/.test(normalised) ||
     /\bSET\s*$/.test(normalised) ||
     // Multi-column SET pattern uses upper: "SET a=1, b=" doesn't involve parens
-    /\bSET\s+(?:\w+\s*=\s*[^,]+,\s*)+$/.test(upper);
+    /\bSET\s+(?:\w+\s*=[^,]+,\s*)+$/.test(upper);
   // A column clause yields column context only while an operand is expected;
   // once its current sub-expression is complete, the next clause keyword is
   // expected instead. Select-list positions always expect a column.
