@@ -1,8 +1,8 @@
 # Snowy
 
-[![Website](https://img.shields.io/badge/website-nkcoder.github.io%2Fsnowy-blue)](https://nkcoder.github.io/snowy/)
+[![Website](https://img.shields.io/badge/website-snowy.daniel-guo.com-blue)](https://snowy.daniel-guo.com/)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)](https://github.com/nkcoder/snowy/releases)
-[![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.27%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 
 A native macOS PostgreSQL GUI client — fast, keyboard-friendly, DataGrip-inspired.
 
@@ -29,19 +29,22 @@ So the gap is real: a client that is **beautiful, easy to use, open-source, and 
 
 - **Connection manager** — add, edit, duplicate and delete PostgreSQL connections; per-connection environment tags (local / dev / staging / prod); test connection before saving
 - **Schema explorer** — lazy-loading sidebar tree: datasources → schemas → tables → columns · keys · foreign keys · indexes · checks
-- **Query editor** — CodeMirror SQL editor with syntax highlighting and DB-aware autocomplete (schemas, tables, columns, functions, keywords)
-- **Results panel** — tabular grid with pinnable result tabs, row/duration counters, CSV export
+- **Query editor** — CodeMirror SQL editor with syntax highlighting, find bar (⌘F) and DB-aware autocomplete (schemas, tables, columns, functions, keywords)
+- **Results panel** — tabular grid with pinnable result tabs, row filter, row/duration counters, CSV export
 - **Query history** — per-datasource execution log, click to restore any previous query
 - **Saved queries** — save `.sql` files per datasource; rename and delete from the sidebar
 - **Multiple consoles** — open as many query tabs as needed, each with its own dirty-state tracking
+- **Dark & light themes** — follows the macOS appearance, or pick one from the appearance menu
 
 ## Requirements
 
 - macOS (primary target)
 - [Go 1.27+](https://go.dev/)
 - [Node.js 24 LTS](https://nodejs.org/) (see `.nvmrc`)
+- [just](https://github.com/casey/just) — task runner; `wails3 dev` and `just package` call it (`brew install just`)
 - [Wails v3](https://v3.wails.io/getting-started/installation/) — `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0`
 - PostgreSQL (local or remote) — a Docker demo DB is included
+- [Docker](https://www.docker.com/) — for the demo DB and the backend integration tests (optional)
 
 ## Getting started
 
@@ -52,15 +55,17 @@ git clone https://github.com/nkcoder/snowy.git && cd snowy
 # Install frontend dependencies
 cd frontend && npm install && cd ..
 
-# Start in dev mode (hot-reload)
-wails3 dev -config ./build/config.yml
+# Start the demo DB and the app in dev mode (hot-reload), in the background
+just start      # `just logs` to follow, `just stop` to stop
+# or run dev mode in the foreground, without the demo DB
+just dev
 ```
 
 The app opens automatically. Point it at any PostgreSQL instance using the connection manager.
 
 ### Demo database
 
-A pre-seeded PostgreSQL instance with sample tables (users, accounts, transactions, audit_logs) is included for development:
+A pre-seeded PostgreSQL instance with sample tables (users, accounts, transactions, audit_logs, products) is included for development (`just start` brings it up for you):
 
 ```bash
 docker compose -f docker/docker-compose-postgresql.yml up -d
@@ -77,14 +82,15 @@ just package
 ## Testing
 
 ```bash
+# Everything: frontend unit, backend, e2e
+just test
+
 # Frontend unit tests (vitest)
 cd frontend && npm run test
 
-# Backend unit tests
+# Backend tests — starts a throwaway PostgreSQL 17 container via Docker
+# (Testcontainers); without Docker the integration tests are skipped
 go test .
-
-# Backend integration tests (requires demo DB running)
-TEST_DB_URL=postgres://myuser:mypassword@localhost:5432/mydatabase go test .
 
 # E2E tests (Playwright — starts Vite dev server automatically)
 npx playwright test
@@ -97,12 +103,18 @@ snowy/
 ├── main.go               # Wails bootstrap
 ├── app.go                # All Go→frontend bindings
 ├── config.go             # Connection config (~/.snowy/config.json)
-├── db_service.go         # PostgreSQL introspection + query execution
+├── keychain.go           # Passwords in the macOS Keychain
+├── db_service.go         # PostgreSQL pools, introspection + query execution
+├── db_metadata.go        # Schema/metadata cache (~/.snowy/cache/)
 ├── query_service.go      # Saved queries (~/.snowy/queries/)
 ├── history_service.go    # Query history (~/.snowy/history/)
+├── justfile              # Dev, test and packaging commands
 ├── frontend/
+│   ├── bindings/         # Generated Wails bindings (do not edit)
 │   └── src/
 │       ├── App.tsx                    # Root component + app state
+│       ├── backend/                   # The only place Wails is imported from
+│       ├── hooks/                     # Session, tabs, tree, query execution
 │       ├── components/
 │       │   ├── Sidebar.tsx            # Schema explorer tree
 │       │   ├── QueryEditor.tsx        # CodeMirror editor
@@ -111,6 +123,7 @@ snowy/
 │       │   └── HistoryDrawer.tsx      # Query history panel
 │       └── lib/tokens.ts              # Design token system
 ├── e2e/                  # Playwright specs
+├── docs/                 # Website (GitHub Pages) and ADRs
 ├── spec/design/          # UI design references
 └── docker/               # Demo PostgreSQL setup
 ```
@@ -120,7 +133,7 @@ snowy/
 | Layer | Technology |
 |-------|-----------|
 | Desktop shell | [Wails v3](https://v3.wails.io/) |
-| Backend | Go 1.26, [pgx v5](https://github.com/jackc/pgx) |
+| Backend | Go 1.27, [pgx v5](https://github.com/jackc/pgx) |
 | Frontend | React 19, TypeScript, Tailwind CSS v4 |
 | Editor | [CodeMirror 6](https://codemirror.net/) |
 | Unit tests | vitest + Testing Library (frontend), Go test (backend) |
