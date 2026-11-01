@@ -9,7 +9,7 @@
 
 web
 
-<!-- Desktop app: Wails v2 (Go backend + React/TypeScript frontend in a native macOS webview). The UI is web technology, so the platform is `web`; the primary target is macOS. -->
+<!-- Desktop app: Wails v3 (Go backend + React/TypeScript frontend in a native macOS webview). The UI is web technology, so the platform is `web`; the primary target is macOS. -->
 
 ## Users
 

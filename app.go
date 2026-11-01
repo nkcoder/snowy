@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Version and BuildDate are set at build time via -ldflags.
@@ -23,7 +23,7 @@ type App struct {
 	ctx           context.Context
 	configManager *ConfigManager
 	dbService     *DbService
-	saveDialog    func(context.Context, wruntime.SaveDialogOptions) (string, error)
+	saveDialog    func(application.SaveFileDialogOptions) (string, error)
 }
 
 // NewApp creates a new App application struct
@@ -41,27 +41,32 @@ func NewApp() *App {
 	return app
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
+// ServiceStartup is called by Wails when the app starts. The context is saved
+// so long-running calls are cancelled on shutdown.
+func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
-	a.saveDialog = wruntime.SaveFileDialog
-	// Surface non-fatal config/Keychain warnings to the frontend as toasts.
-	a.configManager.notify = func(level, message string) {
-		wruntime.EventsEmit(ctx, "snowy:notification", map[string]string{
-			"level":   level,
-			"message": message,
-		})
+	a.saveDialog = func(opts application.SaveFileDialogOptions) (string, error) {
+		return application.Get().Dialog.SaveFileWithOptions(&opts).PromptForSingleSelection()
 	}
+	// Surface non-fatal config/Keychain warnings to the frontend as toasts.
+	a.configManager.notify = emitNotification
+	return nil
+}
+
+func emitNotification(level, message string) {
+	application.Get().Event.Emit("snowy:notification", map[string]string{
+		"level":   level,
+		"message": message,
+	})
 }
 
 // ExportCSV opens a native Save As dialog and writes csvContent to the chosen path.
 // Returns nil if the user cancels. Emits a snowy:notification event on success or write error.
 func (a *App) ExportCSV(csvContent, defaultFilename string) error {
-	path, err := a.saveDialog(a.ctx, wruntime.SaveDialogOptions{
-		DefaultFilename: defaultFilename,
-		Title:           "Export CSV",
-		Filters:         []wruntime.FileFilter{{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"}},
+	path, err := a.saveDialog(application.SaveFileDialogOptions{
+		Filename: defaultFilename,
+		Title:    "Export CSV",
+		Filters:  []application.FileFilter{{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"}},
 	})
 	if err != nil {
 		return err
@@ -71,18 +76,12 @@ func (a *App) ExportCSV(csvContent, defaultFilename string) error {
 	}
 	if err := os.WriteFile(path, []byte(csvContent), 0o600); err != nil {
 		if a.ctx != nil {
-			wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
-				"level":   "error",
-				"message": "CSV export failed: " + err.Error(),
-			})
+			emitNotification("error", "CSV export failed: "+err.Error())
 		}
 		return err
 	}
 	if a.ctx != nil {
-		wruntime.EventsEmit(a.ctx, "snowy:notification", map[string]string{
-			"level":   "success",
-			"message": "Exported " + filepath.Base(path),
-		})
+		emitNotification("success", "Exported "+filepath.Base(path))
 	}
 	return nil
 }

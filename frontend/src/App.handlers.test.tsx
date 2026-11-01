@@ -5,17 +5,15 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '../wailsjs/go/models';
 import App from './App';
+import { main } from './backend/models';
 
-vi.mock('../wailsjs/go/main/App');
+vi.mock('./backend/app');
 
-import * as GoApp from '../wailsjs/go/main/App';
+import * as GoApp from './backend/app';
 
-vi.mock('../wailsjs/runtime/runtime', () => ({
-  EventsOn: vi.fn(),
-  EventsOff: vi.fn(),
-  EventsEmit: vi.fn(),
+vi.mock('./backend/events', () => ({
+  onNotification: vi.fn(() => () => {}),
 }));
 
 // Mock heavy workspace children

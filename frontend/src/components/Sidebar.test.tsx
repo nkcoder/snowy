@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Datasource } from '../types';
 import { Sidebar } from './Sidebar';
 
-vi.mock('../../wailsjs/go/main/App', () => ({
+vi.mock('../backend/app', () => ({
   ListSchemas: vi.fn().mockResolvedValue([]),
   ListTables: vi.fn().mockResolvedValue([]),
   ListColumns: vi.fn().mockResolvedValue([]),
@@ -20,8 +20,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   GetCachedMetadata: vi.fn().mockResolvedValue({ schemas: [] }),
 }));
 
-import * as GoApp from '../../wailsjs/go/main/App';
-import type { main } from '../../wailsjs/go/models';
+import * as GoApp from '../backend/app';
+import type { main } from '../backend/models';
 
 // Build a DatabaseMetadata for GetCachedMetadata mocks, casting past the
 // generated class shape (only the fields the Sidebar reads are provided).

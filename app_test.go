@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func newAppForTest(t *testing.T) *App {
@@ -38,15 +38,17 @@ func TestNewApp_Succeeds(t *testing.T) {
 
 // ── startup ───────────────────────────────────────────────────────────────────
 
-func TestApp_Startup_SetsContext(t *testing.T) {
+func TestApp_ServiceStartup_SetsContext(t *testing.T) {
 	app := newAppForTest(t)
 	ctx := context.Background()
-	app.startup(ctx)
+	if err := app.ServiceStartup(ctx, application.ServiceOptions{}); err != nil {
+		t.Fatalf("ServiceStartup: %v", err)
+	}
 	if app.ctx != ctx {
-		t.Error("startup should assign the provided context")
+		t.Error("ServiceStartup should assign the provided context")
 	}
 	if app.configManager.notify == nil {
-		t.Error("startup should set configManager.notify")
+		t.Error("ServiceStartup should set configManager.notify")
 	}
 }
 
@@ -242,7 +244,7 @@ func TestApp_TestDatasource_DefaultsSSLMode(t *testing.T) {
 
 func TestApp_ExportCSV_CancelDoesNothing(t *testing.T) {
 	app := newAppForTest(t)
-	app.saveDialog = func(_ context.Context, _ wruntime.SaveDialogOptions) (string, error) {
+	app.saveDialog = func(application.SaveFileDialogOptions) (string, error) {
 		return "", nil // user cancelled
 	}
 	if err := app.ExportCSV("col\nval", "out.csv"); err != nil {
@@ -254,7 +256,7 @@ func TestApp_ExportCSV_WritesFile(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "out.csv")
-	app.saveDialog = func(_ context.Context, _ wruntime.SaveDialogOptions) (string, error) {
+	app.saveDialog = func(application.SaveFileDialogOptions) (string, error) {
 		return dest, nil
 	}
 	content := "id,name\n1,Alice\n"

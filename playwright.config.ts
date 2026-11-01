@@ -13,7 +13,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'cd frontend && npm run dev',
+    command: 'cd frontend && E2E_MOCK=1 WAILS_VITE_PORT=5173 npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 30000,

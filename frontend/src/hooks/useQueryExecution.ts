@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 import type { ResultTab } from '../components/ResultsPanel';
 
 function makeLiveResultTab(): ResultTab {
@@ -41,6 +41,7 @@ export function useQueryExecution(activeDatasourceId: string | null) {
     setQueryLoading(true);
     try {
       const result = await GoApp.ExecuteQuery(activeDatasourceId, sql);
+      if (!result) throw new Error('Query returned no result');
       // A result set (SELECT) has columns and reports rows returned; a non-SELECT
       // (INSERT/UPDATE/DDL) has no columns, so we surface rows *affected* instead.
       const isResultSet = (result.columns?.length ?? 0) > 0;

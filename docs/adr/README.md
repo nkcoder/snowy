@@ -30,5 +30,6 @@ The trade-offs — what gets easier, what gets harder, what we accept.
 | [0002](0002-connection-pooling.md) | Pooled `pgx` connections with stale-pool retry | Accepted |
 | [0003](0003-keychain-password-storage.md) | Store passwords in the macOS Keychain, not on disk | Accepted |
 | [0004](0004-design-tokens.md) | CSS-custom-property design tokens (`T.*`) | Accepted |
-| [0005](0005-manual-wails-bindings.md) | Hand-maintained Wails binding mirrors | Accepted |
+| [0005](0005-manual-wails-bindings.md) | Hand-maintained Wails binding mirrors | Superseded by 0007 |
 | [0006](0006-local-file-storage.md) | Plain-file local storage + on-disk metadata cache | Accepted |
+| [0007](0007-generated-wails-v3-bindings.md) | Generated Wails v3 bindings behind a `backend/` seam | Accepted |

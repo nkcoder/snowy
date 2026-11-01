@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 import { hydrateSchemaNodes, makeTableNode } from '../lib/sidebarNodes';
 import type {
   CheckNode,

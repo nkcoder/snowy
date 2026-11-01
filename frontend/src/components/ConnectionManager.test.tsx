@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Datasource, Project } from '../types';
 import { ConnectionManager } from './ConnectionManager';
 
-vi.mock('../../wailsjs/go/main/App', () => ({
+vi.mock('../backend/app', () => ({
   TestDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'ok' }),
   PingDatasource: vi.fn().mockResolvedValue({ Success: true, Message: 'Connection successful' }),
   GetConfig: vi.fn().mockResolvedValue({ projects: [], datasources: [] }),
@@ -16,7 +16,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   ListColumns: vi.fn().mockResolvedValue([]),
 }));
 
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 const proj1: Project = { id: 'p1', name: 'Alpha' };

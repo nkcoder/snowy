@@ -1,11 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
+import { CancellablePromise } from '@wailsio/runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { main } from '../../wailsjs/go/models';
+import type { main } from '../backend/models';
 import { useQueryExecution } from './useQueryExecution';
 
-vi.mock('../../wailsjs/go/main/App');
+vi.mock('../backend/app');
 
-import * as GoApp from '../../wailsjs/go/main/App';
+import * as GoApp from '../backend/app';
 
 describe('useQueryExecution', () => {
   beforeEach(() => {
@@ -74,7 +75,7 @@ describe('useQueryExecution', () => {
   it('handleRunQuery sets queryLoading true during execution', async () => {
     let resolveQuery!: (v: main.QueryResult | PromiseLike<main.QueryResult>) => void;
     vi.mocked(GoApp.ExecuteQuery).mockReturnValueOnce(
-      new Promise<main.QueryResult>((res) => {
+      new CancellablePromise<main.QueryResult>((res) => {
         resolveQuery = res;
       })
     );

@@ -13,7 +13,7 @@ test-results/
 frontend/test-results/
 playwright-report/
 
-snowy
+/snowy
 
 # ── GSD baseline (auto-generated) ──
 .gsd
@@ -34,7 +34,10 @@ Thumbs.db
 node_modules/
 .next/
 dist/
-build/
+build/bin/
+build/darwin/icons.icns
+build/darwin/Assets.car
+build/darwin/dmg-*
 __pycache__/
 *.pyc
 .venv/
@@ -50,3 +53,4 @@ tmp/
 
 # Wails frontend:install cache (regenerated on every dev/build)
 frontend/package.json.md5
+bin

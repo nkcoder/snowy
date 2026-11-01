@@ -23,6 +23,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Wails v3 links GTK4/WebKitGTK through cgo on Linux, so even `go vet`
+      # needs the dev headers.
+      - name: Install Wails Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libsoup-3.0-dev
+
       - uses: actions/setup-node@v7
         with:
           node-version: '24'

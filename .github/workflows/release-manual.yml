@@ -42,16 +42,17 @@ jobs:
           node-version: '24'
 
       - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
+
+      - name: Install just
+        run: brew install just
 
       - name: Build
         run: |
-          BUILD_DATE=$(date -u +%Y-%m-%d)
-          wails build -platform darwin/universal \
-            -ldflags "-X main.Version=$TAG -X main.BuildDate=$BUILD_DATE"
+          just package-universal $TAG $(date -u +%Y-%m-%d)
 
       - name: Package
-        run: ditto -c -k --keepParent build/bin/snowy.app snowy-macos.zip
+        run: ditto -c -k --keepParent bin/snowy.app snowy-macos.zip
 
       - name: Tag and release
         run: |
