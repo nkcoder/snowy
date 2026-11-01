@@ -50,10 +50,12 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
+      - name: Install just
+        run: brew install just
+
       - name: Build
         run: |
-          wails3 task darwin:package:universal \
-            VERSION=${{ steps.version.outputs.tag }} BUILD_DATE=$(date -u +%Y-%m-%d)
+          just package-universal ${{ steps.version.outputs.tag }} $(date -u +%Y-%m-%d)
 
       - name: Package
         run: ditto -c -k --keepParent bin/snowy.app snowy-macos.zip

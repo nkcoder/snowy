@@ -1,0 +1,81 @@
+# This file contains the configuration for this project.
+# When you update `info` or `fileAssociations`, run `wails3 update build-assets -name snowy -binaryname snowy -config build/config.yml -dir build` to update the assets.
+# Note that this will overwrite any changes you have made to the assets.
+version: '3'
+
+# This information is used to generate the build assets.
+info:
+  companyName: "Snowy" # The name of the company
+  productName: "Snowy" # The name of the application
+  productIdentifier: "app.snowy" # The unique product identifier
+  description: "Desktop PostgreSQL client" # The application description
+  copyright: "(c) 2026, Snowy" # Copyright text
+  comments: "Desktop PostgreSQL client" # Comments
+  version: "0.0.1" # The application version
+  # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
+  #                               # Should match the name of your .icon file without the extension
+  #                               # If not set and Assets.car exists, defaults to "appicon"
+
+# iOS build configuration (uncomment to customise iOS project generation)
+# Note: Keys under `ios` OVERRIDE values under `info` when set.
+# ios:
+#   # The iOS bundle identifier used in the generated Xcode project (CFBundleIdentifier)
+#   bundleID: "com.mycompany.myproduct"
+#   # The display name shown under the app icon (CFBundleDisplayName/CFBundleName)
+#   displayName: "My Product"
+#   # The app version to embed in Info.plist (CFBundleShortVersionString/CFBundleVersion)
+#   version: "0.0.1"
+#   # The company/organisation name for templates and project settings
+#   company: "My Company"
+#   # Additional comments to embed in Info.plist metadata
+#   comments: "Desktop PostgreSQL client"
+
+# Dev mode configuration
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js" # Watch for changes to JS/TS files included using the //wails:include directive.
+      - "*.ts" # The frontend directory will be excluded entirely by the setting above.
+    git_ignore: true
+  executes:
+    - cmd: just _build-dev
+      type: blocking
+    - cmd: just _dev-frontend
+      type: background
+      readiness:
+        http: "http://localhost:9245/"
+        timeout: "60s"
+        interval: "200ms"
+    - cmd: just _run-dev
+      type: primary
+      exit_policy: shutdown
+
+# File Associations
+# More information at: https://v3.wails.io/noit/done/yet
+fileAssociations:
+#  - ext: wails
+#    name: Wails
+#    description: Wails Application File
+#    iconName: wailsFileIcon
+#    role: Editor
+#  - ext: jpg
+#    name: JPEG
+#    description: Image File
+#    iconName: jpegFileIcon
+#    role: Editor
+#    mimeType: image/jpeg  # (optional)
+

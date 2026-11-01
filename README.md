@@ -70,7 +70,7 @@ docker compose -f docker/docker-compose-postgresql.yml up -d
 ## Building
 
 ```bash
-wails3 task darwin:package
+just package
 # Output: bin/snowy.app
 ```
 

@@ -34,7 +34,10 @@ Thumbs.db
 node_modules/
 .next/
 dist/
-build/
+build/bin/
+build/darwin/icons.icns
+build/darwin/Assets.car
+build/darwin/dmg-*
 __pycache__/
 *.pyc
 .venv/
